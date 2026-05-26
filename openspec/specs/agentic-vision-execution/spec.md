@@ -1,7 +1,7 @@
 # agentic-vision-execution Specification
 
 ## Purpose
-TBD - created by archiving change agentic-vision-execution. Update Purpose after archive.
+Defines the bounded observe-act-verify visual execution loop for validated Browser Task Requests, including visual target resolution, step evidence, recovery decisions, safety stops, and local browser execution through the `browser-use-vision` dependency boundary.
 ## Requirements
 ### Requirement: Run bounded agentic visual execution loop
 The system SHALL execute validated Browser Task Requests through a bounded agentic loop that observes the browser, resolves visual evidence, chooses an action, executes the action, and verifies progress.

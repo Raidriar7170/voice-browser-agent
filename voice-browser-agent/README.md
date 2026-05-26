@@ -23,6 +23,7 @@ The local visual grounding dependency is resolved by `uv` from `../../../browser
 - Raw recordings, private traces, live browser screenshots, credentials, checkpoints, and remote host details stay out of version control.
 - JSON fixture manifests are replayed through `/api/fixtures/{fixture_id}/executions`; they are not raw audio uploads.
 - `VOICE_BROWSER_DEMO_DRY_RUN=true` records an explicit stopped preview trace. Disable it only when a real browser-use/browser-use-vision executor backend is configured.
+- Trace-derived training examples can be created from sanitized Execution Traces for later Speech-to-Task Adaptation. This is not a fine-tuning pipeline or model-quality claim.
 
 ## Demo Evidence
 

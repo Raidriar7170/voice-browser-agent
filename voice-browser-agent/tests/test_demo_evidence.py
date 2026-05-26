@@ -124,3 +124,25 @@ def test_demo_docs_distinguish_agentic_evidence_and_ablations():
     assert "fixtures/traces/agentic-sanitized/" in suite
     assert "re-observation" in ablations
     assert "visual target resolution" in ablations
+
+
+def test_context_coverage_matrix_covers_domain_terms_and_dialogue_commitments():
+    context = (PROJECT_ROOT.parent / "CONTEXT.md").read_text(encoding="utf-8")
+
+    assert "## Coverage Matrix (2026-05-26)" in context
+    assert "| L7-L9 | Voice-to-Browser Agent |" in context
+    assert "| L127-L129 | Trace-Derived Training Example |" in context
+    assert "| L205-L207 | Voice layer is outside `browser-use-vision`" in context
+    assert "| L309-L311 | Execution Traces can become Trace-Derived Training Examples" in context
+    assert "Covered for later-data support; training deferred" in context
+
+
+def test_openspec_main_specs_have_purpose_text():
+    spec_dir = PROJECT_ROOT.parent / "openspec/specs"
+    specs = sorted(spec_dir.glob("*/spec.md"))
+
+    assert specs
+    for spec in specs:
+        text = spec.read_text(encoding="utf-8")
+        assert "## Purpose" in text
+        assert "TBD" not in text

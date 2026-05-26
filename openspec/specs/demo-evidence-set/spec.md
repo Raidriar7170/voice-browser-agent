@@ -1,7 +1,7 @@
 # demo-evidence-set Specification
 
 ## Purpose
-TBD - created by archiving change voice-browser-agent. Update Purpose after archive.
+Defines the reproducible public evidence contract for the bounded Voice-to-Browser Agent: controlled demo tasks, sanitized traces, live controlled and agentic evidence modes, demo ablations, privacy boundaries, and non-benchmark positioning.
 ## Requirements
 ### Requirement: Provide reproducible demo task suite
 The project SHALL include a Demo Task Suite of 8-12 controlled or public non-destructive tasks.
@@ -110,3 +110,13 @@ The project SHALL publish only sanitized agentic execution artifacts.
 - **WHEN** an agentic execution trace is included in public documentation or version control
 - **THEN** it excludes raw audio, raw screenshots, browser profile data, cookies, credentials, private URLs, remote host details, and unsanitized live browser state
 
+### Requirement: Maintain context coverage matrix
+The project SHALL keep `CONTEXT.md` as the durable coverage matrix for domain terms and example-dialogue commitments.
+
+#### Scenario: Coverage matrix is reviewed
+- **WHEN** a reviewer audits `CONTEXT.md`
+- **THEN** every domain term and example-dialogue commitment has mapped implementation, tests, docs, OpenSpec specs, demo evidence, and a coverage status or justified deferral
+
+#### Scenario: Commitment is deferred
+- **WHEN** a `CONTEXT.md` commitment is not implemented in the current MVP
+- **THEN** the matrix marks it as deferred or non-goal with a reason consistent with the bounded Voice-to-Browser Agent scope

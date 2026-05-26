@@ -1,7 +1,7 @@
 # spoken-command-ingestion Specification
 
 ## Purpose
-TBD - created by archiving change voice-browser-agent. Update Purpose after archive.
+Defines one-utterance spoken command ingestion, ASR adapter behavior, Chinese-first transcript metadata, fallback handling, and raw-audio privacy boundaries for reproducible Spoken Command Executions.
 ## Requirements
 ### Requirement: Accept one spoken command audio input
 The system SHALL accept one recorded or uploaded audio clip as the input for one Spoken Command Execution.
@@ -46,3 +46,9 @@ The system SHALL fail fast when audio input cannot be decoded or is missing.
 - **WHEN** the operator uploads an unsupported or corrupt audio file
 - **THEN** the system returns an ingestion error before calling the normalizer
 
+### Requirement: Preserve adaptation-ready transcript source data
+The system SHALL preserve transcript source metadata needed by trace-derived Speech-to-Task examples while keeping raw audio outside public artifacts.
+
+#### Scenario: Transcript is used for training example derivation
+- **WHEN** a Trace-Derived Training Example is created
+- **THEN** the transcript metadata identifies the adapter, input audio identifier, language mode, timestamp, and diagnostics without exposing raw audio storage paths

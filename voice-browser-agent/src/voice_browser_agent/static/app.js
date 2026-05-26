@@ -51,10 +51,22 @@ function renderTrace(trace) {
   const reason = trace.stop_reason || trace.failure_reason || "";
   $("uploadStatus").textContent =
     `Execution mode: ${mode} | Status: ${trace.final_status || "unknown"}${reason ? ` | ${reason}` : ""}`;
+  speakStatus(trace.status_voice);
 }
 
 function renderError(error) {
   $("uploadStatus").textContent = error.message || String(error);
+}
+
+function speakStatus(statusVoice) {
+  if (!statusVoice?.enabled) return;
+  if (!window.speechSynthesis) return;
+  const text = statusVoice.text || "";
+  if (!text) return;
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "zh-CN";
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
 }
 
 async function postJson(url, payload) {

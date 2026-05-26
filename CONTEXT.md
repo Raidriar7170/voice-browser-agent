@@ -128,6 +128,78 @@ _Avoid_: final status only, benchmark report
 A Speech-to-Task training example created from an Execution Trace and optional human correction.
 _Avoid_: raw private trace dump, ASR benchmark sample
 
+## Coverage Matrix (2026-05-26)
+
+This matrix is the current line-by-line coverage audit for the domain language above. "Covered" means the commitment is implemented, tested, documented, represented in OpenSpec specs, or evidenced by sanitized demo artifacts. "Deferred" means the current MVP intentionally stops short for a reason consistent with the bounded Voice-to-Browser Agent scope.
+
+### Domain Terms
+
+| Context lines | Term | Implementation | Tests | Docs / OpenSpec / Evidence | Status |
+| --- | --- | --- | --- | --- | --- |
+| L7-L9 | Voice-to-Browser Agent | `voice_browser_agent.app`, `models.ExecutionTrace`, `executor.BrowserExecutorAdapter` | `test_executor_api_demo.py`, `test_core_schemas_trace.py` | README, `safe-browser-execution`, sanitized traces | Covered |
+| L11-L13 | Bounded Voice-to-Browser Agent | bounded intent enum, validator long-horizon rejection, stop conditions | `test_normalizer_validator.py`, `test_confirmation_safety.py` | README, `spoken-command-normalization`, `safe-browser-execution` | Covered |
+| L15-L17 | Reliable Voice-Driven Browser Execution | normalize -> validate -> confirm -> execute -> trace flow | `test_executor_api_demo.py`, `test_agentic_vision_executor.py` | demo task suite, trace fixtures | Covered |
+| L19-L21 | Visual Grounding Engine | imports `browser-use-vision`, stores grounding refs, no copied internals | `test_executor_api_demo.py`, `test_agentic_vision_executor.py` | README dependency note, `safe-browser-execution`, agentic traces | Covered |
+| L23-L25 | Remote Vision Backend | optional `VOICE_BROWSER_REMOTE_VISION_BACKEND_URL`, runtime passthrough | `test_executor_api_demo.py` | `.env.example`, `safe-browser-execution` | Covered as optional heavy inference |
+| L27-L29 | Hybrid Local-GPU Runtime | local console/browser config plus optional ASR/vision URLs | `test_executor_api_demo.py`, `test_ingestion_asr.py` | README Runtime, `.env.example`, `safe-browser-execution` | Covered |
+| L31-L33 | Voice Browser Stack | FastAPI, Pydantic, browser-use, `browser-use-vision`, minimal web console | `test_operator_console_ui.py`, API tests | `pyproject.toml`, README | Covered |
+| L35-L37 | Spoken Command | one upload/recording/fixture input per execution | `test_ingestion_asr.py`, `test_executor_api_demo.py` | `spoken-command-ingestion`, fixture manifests | Covered |
+| L39-L41 | Chinese-First Spoken Command | zh-first transcript metadata and mixed Chinese/English fixtures | `test_ingestion_asr.py`, `test_normalizer_validator.py` | audio fixtures, prompt examples | Covered |
+| L43-L45 | Spoken Command Execution | one utterance creates one execution request and trace | `test_executor_api_demo.py` | README Quickstart, `spoken-command-ingestion` | Covered |
+| L47-L49 | Spoken Command Normalizer | `RuleBasedNormalizer`, `StructuredOutputNormalizer` | `test_normalizer_validator.py` | `spoken-command-normalization`, prompts | Covered |
+| L51-L53 | Normalizer Validator | deterministic `NormalizerValidator` | `test_normalizer_validator.py` | `spoken-command-normalization` | Covered |
+| L55-L57 | Browser Task Request | Pydantic `BrowserTaskRequest` schema | `test_core_schemas_trace.py`, `test_normalizer_validator.py` | `spoken-command-normalization`, trace fixtures | Covered |
+| L59-L61 | Clarification Request | Pydantic `ClarificationRequest`, no execution path | `test_normalizer_validator.py`, `test_executor_api_demo.py` | sanitized `demo-ambiguous.json` | Covered |
+| L63-L65 | Browser Intent Type | enum restricts five MVP intent types | `test_core_schemas_trace.py`, `test_normalizer_validator.py` | demo task suite, `spoken-command-normalization` | Covered |
+| L67-L69 | Operator Console | local FastAPI static UI and API | `test_operator_console_ui.py`, `test_executor_api_demo.py` | `operator-console`, README | Covered |
+| L71-L73 | Demo Task Suite | eight fixture-backed demo tasks | `test_demo_evidence.py` | `docs/demo/demo-task-suite.md` | Covered |
+| L75-L77 | Visual-Grounding-Heavy Task | icon, color swatch, SVG, dashboard tasks | `test_demo_evidence.py`, `test_agentic_vision_executor.py` | demo pages, live/agentic traces | Covered |
+| L79-L81 | Demo Ablation | module-value ablation docs without rankings | `test_demo_evidence.py` | `docs/demo/ablations.md`, `demo-evidence-set` | Covered |
+| L83-L85 | Demo Evidence Set | quickstart, video plan, suite, preview/live/agentic traces | `test_demo_evidence.py` | README, `docs/demo/*`, trace fixtures | Covered |
+| L87-L89 | Sanitized Demo Artifact | sanitizer, ignored raw artifacts, public trace scans | `test_demo_evidence.py`, `test_core_schemas_trace.py` | `.gitignore`, sanitized trace directories | Covered |
+| L91-L93 | Reproducible Audio Fixture | sanitized fixture manifests, no raw audio | `test_demo_evidence.py`, `test_ingestion_asr.py` | `fixtures/audio/*.fixture.json`, fixture README | Covered |
+| L95-L97 | ASR Adapter | ASR protocol, remote primary, fallback, fixture adapter | `test_ingestion_asr.py`, API tests | `spoken-command-ingestion`, `.env.example` | Covered |
+| L99-L101 | Primary ASR Adapter | configurable remote primary ASR adapter for zh-first commands | `test_executor_api_demo.py`, `test_ingestion_asr.py` | `.env.example`, README Runtime | Covered as optional configured service |
+| L103-L105 | Fallback ASR Adapter | faster-whisper fallback adapter with `language="zh"` | `test_ingestion_asr.py` | `spoken-command-ingestion`, `pyproject.toml[asr]` | Covered |
+| L107-L109 | TTS Adapter | `StatusVoiceFeedback` payload plus browser-native optional playback | `test_operator_console_ui.py` | `operator-console` closeout spec, README Runtime | Covered as optional status playback, not model TTS |
+| L111-L113 | Status Voice Feedback | gated console playback when enabled, textual fallback otherwise | `test_operator_console_ui.py` | `operator-console`, `/api/status-voice` | Covered |
+| L115-L117 | Speech-to-Task Adaptation | trace-derived example helper supports later adaptation inputs | `test_trace_derived_training_examples.py` | README Runtime, `trace-derived-training-examples` | Covered for data shape; model adaptation deferred |
+| L119-L121 | Confirmation Gate | `ConfirmationGate` pending/confirm/cancel/block states | `test_confirmation_safety.py`, API tests | `safe-browser-execution`, `demo-checkout-stop.json` | Covered |
+| L123-L125 | Execution Trace | Pydantic trace plus writer/export sanitizer | `test_core_schemas_trace.py`, API tests | sanitized preview/live/agentic trace fixtures | Covered |
+| L127-L129 | Trace-Derived Training Example | `training_example_from_trace` with optional human correction | `test_trace_derived_training_examples.py` | `trace-derived-training-examples`, README Runtime | Covered; no public dataset/checkpoints |
+
+### Example-Dialogue Commitments
+
+| Context lines | Commitment | Implementation | Tests | Docs / OpenSpec / Evidence | Status |
+| --- | --- | --- | --- | --- | --- |
+| L205-L207 | Voice layer is outside `browser-use-vision`; it consumes visual grounding as a dependency | package dependency and `VisionEnhancedAgent` import only | `test_executor_api_demo.py` | README, `safe-browser-execution` | Covered |
+| L209-L211 | Do not copy or fork visual grounding internals | no copied visual code, adapter boundary only | dependency/import tests | README dependency note | Covered |
+| L213-L215 | Do not wrap `browser-use-vision` as a separate service; only remote heavy inference may be service-hosted | direct import plus optional backend URL | `test_executor_api_demo.py` | `.env.example`, `safe-browser-execution` | Covered |
+| L217-L219 | Browser execution and console remain local; remote GPU only for heavy inference | `local_browser=True`, file/local controlled demos | API/live tests | README Runtime, live sanitized traces | Covered |
+| L221-L223 | MVP avoids large orchestration frameworks | FastAPI/Pydantic/local adapters only | project dependency checks via tests | `pyproject.toml`, design non-goals | Covered |
+| L225-L227 | Main value is reliable browser execution, not ASR/TTS quality | ASR/TTS are adapters and optional feedback | ingestion/API tests | README scope, OpenSpec designs | Covered |
+| L229-L231 | Public materials must not call it a general autonomous voice agent | README/test guards avoid autonomy claims | `test_demo_evidence.py` | README, demo docs | Covered |
+| L233-L235 | No continuous listening; one utterance becomes one browser task attempt | upload/recording endpoint stores one clip per execution | `test_ingestion_asr.py`, API tests | `spoken-command-ingestion` | Covered |
+| L237-L239 | Original contribution is the Spoken Command Normalizer | normalizer plus validator and trace evidence | `test_normalizer_validator.py` | `spoken-command-normalization` | Covered |
+| L241-L243 | First normalizer is structured output plus deterministic validator, not fine-tuned model | `StructuredOutputNormalizer` with rule fallback and validator | `test_normalizer_validator.py` | prompts, OpenSpec specs | Covered; fine-tuning deferred |
+| L245-L247 | Unclear speech becomes Clarification Request instead of execution | ambiguous normalizer branch and execution guard | `test_normalizer_validator.py`, API tests | `demo-ambiguous.json` | Covered |
+| L249-L251 | Arbitrary browser goals are rejected; intents are bounded | enum and long-horizon validator rejection | `test_normalizer_validator.py` | `spoken-command-normalization` | Covered |
+| L253-L255 | MVP is not CLI-only; reviewers use Operator Console | static web console and API | `test_operator_console_ui.py` | `operator-console`, README | Covered |
+| L257-L259 | Primary demo is controlled first, with only public non-destructive showcase tasks | controlled pages plus public fixtures | `test_demo_evidence.py` | demo suite docs | Covered |
+| L261-L263 | At least half of demo tasks are visual-grounding-heavy | 4 of 8 tasks marked visual-heavy | `test_demo_evidence.py` | demo suite, trace dirs | Covered |
+| L265-L267 | README avoids benchmark table; ablations explain module value | README wording guard and ablation docs | `test_demo_evidence.py` | `docs/demo/ablations.md` | Covered |
+| L269-L271 | One polished demo is insufficient; provide full evidence set | eight traces, quickstart, video plan | `test_demo_evidence.py` | README, docs/demo, fixtures/traces | Covered |
+| L273-L275 | Raw traces and recordings must not be public artifacts | `.gitignore`, sanitized export, privacy tests | `test_demo_evidence.py`, `test_core_schemas_trace.py` | sanitized trace fixtures | Covered |
+| L277-L279 | Stable demo path uses reproducible fixtures, not live microphone requirement | fixture replay endpoint and manifests | `test_executor_api_demo.py`, `test_demo_evidence.py` | fixture README | Covered |
+| L281-L283 | First milestone is reliable Spoken Command Execution; ASR/TTS are replaceable adapters | ASR protocol/fallback, optional status feedback | ingestion/API/UI tests | README Runtime | Covered |
+| L285-L287 | TTS is optional Status Voice Feedback, not model contribution | status payload plus gated browser playback | `test_operator_console_ui.py` | `operator-console` | Covered |
+| L289-L291 | No streaming ASR; primary consumes one clip and fallback handles unavailability | upload ingestor and ASR orchestrator | `test_ingestion_asr.py` | `spoken-command-ingestion` | Covered |
+| L293-L295 | Chinese-first, not universal multilingual | zh-first metadata and fixtures with English code-switching | `test_ingestion_asr.py`, normalizer tests | prompts, fixtures | Covered |
+| L297-L299 | Later model fine-tuning belongs to Speech-to-Task Adaptation | trace-derived example helper creates adaptation inputs only | `test_trace_derived_training_examples.py` | README Runtime, closeout spec | Covered for later-data support; training deferred |
+| L301-L303 | Checkout/deletion/private/irreversible actions pause at Confirmation Gate | safety flags, confirmation gate, browser-state stops | `test_confirmation_safety.py`, API tests | `demo-checkout-stop.json` | Covered |
+| L305-L307 | Final status alone is insufficient; each execution has transcript, normalized request, safety, grounding, actions, and status trace | `ExecutionTrace`, trace writer, agentic steps | `test_core_schemas_trace.py`, API tests | trace fixtures | Covered |
+| L309-L311 | Execution Traces can become Trace-Derived Training Examples with optional human correction | `training_example_from_trace` | `test_trace_derived_training_examples.py` | `trace-derived-training-examples` | Covered; no public raw dataset |
+
 ## Example Dialogue
 
 Developer: "Should the voice layer live inside browser-use-vision?"

@@ -1,7 +1,7 @@
 # operator-console Specification
 
 ## Purpose
-TBD - created by archiving change voice-browser-agent. Update Purpose after archive.
+Defines the local Operator Console surfaces for spoken command input, fixture replay, normalization visibility, confirmation decisions, execution timelines, status feedback, and sanitized trace inspection/export.
 ## Requirements
 ### Requirement: Provide a minimal operator console
 The system SHALL provide a web Operator Console for running and inspecting Spoken Command Executions.
@@ -110,3 +110,17 @@ The Operator Console SHALL export agentic traces through the same sanitized arti
 - **WHEN** the operator exports a trace containing agentic steps
 - **THEN** the exported payload includes sanitized step summaries and evidence references while excluding raw screenshots, raw audio, private browser state, credentials, cookies, private URLs, and remote host details
 
+### Requirement: Gate optional status voice playback
+The Operator Console SHALL play Status Voice Feedback only when feedback is enabled and browser speech synthesis is available.
+
+#### Scenario: Status voice feedback is enabled
+- **WHEN** an execution response includes enabled Status Voice Feedback
+- **THEN** the console requests browser-native speech playback for the status, confirmation, stop, or failure text
+
+#### Scenario: Status voice feedback is disabled
+- **WHEN** an execution response includes disabled Status Voice Feedback
+- **THEN** the console does not request spoken playback and continues to display the textual status
+
+#### Scenario: Browser speech synthesis is unavailable
+- **WHEN** Status Voice Feedback is enabled but the browser has no speech synthesis capability
+- **THEN** the console silently keeps textual feedback without creating raw audio artifacts

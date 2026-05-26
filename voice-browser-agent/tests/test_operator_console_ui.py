@@ -33,3 +33,18 @@ def test_operator_console_javascript_posts_fixture_replay_endpoint():
     assert "agentic_steps" in app_js
     assert "verification" in app_js
     assert "renderError" in app_js
+
+
+def test_operator_console_javascript_gates_status_voice_feedback():
+    app_js = (
+        __import__("pathlib")
+        .Path(__file__)
+        .resolve()
+        .parents[1]
+        / "src/voice_browser_agent/static/app.js"
+    ).read_text(encoding="utf-8")
+
+    assert "speakStatus" in app_js
+    assert "status_voice" in app_js
+    assert "speechSynthesis" in app_js
+    assert "if (!statusVoice?.enabled)" in app_js

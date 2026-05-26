@@ -1,7 +1,7 @@
 # spoken-command-normalization Specification
 
 ## Purpose
-TBD - created by archiving change voice-browser-agent. Update Purpose after archive.
+Defines the Spoken Command Normalizer and deterministic validation contract that maps Chinese-first ASR transcripts into bounded Browser Task Requests or Clarification Requests before browser execution.
 ## Requirements
 ### Requirement: Produce structured normalized output
 The system SHALL convert ASR transcripts into either a Browser Task Request or a Clarification Request.
@@ -50,3 +50,13 @@ The system SHALL record the transcript, normalized output, validator result, and
 - **WHEN** the normalizer and validator finish processing a transcript
 - **THEN** the trace includes the input transcript, normalized output type, validator decision, and reason for acceptance, rejection, or clarification
 
+### Requirement: Preserve adaptation-ready normalized outputs
+The system SHALL preserve normalized Browser Task Requests or Clarification Requests in a form that can be reused by later Speech-to-Task Adaptation.
+
+#### Scenario: Accepted request is used for training example derivation
+- **WHEN** a trace-derived example is created from an accepted Browser Task Request
+- **THEN** the example includes the structured task, intent type, constraints, visual references, confirmation requirement, stop conditions, and safety flags
+
+#### Scenario: Clarification request is used for training example derivation
+- **WHEN** a trace-derived example is created from a Clarification Request
+- **THEN** the example includes the clarification question, reason, and original transcript text

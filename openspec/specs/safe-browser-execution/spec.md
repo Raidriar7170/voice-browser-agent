@@ -1,7 +1,7 @@
 # safe-browser-execution Specification
 
 ## Purpose
-TBD - created by archiving change voice-browser-agent. Update Purpose after archive.
+Defines safe browser execution boundaries for validated Browser Task Requests, including local-first execution, `browser-use-vision` visual grounding dependency use, confirmation gates, stop conditions, trace evidence, live controlled mode, and agentic safety enforcement.
 ## Requirements
 ### Requirement: Execute only validated browser task requests
 The system SHALL execute browser actions only after a Browser Task Request passes validation and any required confirmation.
@@ -121,4 +121,3 @@ The system SHALL reject agentic live-controlled results that do not contain mean
 #### Scenario: Agentic adapter returns empty evidence
 - **WHEN** the agentic executor returns no steps, no action events, and no grounding evidence references
 - **THEN** the system marks the run as failed or stopped with an explicit missing agentic evidence reason
-
