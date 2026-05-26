@@ -1,0 +1,136 @@
+{
+  "execution_id": "agentic-color-swatch",
+  "execution_mode": "live_controlled",
+  "transcript": {
+    "text": "选择页面上的绿色色块",
+    "metadata": {
+      "adapter_name": "fixture-manifest-asr",
+      "input_audio_id": "color-swatch",
+      "language_mode": "zh-first",
+      "created_at": "2026-05-26T11:03:58.386005Z",
+      "confidence": 1.0,
+      "diagnostics": {
+        "fixture": true,
+        "source": "synthetic-fixture"
+      }
+    }
+  },
+  "normalized_output": {
+    "kind": "browser_task_request",
+    "task": "选择页面上的绿色色块",
+    "intent_type": "select_filter_or_option",
+    "constraints": [
+      "bounded single browser task",
+      "public or controlled pages only",
+      "controlled target: demo/pages/color_swatch.html"
+    ],
+    "visual_references": [
+      {
+        "kind": "color_swatch",
+        "text": "选择页面上的绿色色块",
+        "source": "transcript",
+        "confidence": null
+      }
+    ],
+    "requires_confirmation": false,
+    "stop_conditions": [
+      "login_required",
+      "payment_or_checkout",
+      "irreversible_submit"
+    ],
+    "safety_flags": [],
+    "controlled_target_ref": "demo/pages/color_swatch.html"
+  },
+  "validator_decision": {
+    "accepted": true,
+    "reason": "request accepted by deterministic validator",
+    "issues": [],
+    "requires_confirmation": false
+  },
+  "confirmation_decision": {
+    "state": "confirmed",
+    "reason": "no confirmation required",
+    "decided_by": null,
+    "created_at": "2026-05-26T11:03:58.386101Z"
+  },
+  "browser_actions": [
+    {
+      "action_type": "click",
+      "description": "selected the green color swatch using visual target evidence",
+      "screenshot_ref": "screenshots/sanitized/agentic/color-swatch-step-1.png",
+      "grounding_evidence_refs": [
+        "grounding/agentic/color-swatch-step-1.json",
+        "browser-use-vision:controlled-adapter"
+      ],
+      "browser_state": {
+        "controlled_target_ref": "demo/pages/color_swatch.html",
+        "page_title": "Controlled Color Swatch"
+      },
+      "created_at": "2026-05-26T11:03:58.940984Z"
+    }
+  ],
+  "agentic_steps": [
+    {
+      "step_index": 1,
+      "observation_summary": "Observed color swatches and resolved the requested green option.",
+      "target_status": "resolved",
+      "selected_target_ref": "controlled:demo/pages/color_swatch.html",
+      "target_candidates": [
+        "controlled:demo/pages/color_swatch.html"
+      ],
+      "grounding_evidence_refs": [
+        "grounding/agentic/color-swatch-step-1.json",
+        "browser-use-vision:controlled-adapter"
+      ],
+      "screenshot_ref": "screenshots/sanitized/agentic/color-swatch-step-1.png",
+      "selected_action": "click: selected the green color swatch using visual target evidence",
+      "action_result": {
+        "status": "succeeded",
+        "description": "selected the green color swatch using visual target evidence",
+        "browser_state": {
+          "controlled_target_ref": "demo/pages/color_swatch.html",
+          "page_title": "Controlled Color Swatch"
+        }
+      },
+      "verification_decision": {
+        "passed": true,
+        "reason": "meaningful progress verified"
+      },
+      "recovery_decision": {
+        "kind": "none",
+        "reason": "progress verified"
+      }
+    }
+  ],
+  "grounding_evidence_refs": [
+    "grounding/agentic/color-swatch-step-1.json",
+    "browser-use-vision:controlled-adapter"
+  ],
+  "execution_runtime": {
+    "execution_mode": "live_controlled",
+    "execution_style": "agentic_vision",
+    "local_browser": true,
+    "browser_channel": "chromium",
+    "max_steps": 8,
+    "max_recoveries": 1,
+    "controlled_fixture_id": "color-swatch",
+    "controlled_target_ref": "demo/pages/color_swatch.html",
+    "visual_grounding_dependency": "browser-use-vision",
+    "request_constraints": [
+      "bounded single browser task",
+      "public or controlled pages only",
+      "controlled target: demo/pages/color_swatch.html"
+    ],
+    "stop_conditions": [
+      "login_required",
+      "payment_or_checkout",
+      "irreversible_submit"
+    ],
+    "agentic_execution": true
+  },
+  "final_status": "succeeded",
+  "failure_reason": null,
+  "stop_reason": null,
+  "created_at": "2026-05-26T11:03:58.386093Z",
+  "updated_at": "2026-05-26T11:03:58.986065Z"
+}

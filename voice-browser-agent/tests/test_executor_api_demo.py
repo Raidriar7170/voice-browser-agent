@@ -230,9 +230,13 @@ def test_fixture_replay_can_run_selected_fixture_in_live_controlled_mode(tmp_pat
     assert body["final_status"] == "succeeded"
     assert body["normalized_output"]["controlled_target_ref"] == "demo/pages/icon_only_toolbar.html"
     assert body["execution_runtime"]["execution_mode"] == "live_controlled"
+    assert body["execution_runtime"]["execution_style"] == "agentic_vision"
     assert body["execution_runtime"]["controlled_target_ref"] == "demo/pages/icon_only_toolbar.html"
     assert body["execution_runtime"]["local_browser"] is True
     assert body["execution_runtime"]["visual_grounding_dependency"] == "browser-use-vision"
+    assert body["agentic_steps"]
+    assert body["agentic_steps"][0]["observation_summary"]
+    assert body["browser_actions"][0]["browser_state"]["page_title"] == "Controlled Icon Toolbar"
 
 
 def test_confirmation_decision_cannot_be_replayed_to_execute_twice(tmp_path):

@@ -1,6 +1,10 @@
 import json
 
 from voice_browser_agent.models import (
+    AgenticActionResult,
+    AgenticRecoveryDecision,
+    AgenticVerificationDecision,
+    AgenticVisionStep,
     ASRTranscript,
     ASRTranscriptMetadata,
     BrowserIntentType,
@@ -94,3 +98,42 @@ def test_trace_writer_persists_complete_sanitized_execution_trace(tmp_path):
     assert saved["browser_actions"][0]["grounding_evidence_refs"] == ["grounding/icon-search.json"]
     assert "raw_audio_path" not in json.dumps(saved)
 
+
+def test_agentic_step_trace_serializes_and_sanitizes_private_nested_fields(tmp_path):
+    trace = ExecutionTrace(execution_id="exec-agentic", final_status=ExecutionStatus.STOPPED)
+    trace.agentic_steps.append(
+        AgenticVisionStep(
+            step_index=1,
+            observation_summary="Saw an icon-only toolbar with one magnifying-glass button.",
+            target_status="resolved",
+            selected_target_ref="som:button-1",
+            grounding_evidence_refs=["grounding/agentic/icon-search-step-1.json"],
+            screenshot_ref="screenshots/sanitized/agentic/icon-search-step-1.png",
+            selected_action="click som:button-1",
+            action_result=AgenticActionResult(
+                status="succeeded",
+                description="clicked search icon",
+                browser_state={
+                    "visible_text": "Search opened",
+                    "raw_screenshot": "/private/raw.png",
+                    "cookies": ["session=secret"],
+                },
+            ),
+            verification_decision=AgenticVerificationDecision(
+                passed=True,
+                reason="search panel opened",
+            ),
+            recovery_decision=AgenticRecoveryDecision(kind="none", reason="progress verified"),
+        )
+    )
+
+    writer = TraceWriter(tmp_path)
+    saved = json.loads(writer.write(trace).read_text(encoding="utf-8"))
+    exported = writer.export_sanitized(trace)
+    exported_text = json.dumps(exported)
+
+    assert saved["agentic_steps"][0]["step_index"] == 1
+    assert saved["agentic_steps"][0]["selected_target_ref"] == "som:button-1"
+    assert "raw_screenshot" not in exported_text
+    assert "cookies" not in exported_text
+    assert "/private/raw.png" not in exported_text

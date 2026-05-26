@@ -5,7 +5,7 @@ from typing import Any, Callable
 
 from pydantic import BaseModel, Field
 
-from .models import BrowserActionEvent, BrowserTaskRequest, ExecutionMode, ExecutionStatus
+from .models import AgenticVisionStep, BrowserActionEvent, BrowserTaskRequest, ExecutionMode, ExecutionStatus
 from .safety import detect_browser_state_stop
 
 
@@ -16,6 +16,8 @@ class BrowserExecutorConfig(BaseModel):
     execution_mode: ExecutionMode | None = None
     browser_channel: str = "chromium"
     max_steps: int = 8
+    max_recoveries: int = 1
+    agentic_execution: bool = False
     controlled_fixture_id: str | None = None
     controlled_target_ref: str | None = None
     controlled_target_url: str | None = None
@@ -31,6 +33,7 @@ class BrowserExecutionResult(BaseModel):
     execution_mode: ExecutionMode
     final_status: ExecutionStatus
     actions: list[BrowserActionEvent] = Field(default_factory=list)
+    agentic_steps: list[AgenticVisionStep] = Field(default_factory=list)
     grounding_evidence_refs: list[str] = Field(default_factory=list)
     failure_reason: str | None = None
     stop_reason: str | None = None
@@ -42,6 +45,7 @@ class BrowserExecutionResult(BaseModel):
 class BrowserExecutorAdapter:
     config: BrowserExecutorConfig
     agent_factory: Callable[..., Any] | None = None
+    agentic_adapter_factory: Callable[..., Any] | None = None
 
     async def execute(self, request: BrowserTaskRequest, execution_id: str) -> BrowserExecutionResult:
         execution_mode = self.config.resolved_execution_mode()
@@ -52,6 +56,8 @@ class BrowserExecutorAdapter:
             "remote_vision_backend_url": self.config.remote_vision_backend_url,
             "browser_channel": self.config.browser_channel,
             "max_steps": self.config.max_steps,
+            "max_recoveries": self.config.max_recoveries,
+            "agentic_execution": self.config.agentic_execution,
             "controlled_fixture_id": self.config.controlled_fixture_id,
             "controlled_target_ref": self.config.controlled_target_ref or request.controlled_target_ref,
             "controlled_target_url": self.config.controlled_target_url,
@@ -75,6 +81,22 @@ class BrowserExecutorAdapter:
                 agent_task=agent_task,
                 runtime=runtime,
             )
+
+        if self.config.agentic_execution:
+            from .agentic import AgenticVisionExecutor, ControlledAgenticVisionAdapter
+
+            adapter_factory = self.agentic_adapter_factory or ControlledAgenticVisionAdapter
+            observation_adapter = adapter_factory(
+                task=agent_task,
+                runtime=runtime,
+                vision_backend_url=self.config.remote_vision_backend_url,
+            )
+            return await AgenticVisionExecutor(
+                config=self.config,
+                observation_adapter=observation_adapter,
+                agent_task=agent_task,
+                runtime=runtime,
+            ).execute(request, execution_id)
 
         factory = self.agent_factory or (
             ControlledLiveBrowserAgent
@@ -102,7 +124,7 @@ class BrowserExecutorAdapter:
         return "\n".join(parts)
 
     def _load_vision_enhanced_agent(self, **kwargs):
-        import browser_use_vision
+        from browser_use_vision import VisionEnhancedAgent
 
         return VisionEnhancedAgent(**kwargs)
 
@@ -145,6 +167,7 @@ class BrowserExecutorAdapter:
             execution_mode=execution_mode,
             final_status=status,
             actions=actions,
+            agentic_steps=[],
             grounding_evidence_refs=grounding_refs,
             failure_reason=failure_reason,
             stop_reason=stop_reason,

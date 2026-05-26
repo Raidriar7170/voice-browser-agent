@@ -1,0 +1,136 @@
+{
+  "execution_id": "agentic-svg-dashboard",
+  "execution_mode": "live_controlled",
+  "transcript": {
+    "text": "读取图表里最高的柱子是什么颜色",
+    "metadata": {
+      "adapter_name": "fixture-manifest-asr",
+      "input_audio_id": "svg-dashboard",
+      "language_mode": "zh-first",
+      "created_at": "2026-05-26T11:03:58.988518Z",
+      "confidence": 1.0,
+      "diagnostics": {
+        "fixture": true,
+        "source": "synthetic-fixture"
+      }
+    }
+  },
+  "normalized_output": {
+    "kind": "browser_task_request",
+    "task": "读取图表里最高的柱子是什么颜色",
+    "intent_type": "extract_compare_visible_info",
+    "constraints": [
+      "bounded single browser task",
+      "public or controlled pages only",
+      "controlled target: demo/pages/svg_dashboard.html"
+    ],
+    "visual_references": [
+      {
+        "kind": "color_swatch",
+        "text": "读取图表里最高的柱子是什么颜色",
+        "source": "transcript",
+        "confidence": null
+      }
+    ],
+    "requires_confirmation": false,
+    "stop_conditions": [
+      "login_required",
+      "payment_or_checkout",
+      "irreversible_submit"
+    ],
+    "safety_flags": [],
+    "controlled_target_ref": "demo/pages/svg_dashboard.html"
+  },
+  "validator_decision": {
+    "accepted": true,
+    "reason": "request accepted by deterministic validator",
+    "issues": [],
+    "requires_confirmation": false
+  },
+  "confirmation_decision": {
+    "state": "confirmed",
+    "reason": "no confirmation required",
+    "decided_by": null,
+    "created_at": "2026-05-26T11:03:58.988599Z"
+  },
+  "browser_actions": [
+    {
+      "action_type": "extract",
+      "description": "extracted the SVG dashboard text using visual region evidence",
+      "screenshot_ref": "screenshots/sanitized/agentic/svg-dashboard-step-1.png",
+      "grounding_evidence_refs": [
+        "grounding/agentic/svg-dashboard-step-1.json",
+        "browser-use-vision:controlled-adapter"
+      ],
+      "browser_state": {
+        "controlled_target_ref": "demo/pages/svg_dashboard.html",
+        "page_title": "Controlled SVG Dashboard"
+      },
+      "created_at": "2026-05-26T11:03:59.537012Z"
+    }
+  ],
+  "agentic_steps": [
+    {
+      "step_index": 1,
+      "observation_summary": "Observed an SVG dashboard region and resolved the chart text target.",
+      "target_status": "resolved",
+      "selected_target_ref": "controlled:demo/pages/svg_dashboard.html",
+      "target_candidates": [
+        "controlled:demo/pages/svg_dashboard.html"
+      ],
+      "grounding_evidence_refs": [
+        "grounding/agentic/svg-dashboard-step-1.json",
+        "browser-use-vision:controlled-adapter"
+      ],
+      "screenshot_ref": "screenshots/sanitized/agentic/svg-dashboard-step-1.png",
+      "selected_action": "extract: extracted the SVG dashboard text using visual region evidence",
+      "action_result": {
+        "status": "succeeded",
+        "description": "extracted the SVG dashboard text using visual region evidence",
+        "browser_state": {
+          "controlled_target_ref": "demo/pages/svg_dashboard.html",
+          "page_title": "Controlled SVG Dashboard"
+        }
+      },
+      "verification_decision": {
+        "passed": true,
+        "reason": "meaningful progress verified"
+      },
+      "recovery_decision": {
+        "kind": "none",
+        "reason": "progress verified"
+      }
+    }
+  ],
+  "grounding_evidence_refs": [
+    "grounding/agentic/svg-dashboard-step-1.json",
+    "browser-use-vision:controlled-adapter"
+  ],
+  "execution_runtime": {
+    "execution_mode": "live_controlled",
+    "execution_style": "agentic_vision",
+    "local_browser": true,
+    "browser_channel": "chromium",
+    "max_steps": 8,
+    "max_recoveries": 1,
+    "controlled_fixture_id": "svg-dashboard",
+    "controlled_target_ref": "demo/pages/svg_dashboard.html",
+    "visual_grounding_dependency": "browser-use-vision",
+    "request_constraints": [
+      "bounded single browser task",
+      "public or controlled pages only",
+      "controlled target: demo/pages/svg_dashboard.html"
+    ],
+    "stop_conditions": [
+      "login_required",
+      "payment_or_checkout",
+      "irreversible_submit"
+    ],
+    "agentic_execution": true
+  },
+  "final_status": "succeeded",
+  "failure_reason": null,
+  "stop_reason": null,
+  "created_at": "2026-05-26T11:03:58.988595Z",
+  "updated_at": "2026-05-26T11:03:59.600997Z"
+}

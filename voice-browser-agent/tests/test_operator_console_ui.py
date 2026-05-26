@@ -30,4 +30,6 @@ def test_operator_console_javascript_posts_fixture_replay_endpoint():
     assert "execution_mode" in app_js
     assert "executionMode" in app_js
     assert "Execution mode:" in app_js
+    assert "agentic_steps" in app_js
+    assert "verification" in app_js
     assert "renderError" in app_js

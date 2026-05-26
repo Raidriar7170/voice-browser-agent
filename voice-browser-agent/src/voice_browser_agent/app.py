@@ -287,10 +287,18 @@ class AppState:
         trace.execution_runtime = result.runtime
         for action in result.actions:
             trace.browser_actions.append(action)
-            trace.grounding_evidence_refs.extend(action.grounding_evidence_refs)
+            self.extend_grounding_refs(trace, action.grounding_evidence_refs)
+        trace.agentic_steps.extend(result.agentic_steps)
+        for step in result.agentic_steps:
+            self.extend_grounding_refs(trace, step.grounding_evidence_refs)
         trace.final_status = result.final_status
         trace.failure_reason = result.failure_reason
         trace.stop_reason = result.stop_reason
+
+    def extend_grounding_refs(self, trace: ExecutionTrace, refs: list[str]) -> None:
+        for ref in refs:
+            if ref not in trace.grounding_evidence_refs:
+                trace.grounding_evidence_refs.append(ref)
 
     def execution_mode_for_payload(self, payload: CommandPayload) -> ExecutionMode:
         if payload.execution_mode is not None:
@@ -340,6 +348,7 @@ class AppState:
                 local_browser=True,
                 dry_run=mode is ExecutionMode.DEMO_PREVIEW,
                 execution_mode=mode,
+                agentic_execution=mode is ExecutionMode.LIVE_CONTROLLED,
                 controlled_fixture_id=controlled_task.fixture_id if controlled_task else None,
                 controlled_target_ref=controlled_task.target_ref if controlled_task else None,
                 controlled_target_url=controlled_task.target_url if controlled_task else None,

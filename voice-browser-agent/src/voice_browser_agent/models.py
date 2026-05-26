@@ -122,6 +122,46 @@ class BrowserActionEvent(BaseModel):
     created_at: datetime = Field(default_factory=utc_now)
 
 
+class AgenticActionResult(BaseModel):
+    status: Literal["succeeded", "failed", "no_effect"]
+    description: str
+    browser_state: dict[str, Any] = Field(default_factory=dict)
+
+
+class AgenticVerificationDecision(BaseModel):
+    passed: bool
+    reason: str
+
+
+class AgenticRecoveryDecision(BaseModel):
+    kind: Literal["none", "reobserve", "stop", "clarify"]
+    reason: str
+
+
+class AgenticVisionStep(BaseModel):
+    step_index: int = Field(ge=1)
+    observation_summary: str
+    target_status: Literal["resolved", "missing", "ambiguous", "stale", "sensitive"]
+    selected_target_ref: str | None = None
+    target_candidates: list[str] = Field(default_factory=list)
+    grounding_evidence_refs: list[str] = Field(default_factory=list)
+    screenshot_ref: str | None = None
+    selected_action: str | None = None
+    action_result: AgenticActionResult | None = None
+    verification_decision: AgenticVerificationDecision = Field(
+        default_factory=lambda: AgenticVerificationDecision(
+            passed=False,
+            reason="not verified",
+        )
+    )
+    recovery_decision: AgenticRecoveryDecision = Field(
+        default_factory=lambda: AgenticRecoveryDecision(
+            kind="none",
+            reason="no recovery needed",
+        )
+    )
+
+
 class BrowserStateStop(BaseModel):
     reason: str
     detail: str
@@ -137,6 +177,7 @@ class ExecutionTrace(BaseModel):
     validator_decision: ValidationResult | None = None
     confirmation_decision: ConfirmationDecision | None = None
     browser_actions: list[BrowserActionEvent] = Field(default_factory=list)
+    agentic_steps: list[AgenticVisionStep] = Field(default_factory=list)
     grounding_evidence_refs: list[str] = Field(default_factory=list)
     execution_runtime: dict[str, Any] = Field(default_factory=dict)
     final_status: ExecutionStatus = ExecutionStatus.CREATED

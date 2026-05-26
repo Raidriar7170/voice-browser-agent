@@ -19,6 +19,23 @@ function renderTrace(trace) {
   showJson("tracePanel", trace);
   const timeline = $("timeline");
   timeline.innerHTML = "";
+  for (const step of trace.agentic_steps || []) {
+    const item = document.createElement("li");
+    const refs = (step.grounding_evidence_refs || []).join(", ");
+    const screenshot = step.screenshot_ref ? ` | screenshot: ${step.screenshot_ref}` : "";
+    const grounding = refs ? ` | grounding: ${refs}` : "";
+    const verification = step.verification_decision
+      ? ` | verification: ${step.verification_decision.reason}`
+      : "";
+    const recovery = step.recovery_decision
+      ? ` | recovery: ${step.recovery_decision.kind} (${step.recovery_decision.reason})`
+      : "";
+    item.textContent =
+      `agentic step ${step.step_index}: ${step.observation_summary}` +
+      `${step.selected_action ? ` | action: ${step.selected_action}` : ""}` +
+      `${verification}${recovery}${screenshot}${grounding}`;
+    timeline.appendChild(item);
+  }
   for (const action of trace.browser_actions || []) {
     const item = document.createElement("li");
     const refs = (action.grounding_evidence_refs || []).join(", ");
