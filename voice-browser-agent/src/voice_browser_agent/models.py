@@ -28,6 +28,11 @@ class ConfirmationState(str, Enum):
     BLOCKED = "blocked"
 
 
+class ExecutionMode(str, Enum):
+    DEMO_PREVIEW = "demo_preview"
+    LIVE_CONTROLLED = "live_controlled"
+
+
 class ExecutionStatus(str, Enum):
     CREATED = "created"
     CLARIFICATION_REQUIRED = "clarification_required"
@@ -81,6 +86,7 @@ class BrowserTaskRequest(BaseModel):
     requires_confirmation: bool
     stop_conditions: list[str]
     safety_flags: list[str] = Field(default_factory=list)
+    controlled_target_ref: str | None = None
 
 
 class ClarificationRequest(BaseModel):
@@ -125,12 +131,14 @@ class BrowserStateStop(BaseModel):
 
 class ExecutionTrace(BaseModel):
     execution_id: str = Field(default_factory=lambda: f"exec-{uuid4().hex[:12]}")
+    execution_mode: ExecutionMode | None = None
     transcript: ASRTranscript | None = None
     normalized_output: NormalizedOutput | None = None
     validator_decision: ValidationResult | None = None
     confirmation_decision: ConfirmationDecision | None = None
     browser_actions: list[BrowserActionEvent] = Field(default_factory=list)
     grounding_evidence_refs: list[str] = Field(default_factory=list)
+    execution_runtime: dict[str, Any] = Field(default_factory=dict)
     final_status: ExecutionStatus = ExecutionStatus.CREATED
     failure_reason: str | None = None
     stop_reason: str | None = None

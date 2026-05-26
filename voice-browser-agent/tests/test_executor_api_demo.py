@@ -61,6 +61,15 @@ class MockCheckoutAgent:
         }
 
 
+class EmptyEvidenceAgent:
+    def __init__(self, task, **kwargs):
+        self.task = task
+        self.kwargs = kwargs
+
+    async def run(self):
+        return {"status": "succeeded", "actions": []}
+
+
 class FixtureASRAdapter:
     name = "fixture-asr"
 
@@ -102,6 +111,22 @@ async def test_executor_passes_normalized_context_to_vision_enhanced_agent():
     assert result.actions[0].grounding_evidence_refs == ["grounding/toolbar-search.json"]
     assert "magnifying glass" in result.agent_task
     assert result.runtime["remote_vision_backend_url"] == "https://vision.invalid/api"
+    assert result.execution_mode == "live_controlled"
+    assert result.runtime["execution_mode"] == "live_controlled"
+
+
+@pytest.mark.asyncio
+async def test_live_controlled_executor_rejects_empty_action_and_grounding_evidence():
+    adapter = BrowserExecutorAdapter(
+        config=BrowserExecutorConfig(local_browser=True, dry_run=False),
+        agent_factory=EmptyEvidenceAgent,
+    )
+
+    result = await adapter.execute(_visual_request(), execution_id="exec-empty-live")
+
+    assert result.execution_mode == "live_controlled"
+    assert result.final_status is ExecutionStatus.FAILED
+    assert result.failure_reason == "live_controlled_missing_evidence"
 
 
 def test_api_happy_path_clarification_confirmation_and_trace_export(tmp_path):
@@ -186,6 +211,28 @@ def test_fixture_replay_endpoint_uses_fixture_asr_and_marks_demo_preview(tmp_pat
     assert body["transcript"]["metadata"]["input_audio_id"] == "icon-search"
     assert body["final_status"] == "stopped"
     assert body["stop_reason"] == "demo_preview_not_executed"
+    assert body["execution_mode"] == "demo_preview"
+
+
+def test_fixture_replay_can_run_selected_fixture_in_live_controlled_mode(tmp_path):
+    app = create_app(runtime_dir=tmp_path)
+    app.state.voice_browser.agent_factory = MockVisionAgent
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/fixtures/icon-search/executions",
+        json={"execution_mode": "live_controlled"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["execution_mode"] == "live_controlled"
+    assert body["final_status"] == "succeeded"
+    assert body["normalized_output"]["controlled_target_ref"] == "demo/pages/icon_only_toolbar.html"
+    assert body["execution_runtime"]["execution_mode"] == "live_controlled"
+    assert body["execution_runtime"]["controlled_target_ref"] == "demo/pages/icon_only_toolbar.html"
+    assert body["execution_runtime"]["local_browser"] is True
+    assert body["execution_runtime"]["visual_grounding_dependency"] == "browser-use-vision"
 
 
 def test_confirmation_decision_cannot_be_replayed_to_execute_twice(tmp_path):

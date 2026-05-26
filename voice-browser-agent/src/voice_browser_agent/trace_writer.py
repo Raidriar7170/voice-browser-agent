@@ -18,6 +18,13 @@ PRIVATE_KEYS = {
     "password",
     "remote_host",
     "private_url",
+    "remote_vision_backend_url",
+    "controlled_target_url",
+    "browser_profile",
+    "browser_profile_path",
+    "cookie",
+    "cookies",
+    "raw_screenshot",
 }
 
 
@@ -66,4 +73,3 @@ def sanitize_trace_dict(value: Any) -> Any:
     if isinstance(value, list):
         return [sanitize_trace_dict(item) for item in value]
     return value
-

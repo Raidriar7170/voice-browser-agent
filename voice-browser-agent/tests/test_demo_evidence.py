@@ -46,6 +46,36 @@ def test_sanitized_trace_artifacts_exist_for_each_demo_task_and_exclude_private_
         assert not any(word in text for word in forbidden)
 
 
+def test_live_controlled_sanitized_trace_artifacts_exist_for_selected_visual_tasks():
+    traces = sorted((PROJECT_ROOT / "fixtures/traces/live-sanitized").glob("*.json"))
+    forbidden = (
+        "raw_audio_path",
+        "raw_screenshot",
+        "browser_profile",
+        "cookie",
+        "credential",
+        "password",
+        "token",
+        "remote_host",
+        "private_url",
+        "file:///Users/",
+    )
+
+    assert len(traces) >= 2
+    fixture_ids = set()
+    for trace in traces:
+        text = trace.read_text(encoding="utf-8")
+        payload = json.loads(text)
+        fixture_ids.add(payload["transcript"]["metadata"]["input_audio_id"])
+        assert payload["execution_mode"] == "live_controlled"
+        assert payload["final_status"] in {"succeeded", "failed", "stopped"}
+        assert payload["browser_actions"] or payload["grounding_evidence_refs"]
+        assert payload["execution_runtime"]["execution_mode"] == "live_controlled"
+        assert not any(word in text for word in forbidden)
+
+    assert {"icon-search", "color-swatch"}.issubset(fixture_ids)
+
+
 def test_public_readme_uses_bounded_demo_positioning():
     readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8").lower()
 

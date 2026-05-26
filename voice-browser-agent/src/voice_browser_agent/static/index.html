@@ -32,6 +32,10 @@
             <option value="openai-public">openai-public</option>
             <option value="dashboard-compare">dashboard-compare</option>
           </select>
+          <select id="executionMode" aria-label="Execution mode">
+            <option value="demo_preview">demo_preview</option>
+            <option value="live_controlled">live_controlled</option>
+          </select>
           <textarea id="transcriptInput" placeholder="打开 GitHub 搜索 browser-use-vision，不要登录"></textarea>
           <button type="submit">Upload</button>
           <p id="uploadStatus" class="status"></p>

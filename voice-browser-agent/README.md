@@ -30,5 +30,6 @@ The local visual grounding dependency is resolved by `uv` from `../../../browser
 - Ablations: `docs/demo/ablations.md`
 - Video plan: `docs/demo/video-plan.md`
 - Sanitized trace artifacts: `fixtures/traces/sanitized/`
+- Live controlled trace artifacts: `fixtures/traces/live-sanitized/`
 
-The public artifacts show bounded spoken-command execution, explicit safety stops, and traceable evidence. They do not claim unrestricted web autonomy.
+The public artifacts show bounded spoken-command execution, explicit safety stops, and traceable evidence. Demo-preview traces are separate from live controlled traces. They do not claim unrestricted web autonomy.

@@ -1,0 +1,89 @@
+{
+  "execution_id": "live-icon-search",
+  "execution_mode": "live_controlled",
+  "transcript": {
+    "text": "点击右上角的放大镜图标",
+    "metadata": {
+      "adapter_name": "fixture-manifest-asr",
+      "input_audio_id": "icon-search",
+      "language_mode": "zh-first",
+      "created_at": "2026-05-26T10:32:37.599975Z",
+      "confidence": 1.0,
+      "diagnostics": {
+        "fixture": true,
+        "source": "synthetic-fixture"
+      }
+    }
+  },
+  "normalized_output": {
+    "kind": "browser_task_request",
+    "task": "点击右上角的放大镜图标",
+    "intent_type": "click_visual_target",
+    "constraints": [
+      "bounded single browser task",
+      "public or controlled pages only",
+      "controlled target: demo/pages/icon_only_toolbar.html"
+    ],
+    "visual_references": [
+      {
+        "kind": "icon",
+        "text": "top-right magnifying glass",
+        "source": "transcript",
+        "confidence": null
+      }
+    ],
+    "requires_confirmation": false,
+    "stop_conditions": [
+      "login_required",
+      "payment_or_checkout",
+      "irreversible_submit"
+    ],
+    "safety_flags": [],
+    "controlled_target_ref": "demo/pages/icon_only_toolbar.html"
+  },
+  "validator_decision": {
+    "accepted": true,
+    "reason": "request accepted by deterministic validator",
+    "issues": [],
+    "requires_confirmation": false
+  },
+  "confirmation_decision": {
+    "state": "confirmed",
+    "reason": "no confirmation required",
+    "decided_by": null,
+    "created_at": "2026-05-26T10:32:37.600045Z"
+  },
+  "browser_actions": [
+    {
+      "action_type": "click",
+      "description": "clicked the icon-only search control on the controlled toolbar page",
+      "screenshot_ref": "screenshots/sanitized/live-controlled/icon-search.png",
+      "grounding_evidence_refs": [
+        "grounding/live-controlled/icon-search.json",
+        "browser-use-vision:0.1.0"
+      ],
+      "browser_state": {
+        "controlled_target_ref": "demo/pages/icon_only_toolbar.html"
+      },
+      "created_at": "2026-05-26T10:32:38.255245Z"
+    }
+  ],
+  "grounding_evidence_refs": [
+    "grounding/live-controlled/icon-search.json",
+    "browser-use-vision:0.1.0"
+  ],
+  "execution_runtime": {
+    "execution_mode": "live_controlled",
+    "local_browser": true,
+    "browser_channel": "chromium",
+    "max_steps": 8,
+    "controlled_fixture_id": "icon-search",
+    "controlled_target_ref": "demo/pages/icon_only_toolbar.html",
+    "visual_grounding_dependency": "browser-use-vision"
+  },
+  "final_status": "succeeded",
+  "failure_reason": null,
+  "stop_reason": null,
+  "created_at": "2026-05-26T10:32:37.600041Z",
+  "updated_at": "2026-05-26T10:32:38.255324Z"
+}

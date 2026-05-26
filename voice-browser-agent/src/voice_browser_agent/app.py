@@ -17,6 +17,7 @@ from .asr import (
     UnavailableASRAdapter,
 )
 from .config import RuntimeConfig, load_config
+from .demo_tasks import ControlledDemoTask, get_live_controlled_task
 from .executor import BrowserExecutorAdapter, BrowserExecutorConfig
 from .ingestion import AudioIngestor, IngestionError
 from .models import (
@@ -25,6 +26,7 @@ from .models import (
     BrowserTaskRequest,
     ClarificationRequest,
     ConfirmationState,
+    ExecutionMode,
     ExecutionStatus,
     ExecutionTrace,
     SpokenCommandInput,
@@ -40,6 +42,7 @@ class CommandPayload(BaseModel):
     transcript_text: str | None = None
     audio_id: str | None = None
     fixture_id: str | None = None
+    execution_mode: ExecutionMode | None = None
 
 
 class ConfirmationPayload(BaseModel):
@@ -123,13 +126,22 @@ def create_app(runtime_dir: str | Path | None = None) -> FastAPI:
         return state.trace_response(trace)
 
     @app.post("/api/fixtures/{fixture_id}/executions")
-    async def start_fixture_execution(fixture_id: str) -> dict[str, Any]:
+    async def start_fixture_execution(fixture_id: str, payload: CommandPayload | None = None) -> dict[str, Any]:
+        payload = payload or CommandPayload()
+        mode = state.execution_mode_for_payload(payload)
+        controlled_task = state.controlled_task_for_mode(fixture_id, mode)
         trace = await state.prepare_trace(CommandPayload(fixture_id=fixture_id))
+        trace.execution_mode = mode
         if isinstance(trace.normalized_output, BrowserTaskRequest) and trace.confirmation_decision:
             if trace.confirmation_decision.state is ConfirmationState.PENDING:
                 trace.final_status = ExecutionStatus.PENDING_CONFIRMATION
             elif trace.validator_decision and trace.validator_decision.accepted:
-                result = await state.executor.execute(trace.normalized_output, trace.execution_id)
+                request = state.with_controlled_target(trace.normalized_output, controlled_task)
+                trace.normalized_output = request
+                result = await state.executor_for_mode(mode, controlled_task).execute(
+                    request,
+                    trace.execution_id,
+                )
                 state.apply_execution_result(trace, result)
         elif isinstance(trace.normalized_output, ClarificationRequest):
             trace.final_status = ExecutionStatus.CLARIFICATION_REQUIRED
@@ -200,6 +212,7 @@ class AppState:
         self.validator = NormalizerValidator()
         self.gate = ConfirmationGate()
         self.writer = TraceWriter(config.traces_dir)
+        self.agent_factory = None
         self.executor = BrowserExecutorAdapter(
             BrowserExecutorConfig(
                 remote_vision_backend_url=config.remote_vision_backend_url,
@@ -270,12 +283,69 @@ class AppState:
         return command_input
 
     def apply_execution_result(self, trace: ExecutionTrace, result) -> None:
+        trace.execution_mode = result.execution_mode
+        trace.execution_runtime = result.runtime
         for action in result.actions:
             trace.browser_actions.append(action)
             trace.grounding_evidence_refs.extend(action.grounding_evidence_refs)
         trace.final_status = result.final_status
         trace.failure_reason = result.failure_reason
         trace.stop_reason = result.stop_reason
+
+    def execution_mode_for_payload(self, payload: CommandPayload) -> ExecutionMode:
+        if payload.execution_mode is not None:
+            return payload.execution_mode
+        return ExecutionMode.DEMO_PREVIEW if self.config.demo_dry_run else ExecutionMode.LIVE_CONTROLLED
+
+    def controlled_task_for_mode(
+        self,
+        fixture_id: str,
+        mode: ExecutionMode,
+    ) -> ControlledDemoTask | None:
+        if mode is ExecutionMode.DEMO_PREVIEW:
+            return None
+        controlled_task = get_live_controlled_task(fixture_id)
+        if controlled_task is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Fixture '{fixture_id}' is not selected for live controlled execution",
+            )
+        return controlled_task
+
+    def with_controlled_target(
+        self,
+        request: BrowserTaskRequest,
+        controlled_task: ControlledDemoTask | None,
+    ) -> BrowserTaskRequest:
+        if controlled_task is None:
+            return request
+        return request.model_copy(
+            update={
+                "controlled_target_ref": controlled_task.target_ref,
+                "constraints": [
+                    *request.constraints,
+                    f"controlled target: {controlled_task.target_ref}",
+                ],
+            }
+        )
+
+    def executor_for_mode(
+        self,
+        mode: ExecutionMode,
+        controlled_task: ControlledDemoTask | None,
+    ) -> BrowserExecutorAdapter:
+        return BrowserExecutorAdapter(
+            BrowserExecutorConfig(
+                remote_vision_backend_url=self.config.remote_vision_backend_url,
+                local_browser=True,
+                dry_run=mode is ExecutionMode.DEMO_PREVIEW,
+                execution_mode=mode,
+                controlled_fixture_id=controlled_task.fixture_id if controlled_task else None,
+                controlled_target_ref=controlled_task.target_ref if controlled_task else None,
+                controlled_target_url=controlled_task.target_url if controlled_task else None,
+            ),
+            agent_factory=self.agent_factory,
+        )
 
     def get_trace(self, execution_id: str) -> ExecutionTrace:
         path = self.config.traces_dir / f"{execution_id}.json"

@@ -21,13 +21,19 @@ function renderTrace(trace) {
   timeline.innerHTML = "";
   for (const action of trace.browser_actions || []) {
     const item = document.createElement("li");
-    item.textContent = `${action.action_type}: ${action.description}`;
+    const refs = (action.grounding_evidence_refs || []).join(", ");
+    const screenshot = action.screenshot_ref ? ` | screenshot: ${action.screenshot_ref}` : "";
+    const grounding = refs ? ` | grounding: ${refs}` : "";
+    item.textContent = `${action.action_type}: ${action.description}${screenshot}${grounding}`;
     timeline.appendChild(item);
   }
   const pending = trace.confirmation_decision?.state === "pending";
   $("confirmation").classList.toggle("hidden", !pending);
   $("confirmationReason").textContent = trace.confirmation_decision?.reason || "";
-  $("uploadStatus").textContent = `Status: ${trace.final_status || "unknown"}`;
+  const mode = trace.execution_mode || trace.execution_runtime?.execution_mode || "unknown";
+  const reason = trace.stop_reason || trace.failure_reason || "";
+  $("uploadStatus").textContent =
+    `Execution mode: ${mode} | Status: ${trace.final_status || "unknown"}${reason ? ` | ${reason}` : ""}`;
 }
 
 function renderError(error) {
@@ -70,7 +76,10 @@ $("runButton").addEventListener("click", async () => {
 $("fixtureRunButton").addEventListener("click", async () => {
   try {
     const fixtureId = $("fixtureSelect").value;
-    const trace = await postJson(`/api/fixtures/${fixtureId}/executions`, {});
+    const executionMode = $("executionMode").value;
+    const trace = await postJson(`/api/fixtures/${fixtureId}/executions`, {
+      execution_mode: executionMode,
+    });
     renderTrace(trace);
   } catch (error) {
     renderError(error);

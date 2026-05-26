@@ -11,8 +11,10 @@ def test_operator_console_exposes_fixture_replay_control(tmp_path):
     assert response.status_code == 200
     html = response.text
     assert 'id="fixtureSelect"' in html
+    assert 'id="executionMode"' in html
     assert 'id="fixtureRunButton"' in html
     assert "icon-search" in html
+    assert "live_controlled" in html
 
 
 def test_operator_console_javascript_posts_fixture_replay_endpoint():
@@ -25,5 +27,7 @@ def test_operator_console_javascript_posts_fixture_replay_endpoint():
     ).read_text(encoding="utf-8")
 
     assert "/api/fixtures/${fixtureId}/executions" in app_js
+    assert "execution_mode" in app_js
+    assert "executionMode" in app_js
+    assert "Execution mode:" in app_js
     assert "renderError" in app_js
-
