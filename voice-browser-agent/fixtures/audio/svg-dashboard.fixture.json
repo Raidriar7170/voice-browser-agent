@@ -1,0 +1,9 @@
+{
+  "audio_id": "svg-dashboard",
+  "source": "synthetic-fixture",
+  "spoken_text": "读取图表里最高的柱子是什么颜色",
+  "language_mode": "zh-first",
+  "expected_transcript": "读取图表里最高的柱子是什么颜色",
+  "sanitized_public": true
+}
+

@@ -1,0 +1,73 @@
+{
+  "execution_id": "demo-dashboard-compare",
+  "transcript": {
+    "text": "比较仪表盘里红色和绿色卡片的数值",
+    "metadata": {
+      "adapter_name": "fixture-asr",
+      "input_audio_id": "dashboard-compare",
+      "language_mode": "zh-first",
+      "created_at": "2026-05-26T08:59:22.491223Z",
+      "confidence": 0.99,
+      "diagnostics": {
+        "fixture": true,
+        "sanitized_public": true
+      }
+    }
+  },
+  "normalized_output": {
+    "kind": "browser_task_request",
+    "task": "比较仪表盘里红色和绿色卡片的数值",
+    "intent_type": "extract_compare_visible_info",
+    "constraints": [
+      "bounded single browser task",
+      "public or controlled pages only"
+    ],
+    "visual_references": [
+      {
+        "kind": "card",
+        "text": "比较仪表盘里红色和绿色卡片的数值",
+        "source": "transcript",
+        "confidence": null
+      }
+    ],
+    "requires_confirmation": false,
+    "stop_conditions": [
+      "login_required",
+      "payment_or_checkout",
+      "irreversible_submit"
+    ],
+    "safety_flags": []
+  },
+  "validator_decision": {
+    "accepted": true,
+    "reason": "request accepted by deterministic validator",
+    "issues": [],
+    "requires_confirmation": false
+  },
+  "confirmation_decision": {
+    "state": "confirmed",
+    "reason": "no confirmation required",
+    "decided_by": null,
+    "created_at": "2026-05-26T08:59:22.491256Z"
+  },
+  "browser_actions": [
+    {
+      "action_type": "demo_preview",
+      "description": "prepared bounded browser task without live browser execution: 比较仪表盘里红色和绿色卡片的数值",
+      "screenshot_ref": null,
+      "grounding_evidence_refs": [
+        "比较仪表盘里红色和绿色卡片的数值"
+      ],
+      "browser_state": {},
+      "created_at": "2026-05-26T08:59:22.491262Z"
+    }
+  ],
+  "grounding_evidence_refs": [
+    "比较仪表盘里红色和绿色卡片的数值"
+  ],
+  "final_status": "stopped",
+  "failure_reason": null,
+  "stop_reason": "demo_preview_not_executed",
+  "created_at": "2026-05-26T08:59:22.491254Z",
+  "updated_at": "2026-05-26T08:59:22.491254Z"
+}

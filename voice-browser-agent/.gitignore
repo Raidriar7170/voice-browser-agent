@@ -1,0 +1,46 @@
+.DS_Store
+.venv/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+
+# Local runtime outputs
+runtime/
+uploads/
+recordings/
+private/
+
+# Raw audio and private browser evidence stay local unless converted to a
+# sanitized fixture or trace artifact.
+*.wav
+*.mp3
+*.m4a
+*.webm
+*.ogg
+*.flac
+!fixtures/audio/*.fixture.json
+!fixtures/audio/README.md
+
+# Live browser state and sensitive trace material
+screenshots/live/
+traces/private/
+*.har
+*.trace.zip
+*.chromium-profile/
+
+# Secrets, checkpoints, remote host details, and local model caches
+.env
+.env.*
+!.env.example
+secrets/
+credentials/
+*.pem
+*.key
+*.p12
+*.ckpt
+*.safetensors
+checkpoints/
+models/
+remote-hosts*.md
+

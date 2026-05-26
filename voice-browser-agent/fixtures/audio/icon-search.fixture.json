@@ -1,0 +1,9 @@
+{
+  "audio_id": "icon-search",
+  "source": "synthetic-fixture",
+  "spoken_text": "点击右上角的放大镜图标",
+  "language_mode": "zh-first",
+  "expected_transcript": "点击右上角的放大镜图标",
+  "sanitized_public": true
+}
+

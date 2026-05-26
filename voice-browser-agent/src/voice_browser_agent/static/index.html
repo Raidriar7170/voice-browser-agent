@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Voice-to-Browser Agent</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="toolbar">
+        <h1>Voice-to-Browser Agent</h1>
+        <div class="actions">
+          <button id="recordButton" type="button" title="Record one command">●</button>
+          <button id="runButton" type="button">Run</button>
+          <button id="fixtureRunButton" type="button">Run Fixture</button>
+          <button id="exportButton" type="button">Export Trace</button>
+        </div>
+      </section>
+
+      <section class="grid">
+        <form id="uploadForm" class="panel">
+          <h2>Audio Input</h2>
+          <input id="audioFile" name="file" type="file" accept="audio/*" />
+          <select id="fixtureSelect" aria-label="Demo fixture">
+            <option value="icon-search">icon-search</option>
+            <option value="github-search">github-search</option>
+            <option value="color-swatch">color-swatch</option>
+            <option value="svg-dashboard">svg-dashboard</option>
+            <option value="checkout-stop">checkout-stop</option>
+            <option value="ambiguous">ambiguous</option>
+            <option value="openai-public">openai-public</option>
+            <option value="dashboard-compare">dashboard-compare</option>
+          </select>
+          <textarea id="transcriptInput" placeholder="打开 GitHub 搜索 browser-use-vision，不要登录"></textarea>
+          <button type="submit">Upload</button>
+          <p id="uploadStatus" class="status"></p>
+        </form>
+
+        <section class="panel">
+          <h2>Transcript</h2>
+          <pre id="transcriptPanel"></pre>
+        </section>
+
+        <section class="panel">
+          <h2>Normalized Request</h2>
+          <pre id="normalizedPanel"></pre>
+        </section>
+
+        <section class="panel">
+          <h2>Timeline</h2>
+          <ol id="timeline"></ol>
+          <div id="confirmation" class="confirmation hidden">
+            <p id="confirmationReason"></p>
+            <button id="confirmButton" type="button">Confirm</button>
+            <button id="cancelButton" type="button">Cancel</button>
+          </div>
+        </section>
+
+        <section class="panel wide">
+          <h2>Trace</h2>
+          <pre id="tracePanel"></pre>
+        </section>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

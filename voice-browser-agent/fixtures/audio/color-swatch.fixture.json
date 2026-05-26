@@ -1,0 +1,9 @@
+{
+  "audio_id": "color-swatch",
+  "source": "synthetic-fixture",
+  "spoken_text": "选择页面上的绿色色块",
+  "language_mode": "zh-first",
+  "expected_transcript": "选择页面上的绿色色块",
+  "sanitized_public": true
+}
+

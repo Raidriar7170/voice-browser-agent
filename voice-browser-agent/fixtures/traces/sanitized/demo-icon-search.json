@@ -1,0 +1,73 @@
+{
+  "execution_id": "demo-icon-search",
+  "transcript": {
+    "text": "点击右上角的放大镜图标",
+    "metadata": {
+      "adapter_name": "fixture-asr",
+      "input_audio_id": "icon-search",
+      "language_mode": "zh-first",
+      "created_at": "2026-05-26T08:59:22.491690Z",
+      "confidence": 0.99,
+      "diagnostics": {
+        "fixture": true,
+        "sanitized_public": true
+      }
+    }
+  },
+  "normalized_output": {
+    "kind": "browser_task_request",
+    "task": "点击右上角的放大镜图标",
+    "intent_type": "click_visual_target",
+    "constraints": [
+      "bounded single browser task",
+      "public or controlled pages only"
+    ],
+    "visual_references": [
+      {
+        "kind": "icon",
+        "text": "top-right magnifying glass",
+        "source": "transcript",
+        "confidence": null
+      }
+    ],
+    "requires_confirmation": false,
+    "stop_conditions": [
+      "login_required",
+      "payment_or_checkout",
+      "irreversible_submit"
+    ],
+    "safety_flags": []
+  },
+  "validator_decision": {
+    "accepted": true,
+    "reason": "request accepted by deterministic validator",
+    "issues": [],
+    "requires_confirmation": false
+  },
+  "confirmation_decision": {
+    "state": "confirmed",
+    "reason": "no confirmation required",
+    "decided_by": null,
+    "created_at": "2026-05-26T08:59:22.491718Z"
+  },
+  "browser_actions": [
+    {
+      "action_type": "demo_preview",
+      "description": "prepared bounded browser task without live browser execution: 点击右上角的放大镜图标",
+      "screenshot_ref": null,
+      "grounding_evidence_refs": [
+        "top-right magnifying glass"
+      ],
+      "browser_state": {},
+      "created_at": "2026-05-26T08:59:22.491722Z"
+    }
+  ],
+  "grounding_evidence_refs": [
+    "top-right magnifying glass"
+  ],
+  "final_status": "stopped",
+  "failure_reason": null,
+  "stop_reason": "demo_preview_not_executed",
+  "created_at": "2026-05-26T08:59:22.491716Z",
+  "updated_at": "2026-05-26T08:59:22.491717Z"
+}

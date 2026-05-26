@@ -1,0 +1,9 @@
+{
+  "audio_id": "github-search",
+  "source": "synthetic-fixture",
+  "spoken_text": "打开 GitHub 搜索 browser-use-vision，不要登录",
+  "language_mode": "zh-first",
+  "expected_transcript": "打开 GitHub 搜索 browser-use-vision，不要登录",
+  "sanitized_public": true
+}
+

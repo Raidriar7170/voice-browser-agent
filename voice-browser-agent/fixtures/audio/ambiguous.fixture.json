@@ -1,0 +1,9 @@
+{
+  "audio_id": "ambiguous",
+  "source": "synthetic-fixture",
+  "spoken_text": "打开那个页面",
+  "language_mode": "zh-first",
+  "expected_transcript": "打开那个页面",
+  "sanitized_public": true
+}
+

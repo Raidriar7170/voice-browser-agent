@@ -1,0 +1,73 @@
+{
+  "execution_id": "demo-svg-dashboard",
+  "transcript": {
+    "text": "读取图表里最高的柱子是什么颜色",
+    "metadata": {
+      "adapter_name": "fixture-asr",
+      "input_audio_id": "svg-dashboard",
+      "language_mode": "zh-first",
+      "created_at": "2026-05-26T08:59:22.492117Z",
+      "confidence": 0.99,
+      "diagnostics": {
+        "fixture": true,
+        "sanitized_public": true
+      }
+    }
+  },
+  "normalized_output": {
+    "kind": "browser_task_request",
+    "task": "读取图表里最高的柱子是什么颜色",
+    "intent_type": "extract_compare_visible_info",
+    "constraints": [
+      "bounded single browser task",
+      "public or controlled pages only"
+    ],
+    "visual_references": [
+      {
+        "kind": "color_swatch",
+        "text": "读取图表里最高的柱子是什么颜色",
+        "source": "transcript",
+        "confidence": null
+      }
+    ],
+    "requires_confirmation": false,
+    "stop_conditions": [
+      "login_required",
+      "payment_or_checkout",
+      "irreversible_submit"
+    ],
+    "safety_flags": []
+  },
+  "validator_decision": {
+    "accepted": true,
+    "reason": "request accepted by deterministic validator",
+    "issues": [],
+    "requires_confirmation": false
+  },
+  "confirmation_decision": {
+    "state": "confirmed",
+    "reason": "no confirmation required",
+    "decided_by": null,
+    "created_at": "2026-05-26T08:59:22.492151Z"
+  },
+  "browser_actions": [
+    {
+      "action_type": "demo_preview",
+      "description": "prepared bounded browser task without live browser execution: 读取图表里最高的柱子是什么颜色",
+      "screenshot_ref": null,
+      "grounding_evidence_refs": [
+        "读取图表里最高的柱子是什么颜色"
+      ],
+      "browser_state": {},
+      "created_at": "2026-05-26T08:59:22.492155Z"
+    }
+  ],
+  "grounding_evidence_refs": [
+    "读取图表里最高的柱子是什么颜色"
+  ],
+  "final_status": "stopped",
+  "failure_reason": null,
+  "stop_reason": "demo_preview_not_executed",
+  "created_at": "2026-05-26T08:59:22.492150Z",
+  "updated_at": "2026-05-26T08:59:22.492150Z"
+}

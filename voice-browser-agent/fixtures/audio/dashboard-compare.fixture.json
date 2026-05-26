@@ -1,0 +1,9 @@
+{
+  "audio_id": "dashboard-compare",
+  "source": "synthetic-fixture",
+  "spoken_text": "比较仪表盘里红色和绿色卡片的数值",
+  "language_mode": "zh-first",
+  "expected_transcript": "比较仪表盘里红色和绿色卡片的数值",
+  "sanitized_public": true
+}
+

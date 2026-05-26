@@ -1,0 +1,56 @@
+{
+  "execution_id": "demo-checkout-stop",
+  "transcript": {
+    "text": "帮我结账并提交付款",
+    "metadata": {
+      "adapter_name": "fixture-asr",
+      "input_audio_id": "checkout-stop",
+      "language_mode": "zh-first",
+      "created_at": "2026-05-26T08:59:22.490644Z",
+      "confidence": 0.99,
+      "diagnostics": {
+        "fixture": true,
+        "sanitized_public": true
+      }
+    }
+  },
+  "normalized_output": {
+    "kind": "browser_task_request",
+    "task": "帮我结账并提交付款",
+    "intent_type": "search_open",
+    "constraints": [
+      "pause before destructive, private, or irreversible action"
+    ],
+    "visual_references": [],
+    "requires_confirmation": true,
+    "stop_conditions": [
+      "payment_or_checkout",
+      "login_required",
+      "irreversible_submit"
+    ],
+    "safety_flags": [
+      "checkout",
+      "payment",
+      "irreversible_submit"
+    ]
+  },
+  "validator_decision": {
+    "accepted": true,
+    "reason": "request accepted by deterministic validator",
+    "issues": [],
+    "requires_confirmation": true
+  },
+  "confirmation_decision": {
+    "state": "pending",
+    "reason": "operator confirmation required before browser execution",
+    "decided_by": null,
+    "created_at": "2026-05-26T08:59:22.490688Z"
+  },
+  "browser_actions": [],
+  "grounding_evidence_refs": [],
+  "final_status": "pending_confirmation",
+  "failure_reason": null,
+  "stop_reason": null,
+  "created_at": "2026-05-26T08:59:22.490685Z",
+  "updated_at": "2026-05-26T08:59:22.490686Z"
+}

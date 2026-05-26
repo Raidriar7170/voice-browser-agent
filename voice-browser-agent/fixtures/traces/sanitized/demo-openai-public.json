@@ -1,0 +1,62 @@
+{
+  "execution_id": "demo-openai-public",
+  "transcript": {
+    "text": "打开 OpenAI 的公开文档页面",
+    "metadata": {
+      "adapter_name": "fixture-asr",
+      "input_audio_id": "openai-public",
+      "language_mode": "zh-first",
+      "created_at": "2026-05-26T08:59:22.491908Z",
+      "confidence": 0.99,
+      "diagnostics": {
+        "fixture": true,
+        "sanitized_public": true
+      }
+    }
+  },
+  "normalized_output": {
+    "kind": "browser_task_request",
+    "task": "打开 OpenAI 的公开文档页面",
+    "intent_type": "search_open",
+    "constraints": [
+      "bounded single browser task",
+      "public or controlled pages only"
+    ],
+    "visual_references": [],
+    "requires_confirmation": false,
+    "stop_conditions": [
+      "login_required",
+      "payment_or_checkout",
+      "irreversible_submit"
+    ],
+    "safety_flags": []
+  },
+  "validator_decision": {
+    "accepted": true,
+    "reason": "request accepted by deterministic validator",
+    "issues": [],
+    "requires_confirmation": false
+  },
+  "confirmation_decision": {
+    "state": "confirmed",
+    "reason": "no confirmation required",
+    "decided_by": null,
+    "created_at": "2026-05-26T08:59:22.491936Z"
+  },
+  "browser_actions": [
+    {
+      "action_type": "demo_preview",
+      "description": "prepared bounded browser task without live browser execution: 打开 OpenAI 的公开文档页面",
+      "screenshot_ref": null,
+      "grounding_evidence_refs": [],
+      "browser_state": {},
+      "created_at": "2026-05-26T08:59:22.491939Z"
+    }
+  ],
+  "grounding_evidence_refs": [],
+  "final_status": "stopped",
+  "failure_reason": null,
+  "stop_reason": "demo_preview_not_executed",
+  "created_at": "2026-05-26T08:59:22.491934Z",
+  "updated_at": "2026-05-26T08:59:22.491935Z"
+}

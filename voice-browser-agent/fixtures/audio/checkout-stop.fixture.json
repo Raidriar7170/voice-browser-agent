@@ -1,0 +1,9 @@
+{
+  "audio_id": "checkout-stop",
+  "source": "synthetic-fixture",
+  "spoken_text": "帮我结账并提交付款",
+  "language_mode": "zh-first",
+  "expected_transcript": "帮我结账并提交付款",
+  "sanitized_public": true
+}
+

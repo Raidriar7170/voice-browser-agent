@@ -1,0 +1,73 @@
+{
+  "execution_id": "demo-color-swatch",
+  "transcript": {
+    "text": "选择页面上的绿色色块",
+    "metadata": {
+      "adapter_name": "fixture-asr",
+      "input_audio_id": "color-swatch",
+      "language_mode": "zh-first",
+      "created_at": "2026-05-26T08:59:22.490900Z",
+      "confidence": 0.99,
+      "diagnostics": {
+        "fixture": true,
+        "sanitized_public": true
+      }
+    }
+  },
+  "normalized_output": {
+    "kind": "browser_task_request",
+    "task": "选择页面上的绿色色块",
+    "intent_type": "select_filter_or_option",
+    "constraints": [
+      "bounded single browser task",
+      "public or controlled pages only"
+    ],
+    "visual_references": [
+      {
+        "kind": "color_swatch",
+        "text": "选择页面上的绿色色块",
+        "source": "transcript",
+        "confidence": null
+      }
+    ],
+    "requires_confirmation": false,
+    "stop_conditions": [
+      "login_required",
+      "payment_or_checkout",
+      "irreversible_submit"
+    ],
+    "safety_flags": []
+  },
+  "validator_decision": {
+    "accepted": true,
+    "reason": "request accepted by deterministic validator",
+    "issues": [],
+    "requires_confirmation": false
+  },
+  "confirmation_decision": {
+    "state": "confirmed",
+    "reason": "no confirmation required",
+    "decided_by": null,
+    "created_at": "2026-05-26T08:59:22.490935Z"
+  },
+  "browser_actions": [
+    {
+      "action_type": "demo_preview",
+      "description": "prepared bounded browser task without live browser execution: 选择页面上的绿色色块",
+      "screenshot_ref": null,
+      "grounding_evidence_refs": [
+        "选择页面上的绿色色块"
+      ],
+      "browser_state": {},
+      "created_at": "2026-05-26T08:59:22.490943Z"
+    }
+  ],
+  "grounding_evidence_refs": [
+    "选择页面上的绿色色块"
+  ],
+  "final_status": "stopped",
+  "failure_reason": null,
+  "stop_reason": "demo_preview_not_executed",
+  "created_at": "2026-05-26T08:59:22.490933Z",
+  "updated_at": "2026-05-26T08:59:22.490933Z"
+}
