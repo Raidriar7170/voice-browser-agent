@@ -1,11 +1,11 @@
 # Voice-to-Browser Agent Context
 
-This context defines the domain language for the `voice-browser-agent` project, presented publicly as Voice-to-Browser Agent. The project exists to show an end-to-end multimodal agent application while reusing visual grounding from `browser-use-vision`.
+This context defines the domain language for the standalone `voice-browser-agent` project, presented publicly as Voice-to-Browser Agent. The project exists to show an end-to-end multimodal agent application while reusing visual grounding from `browser-use-vision`.
 
 ## Language
 
 **Voice-to-Browser Agent**:
-A command-based multimodal agent that converts spoken user intent into browser tasks, executes them with visual grounding, and returns traceable status feedback.
+A standalone command-based multimodal agent that converts spoken user intent into browser tasks, executes them with visual grounding, and returns traceable status feedback.
 _Avoid_: real-time voice assistant, general voice agent, ASR/TTS benchmark, browser-use-vision voice extension
 
 **Bounded Voice-to-Browser Agent**:
@@ -139,7 +139,7 @@ This matrix is the current line-by-line coverage audit for the domain language a
 | L7-L9 | Voice-to-Browser Agent | `voice_browser_agent.app`, `models.ExecutionTrace`, `executor.BrowserExecutorAdapter` | `test_executor_api_demo.py`, `test_core_schemas_trace.py` | README, `safe-browser-execution`, sanitized traces | Covered |
 | L11-L13 | Bounded Voice-to-Browser Agent | bounded intent enum, validator long-horizon rejection, stop conditions | `test_normalizer_validator.py`, `test_confirmation_safety.py` | README, `spoken-command-normalization`, `safe-browser-execution` | Covered |
 | L15-L17 | Reliable Voice-Driven Browser Execution | normalize -> validate -> confirm -> execute -> trace flow | `test_executor_api_demo.py`, `test_agentic_vision_executor.py` | demo task suite, trace fixtures | Covered |
-| L19-L21 | Visual Grounding Engine | imports `browser-use-vision`, stores grounding refs, no copied internals | `test_executor_api_demo.py`, `test_agentic_vision_executor.py` | README dependency note, `safe-browser-execution`, agentic traces | Covered |
+| L19-L21 | Visual Grounding Engine | imports `browser-use-vision`, stores grounding refs, no copied internals | `test_executor_api_demo.py`, `test_agentic_vision_executor.py`, `test_real_vision_controlled_evidence.py` | README dependency note, `safe-browser-execution`, agentic traces, `real_vision_controlled` trace | Covered |
 | L23-L25 | Remote Vision Backend | optional `VOICE_BROWSER_REMOTE_VISION_BACKEND_URL`, runtime passthrough | `test_executor_api_demo.py` | `.env.example`, `safe-browser-execution` | Covered as optional heavy inference |
 | L27-L29 | Hybrid Local-GPU Runtime | local console/browser config plus optional ASR/vision URLs | `test_executor_api_demo.py`, `test_ingestion_asr.py` | README Runtime, `.env.example`, `safe-browser-execution` | Covered |
 | L31-L33 | Voice Browser Stack | FastAPI, Pydantic, browser-use, `browser-use-vision`, minimal web console | `test_operator_console_ui.py`, API tests | `pyproject.toml`, README | Covered |
@@ -155,25 +155,25 @@ This matrix is the current line-by-line coverage audit for the domain language a
 | L71-L73 | Demo Task Suite | eight fixture-backed demo tasks | `test_demo_evidence.py` | `docs/demo/demo-task-suite.md` | Covered |
 | L75-L77 | Visual-Grounding-Heavy Task | icon, color swatch, SVG, dashboard tasks | `test_demo_evidence.py`, `test_agentic_vision_executor.py` | demo pages, live/agentic traces | Covered |
 | L79-L81 | Demo Ablation | module-value ablation docs without rankings | `test_demo_evidence.py` | `docs/demo/ablations.md`, `demo-evidence-set` | Covered |
-| L83-L85 | Demo Evidence Set | quickstart, video plan, suite, preview/live/agentic traces | `test_demo_evidence.py` | README, `docs/demo/*`, trace fixtures | Covered |
-| L87-L89 | Sanitized Demo Artifact | sanitizer, ignored raw artifacts, public trace scans | `test_demo_evidence.py`, `test_core_schemas_trace.py` | `.gitignore`, sanitized trace directories | Covered |
+| L83-L85 | Demo Evidence Set | quickstart, video plan, suite, preview/live/agentic/real-vision traces | `test_demo_evidence.py`, `test_demo_evidence_release_pack.py`, `test_real_vision_controlled_evidence.py` | README, `docs/demo/*`, `docs/public-evidence/index.html`, trace fixtures | Covered |
+| L87-L89 | Sanitized Demo Artifact | sanitizer, ignored raw artifacts, public trace scans, real-vision metadata-only export | `test_demo_evidence.py`, `test_core_schemas_trace.py`, `test_real_vision_controlled_evidence.py` | `.gitignore`, sanitized trace directories, `fixtures/traces/real-vision-sanitized/` | Covered |
 | L91-L93 | Reproducible Audio Fixture | sanitized fixture manifests, no raw audio | `test_demo_evidence.py`, `test_ingestion_asr.py` | `fixtures/audio/*.fixture.json`, fixture README | Covered |
 | L95-L97 | ASR Adapter | ASR protocol, remote primary, fallback, fixture adapter | `test_ingestion_asr.py`, API tests | `spoken-command-ingestion`, `.env.example` | Covered |
 | L99-L101 | Primary ASR Adapter | configurable remote primary ASR adapter for zh-first commands | `test_executor_api_demo.py`, `test_ingestion_asr.py` | `.env.example`, README Runtime | Covered as optional configured service |
 | L103-L105 | Fallback ASR Adapter | faster-whisper fallback adapter with `language="zh"` | `test_ingestion_asr.py` | `spoken-command-ingestion`, `pyproject.toml[asr]` | Covered |
 | L107-L109 | TTS Adapter | `StatusVoiceFeedback` payload plus browser-native optional playback | `test_operator_console_ui.py` | `operator-console` closeout spec, README Runtime | Covered as optional status playback, not model TTS |
 | L111-L113 | Status Voice Feedback | gated console playback when enabled, textual fallback otherwise | `test_operator_console_ui.py` | `operator-console`, `/api/status-voice` | Covered |
-| L115-L117 | Speech-to-Task Adaptation | trace-derived example helper supports later adaptation inputs | `test_trace_derived_training_examples.py` | README Runtime, `trace-derived-training-examples` | Covered for data shape; model adaptation deferred |
+| L115-L117 | Speech-to-Task Adaptation | trace-derived example helper and seed-set builder support later adaptation inputs | `test_trace_derived_training_examples.py`, `test_speech_to_task_dataset_builder.py` | README Runtime, `trace-derived-training-examples`, `fixtures/seed-set/reviewed-variants.json` | Covered for seed-set preparation; model adaptation deferred |
 | L119-L121 | Confirmation Gate | `ConfirmationGate` pending/confirm/cancel/block states | `test_confirmation_safety.py`, API tests | `safe-browser-execution`, `demo-checkout-stop.json` | Covered |
 | L123-L125 | Execution Trace | Pydantic trace plus writer/export sanitizer | `test_core_schemas_trace.py`, API tests | sanitized preview/live/agentic trace fixtures | Covered |
-| L127-L129 | Trace-Derived Training Example | `training_example_from_trace` with optional human correction | `test_trace_derived_training_examples.py` | `trace-derived-training-examples`, README Runtime | Covered; no public dataset/checkpoints |
+| L127-L129 | Trace-Derived Training Example | `training_example_from_trace` with optional human correction and reviewed variants | `test_trace_derived_training_examples.py`, `test_speech_to_task_dataset_builder.py` | `trace-derived-training-examples`, README Runtime, seed-set docs | Covered; no public raw dataset/checkpoints |
 
 ### Example-Dialogue Commitments
 
 | Context lines | Commitment | Implementation | Tests | Docs / OpenSpec / Evidence | Status |
 | --- | --- | --- | --- | --- | --- |
-| L205-L207 | Voice layer is outside `browser-use-vision`; it consumes visual grounding as a dependency | package dependency and `VisionEnhancedAgent` import only | `test_executor_api_demo.py` | README, `safe-browser-execution` | Covered |
-| L209-L211 | Do not copy or fork visual grounding internals | no copied visual code, adapter boundary only | dependency/import tests | README dependency note | Covered |
+| L205-L207 | Voice layer is outside `browser-use-vision`; it consumes visual grounding as a dependency | package dependency plus real SoM invocation for controlled evidence | `test_executor_api_demo.py`, `test_real_vision_controlled_evidence.py` | README, `safe-browser-execution`, `fixtures/traces/real-vision-sanitized/` | Covered |
+| L209-L211 | Do not copy or fork visual grounding internals | no copied visual code, adapter boundary only, calls `browser_use_vision.som.annotate_screenshot` | dependency/import tests, `test_real_vision_controlled_evidence.py` | README dependency note, public evidence page | Covered |
 | L213-L215 | Do not wrap `browser-use-vision` as a separate service; only remote heavy inference may be service-hosted | direct import plus optional backend URL | `test_executor_api_demo.py` | `.env.example`, `safe-browser-execution` | Covered |
 | L217-L219 | Browser execution and console remain local; remote GPU only for heavy inference | `local_browser=True`, file/local controlled demos | API/live tests | README Runtime, live sanitized traces | Covered |
 | L221-L223 | MVP avoids large orchestration frameworks | FastAPI/Pydantic/local adapters only | project dependency checks via tests | `pyproject.toml`, design non-goals | Covered |

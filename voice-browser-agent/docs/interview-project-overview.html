@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Voice-to-Browser Agent Project Overview</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #18212a;
+        --muted: #5b6772;
+        --line: #d6dde3;
+        --panel: #f6f8fa;
+        --accent: #0f766e;
+        --accent-2: #b45309;
+      }
+
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--ink);
+        background: #ffffff;
+        line-height: 1.55;
+      }
+
+      header {
+        border-bottom: 1px solid var(--line);
+        padding: 44px clamp(20px, 5vw, 72px) 28px;
+        background: linear-gradient(180deg, #f9fbfc 0%, #ffffff 100%);
+      }
+
+      main {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 28px clamp(18px, 4vw, 42px) 56px;
+      }
+
+      h1 {
+        font-size: 38px;
+        line-height: 1.12;
+        margin: 0 0 12px;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        font-size: 22px;
+        margin: 34px 0 10px;
+        letter-spacing: 0;
+      }
+
+      h3 {
+        font-size: 16px;
+        margin: 18px 0 8px;
+        letter-spacing: 0;
+      }
+
+      p {
+        margin: 0 0 12px;
+      }
+
+      ul, ol {
+        padding-left: 22px;
+      }
+
+      li {
+        margin: 6px 0;
+      }
+
+      code {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 1px 5px;
+        font-size: 0.95em;
+      }
+
+      .subtitle {
+        max-width: 820px;
+        color: var(--muted);
+        font-size: 18px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 14px;
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 16px;
+        background: #ffffff;
+      }
+
+      .pill {
+        display: inline-block;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 3px 9px;
+        margin: 4px 6px 4px 0;
+        color: var(--muted);
+        background: #ffffff;
+      }
+
+      .callout {
+        border-left: 4px solid var(--accent);
+        background: var(--panel);
+        padding: 14px 16px;
+        margin: 16px 0;
+      }
+
+      .warning {
+        border-left-color: var(--accent-2);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Voice-to-Browser Agent</h1>
+      <p class="subtitle">
+        Reliable voice-driven browser execution with visual grounding, deterministic safety gates,
+        and traceable evidence for a bounded Chinese-first spoken-command workflow.
+      </p>
+    </header>
+    <main>
+      <section>
+        <h2>Problem Framing</h2>
+        <p>
+          This standalone project asks a narrow reliability question: can one spoken browser command become one
+          structured browser task, pass deterministic checks, execute with visual grounding, and leave
+          enough evidence for a reviewer to understand what happened?
+        </p>
+        <p>
+          The answer is represented in code, tests, OpenSpec specs, sanitized traces, a release-pack
+          workflow, a public evidence page, and a local Speech-to-Task adaptation seed set.
+        </p>
+      </section>
+
+      <section>
+        <h2>Bounded Scope</h2>
+        <p>
+          The system supports one utterance at a time. It normalizes the transcript into a Browser
+          Task Request or Clarification Request, applies safety checks, and runs either preview,
+          live-controlled, agentic live-controlled, or real-vision controlled evidence paths.
+        </p>
+        <div>
+          <span class="pill">Chinese-first spoken commands</span>
+          <span class="pill">Local Operator Console</span>
+          <span class="pill">browser-use-vision dependency</span>
+          <span class="pill">Sanitized trace evidence</span>
+        </div>
+      </section>
+
+      <section>
+        <h2>Architecture</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Input and ASR</h3>
+            <p>Uploaded, recorded, or fixture-backed audio produces an auditable transcript record.</p>
+          </div>
+          <div class="card">
+            <h3>Normalizer and Validator</h3>
+            <p>Transcript text becomes a structured task or a clarification stop before execution.</p>
+          </div>
+          <div class="card">
+            <h3>Browser Execution</h3>
+            <p>The executor runs bounded local browser tasks and records actions, statuses, and stops.</p>
+          </div>
+          <div class="card">
+            <h3>Visual Grounding</h3>
+            <p><code>browser-use-vision</code> remains the visual grounding dependency; this standalone repo owns voice-to-task flow.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Execution Flow</h2>
+        <ol>
+          <li>One spoken command is accepted through upload, recording, transcript, or fixture replay.</li>
+          <li>The ASR adapter or fixture manifest creates transcript metadata.</li>
+          <li>The Spoken Command Normalizer creates a task request or clarification request.</li>
+          <li>The Normalizer Validator and Confirmation Gate block unsafe or ambiguous actions.</li>
+          <li>The executor records browser actions, agentic steps, final status, and sanitized evidence.</li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>Evidence Modes</h2>
+        <ul>
+          <li><code>demo_preview</code>: stable public showcase evidence without live page execution.</li>
+          <li><code>live_controlled</code>: selected local controlled visual tasks with action evidence.</li>
+          <li><code>agentic_live_controlled</code>: observe-act-verify traces with agentic step evidence.</li>
+          <li><code>real_vision_controlled</code>: controlled <code>icon-search</code> evidence that calls <code>browser_use_vision.som.annotate_screenshot</code>.</li>
+        </ul>
+        <p>
+          Committed trace sources live in <code>fixtures/traces/sanitized/</code>,
+          <code>fixtures/traces/live-sanitized/</code>, and
+          <code>fixtures/traces/agentic-sanitized/</code>, and
+          <code>fixtures/traces/real-vision-sanitized/</code>.
+        </p>
+      </section>
+
+      <section>
+        <h2>Safety and Privacy Gates</h2>
+        <p>
+          The project rejects unsupported long-horizon intents, pauses sensitive actions at the
+          Confirmation Gate, and keeps raw recordings, live browser state, generated runtime outputs,
+          and private operational details out of committed artifacts.
+        </p>
+        <p>
+          Review the safety behavior through <code>docs/demo/ablations.md</code>,
+          <code>docs/demo/demo-task-suite.md</code>, and the sanitized trace folders.
+        </p>
+      </section>
+
+      <section>
+        <h2>Adaptation Dataset Output</h2>
+        <p>
+          The local dataset workflow turns sanitized execution traces and reviewed variants into a
+          20-50 example adaptation seed set while preserving source provenance.
+        </p>
+        <ul>
+          <li><code>scripts/build_speech_to_task_dataset.py --seed-set</code></li>
+          <li><code>fixtures/seed-set/reviewed-variants.json</code></li>
+          <li><code>runtime/speech-to-task-adaptation-dataset/manifest.json</code></li>
+          <li><code>runtime/speech-to-task-adaptation-dataset/examples.jsonl</code></li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Validation Surface</h2>
+        <div class="callout">
+          <p><code>uv run pytest</code></p>
+          <p><code>openspec validate --all --strict</code></p>
+          <p><code>git diff --check</code></p>
+        </div>
+        <p>
+          The reviewer release path also includes <code>scripts/build_demo_evidence_pack.py</code>,
+          <code>runtime/demo-evidence-release-pack/manifest.json</code>, and
+          <code>runtime/demo-evidence-release-pack/index.html</code>.
+          Public-safe review can start from <code>docs/public-evidence/index.html</code>.
+        </p>
+      </section>
+
+      <section>
+        <h2>Evidence Sources</h2>
+        <ul>
+          <li><code>README.md</code></li>
+          <li><code>docs/demo/demo-task-suite.md</code></li>
+          <li><code>docs/demo/ablations.md</code></li>
+          <li><code>docs/demo/video-plan.md</code></li>
+          <li><code>docs/demo/closeout-checklist.md</code></li>
+          <li><code>docs/public-evidence/index.html</code></li>
+          <li><code>scripts/build_demo_evidence_pack.py</code></li>
+          <li><code>scripts/build_speech_to_task_dataset.py</code></li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Limitations</h2>
+        <div class="callout warning">
+          <p>
+            Model fine-tuning, expanded dataset collection, public hosting, broad public-web automation,
+            and model checkpoint release are outside this closeout MVP.
+          </p>
+          <p>
+            The contribution is the bounded, evidence-backed voice-to-browser execution stack and its
+            reviewer artifacts.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2>Interview Talk Track</h2>
+        <ol>
+          <li>Start with the bounded problem: one spoken command becomes one auditable browser task.</li>
+          <li>Show the architecture: ASR adapter, normalizer, validator, local execution, visual grounding.</li>
+          <li>Walk through evidence modes and sanitized trace sources.</li>
+          <li>Run or inspect the release pack and adaptation seed-set manifests.</li>
+          <li>Close with safety boundaries, limitations, and why evidence completeness matters.</li>
+        </ol>
+      </section>
+    </main>
+  </body>
+</html>

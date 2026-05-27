@@ -214,6 +214,40 @@ def test_fixture_replay_endpoint_uses_fixture_asr_and_marks_demo_preview(tmp_pat
     assert body["execution_mode"] == "demo_preview"
 
 
+def test_fixture_metadata_endpoint_lists_supported_execution_modes(tmp_path):
+    app = create_app(runtime_dir=tmp_path)
+    client = TestClient(app)
+
+    response = client.get("/api/fixtures")
+
+    assert response.status_code == 200
+    fixtures = {fixture["id"]: fixture for fixture in response.json()["fixtures"]}
+    assert fixtures["icon-search"]["supported_execution_modes"] == [
+        "demo_preview",
+        "live_controlled",
+    ]
+    assert fixtures["icon-search"]["visual_heavy"] is True
+    assert fixtures["icon-search"]["target_ref"] == "demo/pages/icon_only_toolbar.html"
+    assert fixtures["github-search"]["supported_execution_modes"] == ["demo_preview"]
+    assert fixtures["github-search"]["visual_heavy"] is False
+    assert fixtures["github-search"]["expected_transcript"]
+
+
+def test_preview_only_fixture_requested_live_controlled_returns_user_visible_reason(tmp_path):
+    app = create_app(runtime_dir=tmp_path)
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/fixtures/github-search/executions",
+        json={"execution_mode": "live_controlled"},
+    )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert "preview-only" in detail
+    assert "not selected for live-controlled execution" in detail
+
+
 def test_fixture_replay_can_run_selected_fixture_in_live_controlled_mode(tmp_path):
     app = create_app(runtime_dir=tmp_path)
     app.state.voice_browser.agent_factory = MockVisionAgent

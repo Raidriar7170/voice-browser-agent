@@ -121,3 +121,14 @@ The system SHALL reject agentic live-controlled results that do not contain mean
 #### Scenario: Agentic adapter returns empty evidence
 - **WHEN** the agentic executor returns no steps, no action events, and no grounding evidence references
 - **THEN** the system marks the run as failed or stopped with an explicit missing agentic evidence reason
+
+### Requirement: Explain unsupported live-controlled fixture requests
+The system SHALL return an explicit user-visible reason when a fixture is requested in live-controlled mode but is not selected for live-controlled execution.
+
+#### Scenario: Unsupported fixture requests live-controlled mode
+- **WHEN** a fixture outside the selected live-controlled task set is requested with `execution_mode` set to `live_controlled`
+- **THEN** the API rejects the request with a clear explanation that the fixture is preview-only or not selected for live-controlled execution
+
+#### Scenario: Public showcase task remains preview-only
+- **WHEN** a public non-destructive showcase task such as GitHub search is run from the console
+- **THEN** the system presents it as demo-preview evidence unless it has been explicitly selected as a controlled live target

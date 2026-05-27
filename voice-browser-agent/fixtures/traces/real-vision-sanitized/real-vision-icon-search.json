@@ -1,0 +1,146 @@
+{
+  "execution_id": "real-vision-icon-search",
+  "execution_mode": "live_controlled",
+  "transcript": {
+    "text": "点击右上角的放大镜图标",
+    "metadata": {
+      "adapter_name": "fixture-asr",
+      "input_audio_id": "icon-search",
+      "language_mode": "zh-first",
+      "created_at": "2026-05-26T08:59:22.491690Z",
+      "confidence": 0.99,
+      "diagnostics": {
+        "fixture": true,
+        "sanitized_public": true
+      }
+    }
+  },
+  "normalized_output": {
+    "kind": "browser_task_request",
+    "task": "点击右上角的放大镜图标",
+    "intent_type": "click_visual_target",
+    "constraints": [
+      "bounded single browser task",
+      "public or controlled pages only"
+    ],
+    "visual_references": [
+      {
+        "kind": "icon",
+        "text": "top-right magnifying glass",
+        "source": "transcript",
+        "confidence": null
+      }
+    ],
+    "requires_confirmation": false,
+    "stop_conditions": [
+      "login_required",
+      "payment_or_checkout",
+      "irreversible_submit"
+    ],
+    "safety_flags": [],
+    "controlled_target_ref": "demo/pages/icon_only_toolbar.html"
+  },
+  "validator_decision": {
+    "accepted": true,
+    "reason": "request accepted by deterministic validator",
+    "issues": [],
+    "requires_confirmation": false
+  },
+  "confirmation_decision": {
+    "state": "confirmed",
+    "reason": "no confirmation required",
+    "decided_by": null,
+    "created_at": "2026-05-26T08:59:22.491718Z"
+  },
+  "browser_actions": [
+    {
+      "action_type": "click",
+      "description": "performed the controlled search-icon click after producing browser-use-vision SoM annotation evidence",
+      "screenshot_ref": null,
+      "grounding_evidence_refs": [
+        "browser-use-vision:som:icon-search",
+        "som:search"
+      ],
+      "browser_state": {
+        "controlled_target_ref": "demo/pages/icon_only_toolbar.html",
+        "controlled_click_target_ref": "som:search"
+      },
+      "created_at": "2026-05-27T09:33:46.926934+00:00"
+    }
+  ],
+  "grounding_evidence_refs": [
+    "browser-use-vision:som:icon-search",
+    "som:search"
+  ],
+  "execution_runtime": {
+    "execution_mode": "live_controlled",
+    "evidence_mode": "real_vision_controlled",
+    "controlled_fixture_id": "icon-search",
+    "controlled_target_ref": "demo/pages/icon_only_toolbar.html",
+    "provider": {
+      "package": "browser-use-vision",
+      "module": "browser_use_vision.som",
+      "version": "0.1.0"
+    },
+    "adapter": {
+      "api": "browser_use_vision.som.annotate_screenshot",
+      "controlled_target_ref": "demo/pages/icon_only_toolbar.html",
+      "deterministic_controlled_adapter": false,
+      "selector_source": "playwright-bounding-boxes"
+    },
+    "visual_evidence": {
+      "annotated_element_count": 3,
+      "selector_summary": [
+        {
+          "ref": "som:settings",
+          "backend_node_id": 1,
+          "role": "button",
+          "label": "settings",
+          "bbox": {
+            "x": 808.0,
+            "y": 16.0,
+            "width": 40.0,
+            "height": 40.0
+          }
+        },
+        {
+          "ref": "som:search",
+          "backend_node_id": 2,
+          "role": "button",
+          "label": "search",
+          "bbox": {
+            "x": 856.0,
+            "y": 16.0,
+            "width": 40.0,
+            "height": 40.0
+          }
+        },
+        {
+          "ref": "som:help",
+          "backend_node_id": 3,
+          "role": "button",
+          "label": "help",
+          "bbox": {
+            "x": 904.0,
+            "y": 16.0,
+            "width": 40.0,
+            "height": 40.0
+          }
+        }
+      ],
+      "screenshot_bytes_discarded": true,
+      "annotated_image_bytes_discarded": true,
+      "screenshot_b64_len": 18336,
+      "annotated_image_b64_len": 19220,
+      "som_output_changed": true
+    },
+    "privacy_scan": {
+      "status": "passed"
+    }
+  },
+  "final_status": "succeeded",
+  "failure_reason": null,
+  "stop_reason": null,
+  "created_at": "2026-05-27T09:33:46.926934+00:00",
+  "updated_at": "2026-05-27T09:33:46.926934+00:00"
+}

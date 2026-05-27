@@ -30,6 +30,13 @@ button {
   padding: 0 14px;
 }
 
+button:disabled {
+  background: #d6dde2;
+  border-color: #c7d0d6;
+  color: #60717d;
+  cursor: not-allowed;
+}
+
 button[title] {
   width: 36px;
   padding: 0;
@@ -67,6 +74,13 @@ h2 {
 .actions {
   display: flex;
   gap: 8px;
+}
+
+.run-actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 12px 0;
 }
 
 .grid {
@@ -134,6 +148,14 @@ ol {
   min-height: 22px;
 }
 
+.hint {
+  color: #53636d;
+  font-size: 13px;
+  line-height: 1.4;
+  margin: -4px 0 12px;
+  min-height: 20px;
+}
+
 .confirmation {
   border-top: 1px solid #d6dde2;
   display: flex;
@@ -157,7 +179,12 @@ ol {
   }
 
   .actions,
+  .run-actions,
   .panel {
     margin-top: 12px;
+  }
+
+  .run-actions {
+    grid-template-columns: 1fr;
   }
 }

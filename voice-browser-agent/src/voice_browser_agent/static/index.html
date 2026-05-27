@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Voice-to-Browser Agent</title>
-    <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="stylesheet" href="/static/styles.css?v=console-flow-20260527" />
   </head>
   <body>
     <main class="shell">
@@ -12,16 +12,14 @@
         <h1>Voice-to-Browser Agent</h1>
         <div class="actions">
           <button id="recordButton" type="button" title="Record one command">●</button>
-          <button id="runButton" type="button">Run</button>
-          <button id="fixtureRunButton" type="button">Run Fixture</button>
           <button id="exportButton" type="button">Export Trace</button>
         </div>
       </section>
 
       <section class="grid">
         <form id="uploadForm" class="panel">
-          <h2>Audio Input</h2>
-          <input id="audioFile" name="file" type="file" accept="audio/*" />
+          <h2>Command Inputs</h2>
+          <input id="audioFile" name="file" type="file" accept="audio/*" aria-label="Audio upload" />
           <select id="fixtureSelect" aria-label="Demo fixture">
             <option value="icon-search">icon-search</option>
             <option value="github-search">github-search</option>
@@ -36,7 +34,17 @@
             <option value="demo_preview">demo_preview</option>
             <option value="live_controlled">live_controlled</option>
           </select>
-          <textarea id="transcriptInput" placeholder="打开 GitHub 搜索 browser-use-vision，不要登录"></textarea>
+          <p id="fixtureModeHelp" class="hint"></p>
+          <textarea
+            id="transcriptInput"
+            aria-label="Transcript command"
+            placeholder="打开 GitHub 搜索 browser-use-vision，不要登录"
+          ></textarea>
+          <div class="run-actions">
+            <button id="transcriptRunButton" type="button">Run Transcript</button>
+            <button id="fixtureRunButton" type="button">Run Fixture</button>
+            <button id="audioRunButton" type="button" disabled>Run Uploaded Audio</button>
+          </div>
           <button type="submit">Upload</button>
           <p id="uploadStatus" class="status"></p>
         </form>
@@ -62,11 +70,16 @@
         </section>
 
         <section class="panel wide">
-          <h2>Trace</h2>
+          <h2>Execution Summary</h2>
+          <pre id="summaryPanel"></pre>
+        </section>
+
+        <section class="panel wide">
+          <h2>Raw trace JSON</h2>
           <pre id="tracePanel"></pre>
         </section>
       </section>
     </main>
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=console-flow-20260527"></script>
   </body>
 </html>

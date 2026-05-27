@@ -113,7 +113,171 @@ def test_public_readme_uses_bounded_demo_positioning():
     assert "scoped demo" in readme
     assert "benchmark" not in readme
     assert "sota" not in readme
+    assert "production automation" not in readme
+    assert "unrestricted public-web autonomy" not in readme
     assert "production-ready" not in readme
+
+
+def test_release_pack_docs_define_build_command_and_artifact_boundaries():
+    readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+    video_plan = (PROJECT_ROOT / "docs/demo/video-plan.md").read_text(encoding="utf-8")
+    combined = f"{readme}\n{video_plan}"
+
+    assert "uv run python scripts/build_demo_evidence_pack.py" in combined
+    assert "runtime/demo-evidence-release-pack/" in combined
+    assert "runtime/demo-evidence-release-pack/index.html" in combined
+    assert "runtime/demo-evidence-release-pack/manifest.json" in combined
+    assert "fixtures/traces/sanitized/" in readme
+    assert "fixtures/traces/live-sanitized/" in readme
+    assert "fixtures/traces/agentic-sanitized/" in readme
+    assert "generated local artifact" in readme
+    assert "committed evidence sources" in readme
+
+
+def test_release_pack_docs_avoid_overclaiming():
+    docs = [
+        PROJECT_ROOT / "README.md",
+        PROJECT_ROOT / "docs/demo/video-plan.md",
+        PROJECT_ROOT / "docs/demo/speech-to-task-dataset.md",
+        PROJECT_ROOT / "docs/demo/closeout-checklist.md",
+        PROJECT_ROOT / "docs/interview-project-overview.html",
+    ]
+    forbidden = (
+        "benchmark",
+        "sota",
+        "production automation",
+        "unrestricted public-web autonomy",
+    )
+
+    for doc in docs:
+        text = doc.read_text(encoding="utf-8").lower()
+        assert not any(term in text for term in forbidden), doc
+
+
+def test_closeout_checklist_defines_final_commands_and_artifact_boundaries():
+    checklist = (PROJECT_ROOT / "docs/demo/closeout-checklist.md").read_text(encoding="utf-8")
+
+    required_commands = (
+        "uv run python scripts/build_demo_evidence_pack.py",
+        "uv run python scripts/build_speech_to_task_dataset.py",
+        "openspec validate project-closeout-interview-pack --strict",
+        "openspec validate --all --strict",
+        "uv run pytest",
+        "git diff --check",
+        "git status --short --ignored",
+    )
+    for command in required_commands:
+        assert command in checklist
+
+    assert "runtime/demo-evidence-release-pack/manifest.json" in checklist
+    assert "runtime/speech-to-task-adaptation-dataset/manifest.json" in checklist
+    assert "generated runtime artifacts stay local" in checklist.lower()
+    assert "fixtures/traces/sanitized/" in checklist
+    assert "fixtures/traces/live-sanitized/" in checklist
+    assert "fixtures/traces/agentic-sanitized/" in checklist
+    assert "speech-to-task-adaptation-dataset" in checklist
+
+
+def test_interview_project_overview_covers_required_story_and_evidence_sources():
+    html = (PROJECT_ROOT / "docs/interview-project-overview.html").read_text(encoding="utf-8")
+    lower = html.lower()
+
+    required_sections = (
+        "problem framing",
+        "bounded scope",
+        "architecture",
+        "execution flow",
+        "evidence modes",
+        "safety and privacy gates",
+        "adaptation dataset output",
+        "validation surface",
+        "limitations",
+        "interview talk track",
+    )
+    for section in required_sections:
+        assert section in lower
+
+    required_references = (
+        "README.md",
+        "docs/demo/demo-task-suite.md",
+        "docs/demo/ablations.md",
+        "docs/demo/video-plan.md",
+        "scripts/build_demo_evidence_pack.py",
+        "scripts/build_speech_to_task_dataset.py",
+        "fixtures/traces/sanitized/",
+        "fixtures/traces/live-sanitized/",
+        "fixtures/traces/agentic-sanitized/",
+        "runtime/demo-evidence-release-pack/manifest.json",
+        "runtime/speech-to-task-adaptation-dataset/manifest.json",
+        "openspec validate --all --strict",
+        "uv run pytest",
+    )
+    for reference in required_references:
+        assert reference in html
+
+    limitations = (
+        "model fine-tuning",
+        "expanded dataset collection",
+        "public hosting",
+        "broad public-web automation",
+    )
+    for limitation in limitations:
+        assert limitation in lower
+
+
+def test_final_handoff_docs_avoid_private_markers_and_unsupported_claims():
+    docs = [
+        PROJECT_ROOT / "README.md",
+        PROJECT_ROOT / "docs/demo/closeout-checklist.md",
+        PROJECT_ROOT / "docs/demo/video-plan.md",
+        PROJECT_ROOT / "docs/interview-project-overview.html",
+    ]
+    forbidden = (
+        "raw_audio_path",
+        "raw_screenshot",
+        "browser_profile",
+        "password=",
+        "token=",
+        "sk-proj-",
+        "/users/private",
+        "file:///users/",
+        "sota",
+        "production automation",
+        "unrestricted public-web autonomy",
+        "asr/tts quality claim",
+        "ships a model checkpoint",
+        "public raw dataset",
+    )
+
+    for doc in docs:
+        text = doc.read_text(encoding="utf-8").lower()
+        assert not any(term in text for term in forbidden), doc
+
+
+def test_readme_points_to_closeout_and_interview_handoff():
+    readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+
+    assert "docs/demo/closeout-checklist.md" in readme
+    assert "docs/interview-project-overview.html" in readme
+
+
+def test_speech_to_task_dataset_docs_define_build_command_and_boundaries():
+    readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+    dataset_doc = (PROJECT_ROOT / "docs/demo/speech-to-task-dataset.md").read_text(
+        encoding="utf-8"
+    )
+    video_plan = (PROJECT_ROOT / "docs/demo/video-plan.md").read_text(encoding="utf-8")
+    combined = f"{readme}\n{dataset_doc}\n{video_plan}"
+
+    assert "uv run python scripts/build_speech_to_task_dataset.py" in combined
+    assert "runtime/speech-to-task-adaptation-dataset/" in combined
+    assert "runtime/speech-to-task-adaptation-dataset/manifest.json" in combined
+    assert "runtime/speech-to-task-adaptation-dataset/examples.jsonl" in combined
+    assert "--correction-overlay" in dataset_doc
+    assert "local Speech-to-Task adaptation preparation evidence" in combined
+    assert "not an ASR/TTS corpus" in dataset_doc
+    assert "not a model checkpoint" in dataset_doc
+    assert "not broad web-autonomy evidence" in dataset_doc
 
 
 def test_demo_docs_distinguish_agentic_evidence_and_ablations():

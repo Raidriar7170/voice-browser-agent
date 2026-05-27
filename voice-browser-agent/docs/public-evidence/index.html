@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Voice-to-Browser Agent Public Evidence</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #172026;
+        background: #ffffff;
+        line-height: 1.55;
+      }
+      header, main {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 28px clamp(18px, 4vw, 44px);
+      }
+      header {
+        border-bottom: 1px solid #d7dee5;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 34px;
+        letter-spacing: 0;
+      }
+      h2 {
+        margin: 30px 0 10px;
+        font-size: 20px;
+        letter-spacing: 0;
+      }
+      code {
+        background: #f4f6f8;
+        border: 1px solid #d7dee5;
+        border-radius: 4px;
+        padding: 1px 5px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      th, td {
+        border: 1px solid #d7dee5;
+        padding: 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: #f4f6f8;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Voice-to-Browser Agent</h1>
+      <p>
+        standalone bounded spoken-command browser execution evidence with local visual grounding,
+        deterministic safety gates, and sanitized trace artifacts.
+      </p>
+    </header>
+    <main>
+      <section>
+        <h2>Scope</h2>
+        <p>
+          This page is a committed public evidence index. It does not require the Operator Console
+          to run. Generated release packs, demo media, and seed-set outputs stay local unless a
+          sanitized artifact is intentionally committed.
+        </p>
+      </section>
+
+      <section>
+        <h2>Evidence Modes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Mode</th>
+              <th>Committed Source</th>
+              <th>Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>demo_preview</code></td>
+              <td><code>fixtures/traces/sanitized/</code></td>
+              <td>Stable preview traces for fixture-backed spoken commands.</td>
+            </tr>
+            <tr>
+              <td><code>live_controlled</code></td>
+              <td><code>fixtures/traces/live-sanitized/</code></td>
+              <td>Local controlled-page execution traces.</td>
+            </tr>
+            <tr>
+              <td><code>agentic_live_controlled</code></td>
+              <td><code>fixtures/traces/agentic-sanitized/</code></td>
+              <td>Observe-act-verify traces with agentic step evidence.</td>
+            </tr>
+            <tr>
+              <td><code>real_vision_controlled</code></td>
+              <td><code>fixtures/traces/real-vision-sanitized/</code></td>
+              <td>Controlled <code>icon-search</code> trace produced by calling <code>browser_use_vision.som.annotate_screenshot</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Local Review Commands</h2>
+        <p><code>uv run python scripts/generate_real_vision_trace.py</code></p>
+        <p><code>uv run python scripts/build_demo_evidence_pack.py</code></p>
+        <p><code>uv run python scripts/build_speech_to_task_dataset.py --seed-set</code></p>
+        <p><code>openspec validate public-evidence-and-real-vision-integration --strict</code></p>
+        <p><code>uv run pytest</code></p>
+      </section>
+
+      <section>
+        <h2>Demo Media Contract</h2>
+        <p>
+          The 60-90 second demo contract is defined in <code>docs/demo/video-plan.md</code>.
+          It shows transcript or fixture input, normalization, safety gate behavior, controlled
+          visual execution, sanitized trace export, release-pack inspection, and seed-set inspection.
+        </p>
+      </section>
+
+      <section>
+        <h2>Seed-Set Workflow</h2>
+        <p>
+          The seed-set workflow combines trace-derived examples with reviewed variants from
+          <code>fixtures/seed-set/reviewed-variants.json</code>. The generated manifest records
+          source trace id, evidence mode, variant status, and privacy-scan status for each example.
+        </p>
+      </section>
+
+      <section>
+        <h2>limitations</h2>
+        <p>
+          The artifacts are small, local, privacy-gated project evidence. They do not include model
+          training, model checkpoints, raw recordings, raw screenshots, browser profiles, credentials,
+          private URLs, remote host details, or unrestricted autonomy claims.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -124,6 +125,10 @@ def create_app(runtime_dir: str | Path | None = None) -> FastAPI:
         state.apply_execution_result(trace, result)
         state.writer.write(trace)
         return state.trace_response(trace)
+
+    @app.get("/api/fixtures")
+    def fixtures() -> dict[str, Any]:
+        return {"fixtures": state.fixture_metadata()}
 
     @app.post("/api/fixtures/{fixture_id}/executions")
     async def start_fixture_execution(fixture_id: str, payload: CommandPayload | None = None) -> dict[str, Any]:
@@ -282,6 +287,32 @@ class AppState:
         self.register_input(command_input)
         return command_input
 
+    def fixture_metadata(self) -> list[dict[str, Any]]:
+        fixture_dir = Path(__file__).resolve().parents[2] / "fixtures" / "audio"
+        fixtures: list[dict[str, Any]] = []
+        for fixture_path in sorted(fixture_dir.glob("*.fixture.json")):
+            payload = json.loads(fixture_path.read_text(encoding="utf-8"))
+            fixture_id = str(payload.get("audio_id") or fixture_path.name.removesuffix(".fixture.json"))
+            expected_transcript = str(payload.get("expected_transcript") or payload.get("spoken_text") or "")
+            controlled_task = get_live_controlled_task(fixture_id)
+            supported_modes = [ExecutionMode.DEMO_PREVIEW.value]
+            if controlled_task is not None:
+                supported_modes.append(ExecutionMode.LIVE_CONTROLLED.value)
+            normalized = self.normalizer.normalize(expected_transcript)
+            fixtures.append(
+                {
+                    "id": fixture_id,
+                    "label": fixture_id.replace("-", " ").title(),
+                    "expected_transcript": expected_transcript,
+                    "source": payload.get("source", "fixture"),
+                    "supported_execution_modes": supported_modes,
+                    "visual_heavy": isinstance(normalized, BrowserTaskRequest)
+                    and bool(normalized.visual_references),
+                    "target_ref": controlled_task.target_ref if controlled_task else None,
+                }
+            )
+        return fixtures
+
     def apply_execution_result(self, trace: ExecutionTrace, result) -> None:
         trace.execution_mode = result.execution_mode
         trace.execution_runtime = result.runtime
@@ -316,7 +347,10 @@ class AppState:
         if controlled_task is None:
             raise HTTPException(
                 status_code=400,
-                detail=f"Fixture '{fixture_id}' is not selected for live controlled execution",
+                detail=(
+                    f"Fixture '{fixture_id}' is preview-only or not selected "
+                    "for live-controlled execution"
+                ),
             )
         return controlled_task
 

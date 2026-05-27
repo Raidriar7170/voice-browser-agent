@@ -1,0 +1,159 @@
+{
+  "variants": [
+    {
+      "variant_id": "icon-search-english",
+      "example_id": "demo_preview:demo-icon-search",
+      "target_output": {
+        "kind": "browser_task_request",
+        "task": "Click the search icon in the top-right toolbar.",
+        "intent_type": "click_visual_target",
+        "constraints": [
+          "bounded single browser task",
+          "controlled demo page only"
+        ],
+        "visual_references": [
+          {
+            "kind": "icon",
+            "text": "top-right magnifying glass",
+            "source": "reviewed_variant",
+            "confidence": 0.9
+          }
+        ],
+        "requires_confirmation": false,
+        "stop_conditions": [
+          "login_required",
+          "payment_or_checkout",
+          "irreversible_submit"
+        ],
+        "safety_flags": [],
+        "controlled_target_ref": "demo/pages/icon_only_toolbar.html"
+      },
+      "reason": "reviewed English wording for icon target grounding",
+      "note": "Preserves the original trace-derived target separately."
+    },
+    {
+      "variant_id": "icon-search-short",
+      "example_id": "live_controlled:live-icon-search",
+      "target_output": {
+        "kind": "browser_task_request",
+        "task": "Open search from the toolbar.",
+        "intent_type": "click_visual_target",
+        "constraints": [
+          "bounded single browser task",
+          "controlled demo page only"
+        ],
+        "visual_references": [
+          {
+            "kind": "icon",
+            "text": "search control",
+            "source": "reviewed_variant",
+            "confidence": 0.88
+          }
+        ],
+        "requires_confirmation": false,
+        "stop_conditions": [
+          "login_required",
+          "payment_or_checkout",
+          "irreversible_submit"
+        ],
+        "safety_flags": [],
+        "controlled_target_ref": "demo/pages/icon_only_toolbar.html"
+      },
+      "reason": "short command-style variant for the same controlled target",
+      "note": "No source trace is mutated."
+    },
+    {
+      "variant_id": "color-swatch-blue",
+      "example_id": "demo_preview:demo-color-swatch",
+      "target_output": {
+        "kind": "browser_task_request",
+        "task": "Choose the blue color swatch.",
+        "intent_type": "click_visual_target",
+        "constraints": [
+          "bounded single browser task",
+          "controlled demo page only"
+        ],
+        "visual_references": [
+          {
+            "kind": "color",
+            "text": "blue swatch",
+            "source": "reviewed_variant",
+            "confidence": 0.86
+          }
+        ],
+        "requires_confirmation": false,
+        "stop_conditions": [
+          "login_required",
+          "payment_or_checkout",
+          "irreversible_submit"
+        ],
+        "safety_flags": [],
+        "controlled_target_ref": "demo/pages/color_swatch.html"
+      },
+      "reason": "reviewed variant keeps the same selected controlled page",
+      "note": "Used only as local adaptation preparation evidence."
+    },
+    {
+      "variant_id": "dashboard-compare-summary",
+      "example_id": "demo_preview:demo-dashboard-compare",
+      "target_output": {
+        "kind": "browser_task_request",
+        "task": "Compare the visible dashboard values and report the difference.",
+        "intent_type": "extract_compare_visible_info",
+        "constraints": [
+          "bounded single browser task",
+          "public or controlled pages only"
+        ],
+        "visual_references": [
+          {
+            "kind": "text",
+            "text": "dashboard values",
+            "source": "reviewed_variant",
+            "confidence": 0.82
+          }
+        ],
+        "requires_confirmation": false,
+        "stop_conditions": [
+          "login_required",
+          "payment_or_checkout",
+          "irreversible_submit"
+        ],
+        "safety_flags": []
+      },
+      "reason": "reviewed extraction wording variant",
+      "note": "Keeps provenance attached to the original sanitized trace."
+    },
+    {
+      "variant_id": "real-vision-icon-search",
+      "example_id": "real_vision_controlled:real-vision-icon-search",
+      "target_output": {
+        "kind": "browser_task_request",
+        "task": "Use visual grounding to click the toolbar search icon.",
+        "intent_type": "click_visual_target",
+        "constraints": [
+          "bounded single browser task",
+          "controlled demo page only",
+          "real browser-use-vision SoM evidence required"
+        ],
+        "visual_references": [
+          {
+            "kind": "icon",
+            "text": "SoM-labeled search button",
+            "source": "reviewed_variant",
+            "confidence": 0.9
+          }
+        ],
+        "requires_confirmation": false,
+        "stop_conditions": [
+          "login_required",
+          "payment_or_checkout",
+          "irreversible_submit"
+        ],
+        "safety_flags": [],
+        "controlled_target_ref": "demo/pages/icon_only_toolbar.html"
+      },
+      "reason": "reviewed variant explicitly covers real-vision controlled evidence",
+      "note": "No screenshots or raw browser state are included."
+    }
+  ]
+}
