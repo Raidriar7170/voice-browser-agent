@@ -12,6 +12,7 @@ class ControlledDemoTask:
     fixture_id: str
     target_ref: str
     evidence_ref: str
+    release_required: bool = True
 
     @property
     def target_url(self) -> str:
@@ -34,6 +35,12 @@ LIVE_CONTROLLED_TASKS: dict[str, ControlledDemoTask] = {
         target_ref="demo/pages/svg_dashboard.html",
         evidence_ref="grounding/live-controlled/svg-dashboard.json",
     ),
+    "github-showcase": ControlledDemoTask(
+        fixture_id="github-showcase",
+        target_ref="demo/pages/github_showcase.html",
+        evidence_ref="grounding/live-controlled/github-showcase.json",
+        release_required=False,
+    ),
 }
 
 
@@ -42,4 +49,8 @@ def get_live_controlled_task(fixture_id: str) -> ControlledDemoTask | None:
 
 
 def selected_live_fixture_ids() -> tuple[str, ...]:
-    return tuple(LIVE_CONTROLLED_TASKS)
+    return tuple(
+        fixture_id
+        for fixture_id, task in LIVE_CONTROLLED_TASKS.items()
+        if task.release_required
+    )

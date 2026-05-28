@@ -233,6 +233,13 @@ class ControlledLiveBrowserAgent:
         }
 
     async def _perform_controlled_action(self, page, fixture_id: str) -> dict[str, str]:
+        if fixture_id == "github-showcase":
+            await page.get_by_label("repository search").fill("browser-use-vision")
+            await page.get_by_label("run controlled search").click()
+            return {
+                "type": "search",
+                "description": "searched the controlled public-code showcase for browser-use-vision",
+            }
         if fixture_id == "icon-search":
             await page.get_by_label("search").click()
             return {

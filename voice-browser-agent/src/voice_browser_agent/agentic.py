@@ -181,10 +181,15 @@ class ControlledAgenticVisionAdapter:
             "icon-search": "Observed an icon-only toolbar and resolved the magnifying-glass search control.",
             "color-swatch": "Observed color swatches and resolved the requested green option.",
             "svg-dashboard": "Observed an SVG dashboard region and resolved the chart text target.",
+            "github-showcase": "Observed a controlled public-code-search page and resolved the repository search field.",
         }
         return summaries.get(fixture_id, f"Observed controlled visual target for {fixture_id}.")
 
     async def _perform_controlled_action(self, page, fixture_id: str) -> tuple[str, str]:
+        if fixture_id == "github-showcase":
+            await page.get_by_label("repository search").fill("browser-use-vision")
+            await page.get_by_label("run controlled search").click()
+            return "search", "searched the controlled public-code showcase for browser-use-vision"
         if fixture_id == "color-swatch":
             await page.get_by_label("green color swatch").click()
             return "click", "selected the green color swatch using visual target evidence"

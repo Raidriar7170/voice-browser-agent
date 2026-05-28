@@ -76,6 +76,21 @@ def test_live_controlled_sanitized_trace_artifacts_exist_for_selected_visual_tas
     assert {"icon-search", "color-swatch"}.issubset(fixture_ids)
 
 
+def test_controlled_showcase_sanitized_trace_exists_for_github_shaped_command():
+    trace = PROJECT_ROOT / "fixtures/traces/live-sanitized/live-github-showcase.json"
+    text = trace.read_text(encoding="utf-8")
+    payload = json.loads(text)
+
+    assert payload["execution_mode"] == "live_controlled"
+    assert payload["execution_runtime"]["evidence_mode"] == "controlled_showcase"
+    assert payload["route_decision"]["controlled_fixture_id"] == "github-showcase"
+    assert payload["route_decision"]["controlled_target_ref"] == "demo/pages/github_showcase.html"
+    assert payload["final_status"] == "succeeded"
+    assert payload["browser_actions"] or payload["grounding_evidence_refs"]
+    assert "github.com" not in text.lower()
+    assert "file:///Users/" not in text
+
+
 def test_agentic_sanitized_trace_artifacts_exist_for_selected_visual_tasks():
     traces = sorted((PROJECT_ROOT / "fixtures/traces/agentic-sanitized").glob("*.json"))
     forbidden = (

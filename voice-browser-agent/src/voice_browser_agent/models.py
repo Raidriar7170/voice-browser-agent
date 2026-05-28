@@ -33,6 +33,14 @@ class ExecutionMode(str, Enum):
     LIVE_CONTROLLED = "live_controlled"
 
 
+class RouteType(str, Enum):
+    CONTROLLED_LIVE = "controlled_live"
+    DEMO_PREVIEW = "demo_preview"
+    CLARIFICATION = "clarification"
+    BLOCKED = "blocked"
+    CONFIRMATION_REQUIRED = "confirmation_required"
+
+
 class ExecutionStatus(str, Enum):
     CREATED = "created"
     CLARIFICATION_REQUIRED = "clarification_required"
@@ -113,6 +121,18 @@ class ConfirmationDecision(BaseModel):
     created_at: datetime = Field(default_factory=utc_now)
 
 
+class RouteDecision(BaseModel):
+    route_type: RouteType
+    execution_mode: ExecutionMode
+    evidence_mode: str
+    controlled_fixture_id: str | None = None
+    controlled_target_ref: str | None = None
+    route_reason: str
+    user_message: str
+    live_evidence_eligible: bool = False
+    public_readonly_enabled: bool = False
+
+
 class BrowserActionEvent(BaseModel):
     action_type: str
     description: str
@@ -176,6 +196,7 @@ class ExecutionTrace(BaseModel):
     normalized_output: NormalizedOutput | None = None
     validator_decision: ValidationResult | None = None
     confirmation_decision: ConfirmationDecision | None = None
+    route_decision: RouteDecision | None = None
     browser_actions: list[BrowserActionEvent] = Field(default_factory=list)
     agentic_steps: list[AgenticVisionStep] = Field(default_factory=list)
     grounding_evidence_refs: list[str] = Field(default_factory=list)

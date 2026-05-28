@@ -10,14 +10,17 @@ def test_operator_console_exposes_fixture_replay_control(tmp_path):
 
     assert response.status_code == 200
     html = response.text
+    assert 'id="advancedControls"' in html
     assert 'id="fixtureSelect"' in html
     assert 'id="executionMode"' in html
     assert 'id="transcriptRunButton"' in html
+    assert 'id="primaryRunButton"' in html
     assert 'id="fixtureRunButton"' in html
     assert 'id="audioRunButton"' in html
     assert 'id="fixtureModeHelp"' in html
     assert 'id="summaryPanel"' in html
-    assert "Run Transcript" in html
+    assert "Run Command" in html
+    assert "Advanced Replay" in html
     assert "icon-search" in html
     assert "live_controlled" in html
 
@@ -28,6 +31,8 @@ def test_operator_console_exposes_distinct_input_source_controls(tmp_path):
     html = client.get("/").text
 
     assert 'aria-label="Transcript command"' in html
+    assert 'id="routePanel"' in html
+    assert 'id="evidencePanel"' in html
     assert 'aria-label="Demo fixture"' in html
     assert 'aria-label="Audio upload"' in html
     assert "Run Uploaded Audio" in html
@@ -36,6 +41,8 @@ def test_operator_console_exposes_distinct_input_source_controls(tmp_path):
     assert 'id="reviewedTranscriptInput"' in html
     assert "Review ASR Transcript" in html
     assert "Run Reviewed Audio" in html
+    assert "Route Decision" in html
+    assert "Execution Evidence" in html
 
 
 def test_operator_console_uses_versioned_static_assets_to_avoid_stale_js_cache(tmp_path):
@@ -43,8 +50,8 @@ def test_operator_console_uses_versioned_static_assets_to_avoid_stale_js_cache(t
 
     html = client.get("/").text
 
-    assert 'href="/static/styles.css?v=console-flow-20260527"' in html
-    assert 'src="/static/app.js?v=console-flow-20260527"' in html
+    assert 'href="/static/styles.css?v=console-v2-20260528"' in html
+    assert 'src="/static/app.js?v=console-v2-20260528"' in html
 
 
 def test_operator_console_javascript_posts_fixture_replay_endpoint():
@@ -60,6 +67,9 @@ def test_operator_console_javascript_posts_fixture_replay_endpoint():
     assert "/api/fixtures" in app_js
     assert "execution_mode" in app_js
     assert "executionMode" in app_js
+    assert "primaryRunButton" in app_js
+    assert "renderRoute" in app_js
+    assert "renderEvidence" in app_js
     assert "updateFixtureModeSupport" in app_js
     assert "Execution mode:" in app_js
     assert "agentic_steps" in app_js
@@ -81,9 +91,27 @@ def test_operator_console_javascript_runs_uploaded_audio_by_audio_id():
     assert "state.audioId" in app_js
     assert "/api/audio/${state.audioId}/transcript" in app_js
     assert "reviewed_transcript_text" in app_js
-    assert "controlled_fixture_id" in app_js
+    assert "route_decision" in app_js
     assert "Run reviewed audio" in app_js or "audioReviewButton" in app_js
     assert "audioRunButton" in app_js
+
+
+def test_operator_console_primary_command_does_not_prefer_reviewed_audio():
+    app_js = (
+        __import__("pathlib")
+        .Path(__file__)
+        .resolve()
+        .parents[1]
+        / "src/voice_browser_agent/static/app.js"
+    ).read_text(encoding="utf-8")
+    run_command_body = app_js.split("async function runCommand()", 1)[1].split(
+        "async function loadFixtures()",
+        1,
+    )[0]
+
+    assert "transcript_text" in run_command_body
+    assert "audio_id" not in run_command_body
+    assert "reviewed_transcript_text" not in run_command_body
 
 
 def test_operator_console_javascript_loads_real_use_readiness():
@@ -115,6 +143,8 @@ def test_operator_console_javascript_renders_compact_summary_before_raw_trace():
     assert "summaryPanel" in app_js
     assert "Input source:" in app_js
     assert "Final status:" in app_js
+    assert "Route:" in app_js
+    assert "Evidence mode:" in app_js
     assert "Raw trace JSON" in app_js
 
 

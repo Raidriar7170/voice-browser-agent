@@ -43,6 +43,8 @@ git status --short --ignored
 
 Confirm `runtime/`, caches, and local upload/recording directories remain ignored.
 
+For the command-first console flow, also inspect one route-aware command run and confirm the response includes `route_decision`, preview-vs-live evidence mode, and sanitized trace export. The controlled GitHub-like showcase trace is `fixtures/traces/live-sanitized/live-github-showcase.json`.
+
 ## Archive Order
 
 Confirm `speech-to-task-adaptation-dataset` has already been archived before archiving `project-closeout-interview-pack`.
@@ -58,7 +60,7 @@ Recommended final sequence:
 1. Read `README.md`.
 2. Open `docs/interview-project-overview.html` in a browser.
 3. Open `docs/public-evidence/index.html`.
-4. Review `docs/demo/demo-task-suite.md`, `docs/demo/ablations.md`, and `docs/demo/video-plan.md`.
+4. Review `docs/demo/demo-task-suite.md`, `docs/demo/useful-scenarios.md`, `docs/demo/ablations.md`, and `docs/demo/video-plan.md`.
 5. Build the release pack and dataset with the commands above.
 6. Inspect the generated manifests and confirm they point back to committed sanitized trace sources.
 

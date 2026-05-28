@@ -141,13 +141,14 @@
         <h2>Bounded Scope</h2>
         <p>
           The system supports one utterance at a time. It normalizes the transcript into a Browser
-          Task Request or Clarification Request, applies safety checks, supports ASR review,
-          and runs preview, live-controlled, agentic live-controlled, real-vision controlled,
-          or real-voice controlled evidence paths.
+          Task Request or Clarification Request, applies safety checks, selects an explicit route,
+          supports ASR review, and runs preview, live-controlled, agentic live-controlled,
+          real-vision controlled, or real-voice controlled evidence paths.
         </p>
         <div>
           <span class="pill">Chinese-first spoken commands</span>
           <span class="pill">Local Operator Console</span>
+          <span class="pill">Route decision evidence</span>
           <span class="pill">browser-use-vision dependency</span>
           <span class="pill">Sanitized trace evidence</span>
         </div>
@@ -182,6 +183,7 @@
           <li>The ASR adapter or fixture manifest creates transcript metadata.</li>
           <li>The operator can review and edit real ASR output before normalization.</li>
           <li>The Spoken Command Normalizer creates a task request or clarification request.</li>
+          <li>The route selector maps safe commands to controlled local live, preview, clarification, or confirmation paths.</li>
           <li>The Normalizer Validator and Confirmation Gate block unsafe or ambiguous actions.</li>
           <li>The executor records browser actions, agentic steps, final status, and sanitized evidence.</li>
         </ol>
@@ -191,7 +193,7 @@
         <h2>Evidence Modes</h2>
         <ul>
           <li><code>demo_preview</code>: stable public showcase evidence without live page execution.</li>
-          <li><code>live_controlled</code>: selected local controlled visual tasks with action evidence.</li>
+          <li><code>live_controlled</code>: selected local controlled visual tasks with action evidence, including the route-aware controlled GitHub-like showcase.</li>
           <li><code>agentic_live_controlled</code>: observe-act-verify traces with agentic step evidence.</li>
           <li><code>real_vision_controlled</code>: controlled <code>icon-search</code> evidence that calls <code>browser_use_vision.som.annotate_screenshot</code>.</li>
           <li><code>real_voice_controlled</code>: reviewed audio command evidence with ASR provenance, controlled execution, and sanitized grounding references.</li>
@@ -204,6 +206,10 @@
           <code>fixtures/traces/real-vision-sanitized/</code>,
           <code>fixtures/traces/real-voice-sanitized/</code>, and
           <code>fixtures/traces/real-use-sanitized/</code>.
+        </p>
+        <p>
+          Route-aware command runs include <code>route_decision</code> metadata so reviewers can
+          distinguish controlled local evidence from preview-only public showcase commands.
         </p>
       </section>
 

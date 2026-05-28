@@ -43,11 +43,11 @@ def test_dataset_manifest_covers_preview_live_agentic_and_real_vision_traces(tmp
     assert (output_dir / "manifest.json").exists()
     assert (output_dir / "examples.jsonl").exists()
     assert manifest["privacy_scan"]["status"] == "passed"
-    assert manifest["example_count"] == 15
+    assert manifest["example_count"] == 16
     assert manifest["evidence_mode_counts"] == {
         "agentic_live_controlled": 3,
         "demo_preview": 8,
-        "live_controlled": 3,
+        "live_controlled": 4,
         "real_vision_controlled": 1,
     }
     modes = {item["evidence_mode"] for item in manifest["examples"]}
@@ -181,7 +181,7 @@ def test_seed_set_outputs_20_to_50_examples_with_trace_and_variant_provenance(tm
 
     assert 20 <= manifest["example_count"] <= 50
     assert manifest["seed_set"]["status"] == "adaptation_preparation"
-    assert manifest["seed_set"]["trace_derived_count"] == 15
+    assert manifest["seed_set"]["trace_derived_count"] == 16
     assert manifest["seed_set"]["reviewed_variant_count"] >= 5
     assert manifest["privacy_scan"]["status"] == "passed"
     assert len(rows) == manifest["example_count"]

@@ -63,6 +63,7 @@ def test_release_pack_manifest_covers_preview_live_agentic_real_vision_and_real_
     failures = [item for item in manifest["artifacts"] if item["evidence_mode"] == "real_use_failure"]
     assert len(preview) == 8
     assert {"icon-search", "color-swatch"}.issubset({item["fixture_id"] for item in live})
+    assert any(item["fixture_id"] == "github-showcase" for item in live)
     assert {"icon-search", "color-swatch"}.issubset({item["fixture_id"] for item in agentic})
     assert {item["fixture_id"] for item in real_vision} == {"icon-search"}
     assert {item["fixture_id"] for item in real_voice} == {"icon-search"}
@@ -73,6 +74,25 @@ def test_release_pack_manifest_covers_preview_live_agentic_real_vision_and_real_
     assert real_voice[0]["transcript_review"]["status"] == "edited"
     assert all(item["privacy_scan"] == "passed" for item in manifest["artifacts"])
     assert all(item["packaged_path"].startswith("traces/") for item in manifest["artifacts"])
+
+
+def test_release_pack_preserves_route_metadata_for_controlled_showcase(tmp_path):
+    builder = load_builder()
+    trace_root = copy_trace_sources(tmp_path)
+
+    manifest = builder.build_release_pack(
+        project_root=PROJECT_ROOT,
+        trace_root=trace_root,
+        output_dir=tmp_path / "release-pack",
+    )
+
+    showcase = next(
+        item for item in manifest["artifacts"] if item["fixture_id"] == "github-showcase"
+    )
+    assert showcase["evidence_mode"] == "live_controlled"
+    assert showcase["route_type"] == "controlled_live"
+    assert showcase["route_evidence_mode"] == "controlled_showcase"
+    assert showcase["live_evidence_eligible"] is True
 
 
 def test_release_pack_classifies_agentic_mode_independently_of_execution_mode(tmp_path):

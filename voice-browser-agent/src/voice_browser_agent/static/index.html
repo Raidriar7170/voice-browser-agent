@@ -4,14 +4,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Voice-to-Browser Agent</title>
-    <link rel="stylesheet" href="/static/styles.css?v=console-flow-20260527" />
+    <link rel="stylesheet" href="/static/styles.css?v=console-v2-20260528" />
   </head>
   <body>
     <main class="shell">
       <section class="toolbar">
-        <h1>Voice-to-Browser Agent</h1>
+        <div>
+          <h1>Voice-to-Browser Agent</h1>
+          <p class="subtle">Reliable voice-driven browser execution with visual grounding</p>
+        </div>
         <div class="actions">
-          <button id="recordButton" type="button" title="Record one command">●</button>
+          <button id="recordButton" class="icon-button" type="button" title="Record one command">●</button>
           <button id="exportButton" type="button">Export Trace</button>
         </div>
       </section>
@@ -21,30 +24,29 @@
         <p class="hint">Checking local ASR, browser automation, visual grounding, and privacy boundaries.</p>
       </section>
 
-      <section class="grid">
-        <form id="uploadForm" class="panel">
-          <h2>Command Inputs</h2>
-          <input id="audioFile" name="file" type="file" accept="audio/*" aria-label="Audio upload" />
-          <select id="fixtureSelect" aria-label="Demo fixture">
-            <option value="icon-search">icon-search</option>
-            <option value="github-search">github-search</option>
-            <option value="color-swatch">color-swatch</option>
-            <option value="svg-dashboard">svg-dashboard</option>
-            <option value="checkout-stop">checkout-stop</option>
-            <option value="ambiguous">ambiguous</option>
-            <option value="openai-public">openai-public</option>
-            <option value="dashboard-compare">dashboard-compare</option>
-          </select>
-          <select id="executionMode" aria-label="Execution mode">
-            <option value="demo_preview">demo_preview</option>
-            <option value="live_controlled">live_controlled</option>
-          </select>
-          <p id="fixtureModeHelp" class="hint"></p>
+      <section class="console-grid">
+        <section class="panel command-panel">
+          <div class="section-heading">
+            <h2>Command</h2>
+            <span id="uploadStatus" class="status">Idle</span>
+          </div>
+
           <textarea
             id="transcriptInput"
             aria-label="Transcript command"
-            placeholder="打开 GitHub 搜索 browser-use-vision，不要登录"
+            placeholder="打开 GitHub 或点击右上角的放大镜图标"
           ></textarea>
+
+          <div class="primary-actions">
+            <button id="primaryRunButton" type="button">Run Command</button>
+            <button id="transcriptRunButton" type="button">Run Transcript</button>
+          </div>
+
+          <form id="uploadForm" class="upload-strip">
+            <input id="audioFile" name="file" type="file" accept="audio/*" aria-label="Audio upload" />
+            <button type="submit">Upload</button>
+          </form>
+
           <div class="audio-review">
             <button id="audioReviewButton" type="button" disabled>Review ASR Transcript</button>
             <textarea
@@ -53,16 +55,52 @@
               placeholder="Review ASR output before execution"
             ></textarea>
             <p id="asrReviewStatus" class="hint">Run Uploaded Audio after reviewing the ASR transcript.</p>
+            <div class="run-actions">
+              <button id="audioPreviewButton" type="button" disabled>Preview Reviewed Audio</button>
+              <button id="audioRunButton" type="button" disabled>Run Reviewed Audio</button>
+            </div>
           </div>
-          <div class="run-actions">
-            <button id="transcriptRunButton" type="button">Run Transcript</button>
+        </section>
+
+        <section id="routePanel" class="panel route-panel">
+          <h2>Route Decision</h2>
+          <div id="routeCards" class="metric-grid"></div>
+          <p id="routeMessage" class="hint">No command has been routed yet.</p>
+        </section>
+
+        <section id="evidencePanel" class="panel evidence-panel">
+          <h2>Execution Evidence</h2>
+          <div id="evidenceCards" class="metric-grid"></div>
+          <pre id="summaryPanel"></pre>
+        </section>
+
+        <details id="advancedControls" class="panel advanced-panel">
+          <summary>Advanced Replay</summary>
+          <div class="advanced-grid">
+            <label>
+              Demo fixture
+              <select id="fixtureSelect" aria-label="Demo fixture">
+                <option value="icon-search">icon-search</option>
+                <option value="github-search">github-search</option>
+                <option value="color-swatch">color-swatch</option>
+                <option value="svg-dashboard">svg-dashboard</option>
+                <option value="checkout-stop">checkout-stop</option>
+                <option value="ambiguous">ambiguous</option>
+                <option value="openai-public">openai-public</option>
+                <option value="dashboard-compare">dashboard-compare</option>
+              </select>
+            </label>
+            <label>
+              Execution mode
+              <select id="executionMode" aria-label="Execution mode">
+                <option value="demo_preview">demo_preview</option>
+                <option value="live_controlled">live_controlled</option>
+              </select>
+            </label>
+            <p id="fixtureModeHelp" class="hint"></p>
             <button id="fixtureRunButton" type="button">Run Fixture</button>
-            <button id="audioPreviewButton" type="button" disabled>Preview Reviewed Audio</button>
-            <button id="audioRunButton" type="button" disabled>Run Reviewed Audio</button>
           </div>
-          <button type="submit">Upload</button>
-          <p id="uploadStatus" class="status"></p>
-        </form>
+        </details>
 
         <section class="panel">
           <h2>Transcript</h2>
@@ -84,17 +122,12 @@
           </div>
         </section>
 
-        <section class="panel wide">
-          <h2>Execution Summary</h2>
-          <pre id="summaryPanel"></pre>
-        </section>
-
-        <section class="panel wide">
-          <h2>Raw trace JSON</h2>
+        <details class="panel wide">
+          <summary>Raw trace JSON</summary>
           <pre id="tracePanel"></pre>
-        </section>
+        </details>
       </section>
     </main>
-    <script src="/static/app.js?v=console-flow-20260527"></script>
+    <script src="/static/app.js?v=console-v2-20260528"></script>
   </body>
 </html>

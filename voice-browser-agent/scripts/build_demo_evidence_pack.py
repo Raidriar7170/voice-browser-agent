@@ -104,6 +104,7 @@ def collect_artifacts(project_root: Path, trace_root: Path) -> list[dict[str, An
                 raise EvidencePackError(f"malformed trace missing fixture id: {trace_path}")
             agentic_steps = payload.get("agentic_steps") or []
             grounding_refs = payload.get("grounding_evidence_refs") or []
+            route = payload.get("route_decision") or runtime.get("route_decision") or {}
             artifact = {
                 "fixture_id": fixture_id,
                 "execution_id": payload.get("execution_id"),
@@ -122,6 +123,9 @@ def collect_artifacts(project_root: Path, trace_root: Path) -> list[dict[str, An
                 "transcript_review": runtime.get("transcript_review"),
                 "input_source": runtime.get("input_source"),
                 "privacy_scan": (runtime.get("privacy_scan") or {}).get("status", "passed"),
+                "route_type": route.get("route_type"),
+                "route_evidence_mode": route.get("evidence_mode"),
+                "live_evidence_eligible": route.get("live_evidence_eligible"),
                 "_source_abs": trace_path,
             }
             validate_artifact(artifact, trace_path)

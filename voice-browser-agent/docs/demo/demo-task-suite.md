@@ -17,8 +17,12 @@ Four of the eight tasks are visual-grounding-heavy: icon-only toolbar, color swa
 
 Public showcase tasks are limited to non-destructive browsing of public pages and must stop before login, checkout, payment, deletion, posting, private-data entry, file transfer, or irreversible submission.
 
+The Operator Console v2 adds route-aware controlled showcase behavior for GitHub-shaped commands. A command such as "打开 GitHub" may execute `demo/pages/github_showcase.html` as controlled local live evidence, with the route decision recorded separately from the normalized command text. This does not claim that a real public website was operated.
+
 The checked-in preview traces in `fixtures/traces/sanitized/` are generated in explicit demo-preview mode. A preview trace uses `demo_preview_not_executed` when the browser was not launched.
 
 Live controlled traces belong in `fixtures/traces/live-sanitized/`. These artifacts are separate from preview traces, must be marked with `execution_mode: live_controlled`, and may report `succeeded`, `failed`, or `stopped` as long as the trace includes action evidence or grounding evidence plus an explicit failure or stop reason. The first required live controlled targets are `icon-search` and `color-swatch`; `svg-dashboard` is the optional third controlled visual task.
+
+Controlled showcase traces also live in `fixtures/traces/live-sanitized/`, but they are not part of the required visual-grounding completeness set. They must include `route_decision` metadata so reviewers can distinguish controlled local evidence from real public-site execution.
 
 agentic live-controlled traces belong in `fixtures/traces/agentic-sanitized/`. These artifacts are separate from both demo-preview traces and earlier live-controlled action-list traces. They must include `execution_style: agentic_vision`, step-level observation/action/verification evidence, sanitized grounding references, and no raw audio, raw screenshots, browser profile data, credentials, private URLs, or remote host details.

@@ -15,6 +15,15 @@ function showJson(id, value) {
   $(id).textContent = JSON.stringify(value, null, 2);
 }
 
+function setCards(id, cards) {
+  $(id).innerHTML = cards
+    .map(
+      ([label, value, tone = ""]) =>
+        `<div class="metric-card ${tone}"><span>${label}</span><strong>${value || "n/a"}</strong></div>`,
+    )
+    .join("");
+}
+
 function inputSourceForTrace(trace) {
   if (state.currentInputSource) return state.currentInputSource;
   const metadata = trace.transcript?.metadata || {};
@@ -26,9 +35,12 @@ function inputSourceForTrace(trace) {
 
 function renderSummary(trace) {
   const mode = trace.execution_mode || trace.execution_runtime?.execution_mode || "unknown";
+  const route = trace.route_decision || trace.execution_runtime?.route_decision || {};
   const lines = [
     `Input source: ${inputSourceForTrace(trace)}`,
+    `Route: ${route.route_type || "unknown"}`,
     `Execution mode: ${mode}`,
+    `Evidence mode: ${route.evidence_mode || trace.execution_runtime?.evidence_mode || "unknown"}`,
     `Final status: ${trace.final_status || "unknown"}`,
   ];
   if (trace.stop_reason) lines.push(`Stop reason: ${trace.stop_reason}`);
@@ -41,6 +53,34 @@ function renderSummary(trace) {
     lines.push(`Confirmation reason: ${trace.confirmation_decision.reason}`);
   }
   $("summaryPanel").textContent = `${lines.join("\n")}\n\nRaw trace JSON remains below for audit.`;
+}
+
+function renderRoute(trace) {
+  const route = trace.route_decision || trace.execution_runtime?.route_decision || {};
+  const live = route.live_evidence_eligible ? "live evidence" : "not live evidence";
+  const tone = route.live_evidence_eligible ? "good" : "warn";
+  setCards("routeCards", [
+    ["Route", route.route_type || "unknown", tone],
+    ["Target", route.controlled_fixture_id || "none"],
+    ["Mode", route.execution_mode || trace.execution_mode || "unknown"],
+    ["Evidence", route.evidence_mode || trace.execution_runtime?.evidence_mode || "unknown"],
+    ["Eligibility", live, tone],
+  ]);
+  $("routeMessage").textContent = route.user_message || route.route_reason || "No route decision recorded.";
+}
+
+function renderEvidence(trace) {
+  const route = trace.route_decision || {};
+  const lastAction = (trace.browser_actions || []).at(-1) || {};
+  const lastStep = (trace.agentic_steps || []).at(-1) || {};
+  const browserState = lastAction.browser_state || lastStep.action_result?.browser_state || {};
+  const refs = trace.grounding_evidence_refs || lastAction.grounding_evidence_refs || [];
+  setCards("evidenceCards", [
+    ["Status", trace.final_status || "unknown", trace.final_status === "succeeded" ? "good" : "warn"],
+    ["Page", browserState.page_title || route.controlled_target_ref || "none"],
+    ["Action", lastAction.action_type || lastStep.selected_action || "none"],
+    ["Grounding", refs.length ? `${refs.length} refs` : "none"],
+  ]);
 }
 
 function eventTypeLabel(type) {
@@ -108,6 +148,8 @@ function renderTrace(trace) {
   $("transcriptPanel").textContent = trace.transcript?.text || "";
   showJson("normalizedPanel", trace.normalized_output || {});
   showJson("tracePanel", trace);
+  renderRoute(trace);
+  renderEvidence(trace);
   renderSummary(trace);
   renderTimeline(trace);
   const pending = trace.confirmation_decision?.state === "pending";
@@ -227,6 +269,17 @@ function resetAudioReview() {
   $("asrReviewStatus").textContent = "Review ASR output before running reviewed audio.";
 }
 
+async function runCommand() {
+  try {
+    state.currentInputSource = "transcript-based execution";
+    const transcript = $("transcriptInput").value.trim();
+    const trace = await postJson("/api/executions", { transcript_text: transcript });
+    renderTrace(trace);
+  } catch (error) {
+    renderError(error);
+  }
+}
+
 async function loadFixtures() {
   try {
     const response = await fetch("/api/fixtures");
@@ -264,16 +317,8 @@ $("uploadForm").addEventListener("submit", async (event) => {
   $("uploadStatus").textContent = `Audio accepted. audio_id: ${state.audioId}`;
 });
 
-$("transcriptRunButton").addEventListener("click", async () => {
-  try {
-    state.currentInputSource = "transcript-based execution";
-    const transcript = $("transcriptInput").value.trim();
-    const trace = await postJson("/api/executions", { transcript_text: transcript });
-    renderTrace(trace);
-  } catch (error) {
-    renderError(error);
-  }
-});
+$("primaryRunButton").addEventListener("click", runCommand);
+$("transcriptRunButton").addEventListener("click", runCommand);
 
 $("fixtureRunButton").addEventListener("click", async () => {
   try {
@@ -304,8 +349,6 @@ $("audioRunButton").addEventListener("click", async () => {
     const trace = await postJson("/api/executions", {
       audio_id: state.audioId,
       reviewed_transcript_text: reviewed,
-      execution_mode: "live_controlled",
-      controlled_fixture_id: $("fixtureSelect").value || "icon-search",
     });
     renderTrace(trace);
   } catch (error) {

@@ -30,12 +30,15 @@ from .models import (
     ExecutionMode,
     ExecutionStatus,
     ExecutionTrace,
+    RouteDecision,
+    RouteType,
     SpokenCommandInput,
 )
 from .normalizer import StructuredOutputNormalizer
 from .preflight import build_readiness_report
+from .routing import select_execution_route
 from .safety import ConfirmationGate
-from .trace_writer import TraceWriter
+from .trace_writer import TraceWriter, sanitize_trace_dict
 from .tts import StatusVoiceFeedback
 from .validator import NormalizerValidator
 
@@ -116,36 +119,44 @@ def create_app(runtime_dir: str | Path | None = None) -> FastAPI:
     @app.post("/api/executions")
     async def start_execution(payload: CommandPayload) -> dict[str, Any]:
         trace = await state.prepare_trace(payload)
+        trace.route_decision = state.route_for_trace(trace, payload)
         if isinstance(trace.normalized_output, ClarificationRequest):
             trace.final_status = ExecutionStatus.CLARIFICATION_REQUIRED
+            state.apply_route_metadata(trace)
             state.writer.write(trace)
             return state.trace_response(trace)
 
         if trace.validator_decision is None or not trace.validator_decision.accepted:
             trace.final_status = ExecutionStatus.BLOCKED
             trace.failure_reason = trace.validator_decision.reason if trace.validator_decision else "not validated"
+            state.apply_route_metadata(trace)
             state.writer.write(trace)
             return state.trace_response(trace)
 
         if trace.confirmation_decision and trace.confirmation_decision.state is ConfirmationState.PENDING:
             trace.final_status = ExecutionStatus.PENDING_CONFIRMATION
+            state.apply_route_metadata(trace)
             state.writer.write(trace)
             return state.trace_response(trace)
 
         assert isinstance(trace.normalized_output, BrowserTaskRequest)
-        controlled_task = state.controlled_task_for_execution(payload)
+        controlled_task = state.controlled_task_for_route(trace.route_decision)
         if controlled_task is not None:
             request = state.with_controlled_target(trace.normalized_output, controlled_task)
             trace.normalized_output = request
             executor = state.executor_for_mode(
-                state.execution_mode_for_payload(payload),
+                trace.route_decision.execution_mode if trace.route_decision else state.execution_mode_for_payload(payload),
                 controlled_task,
             )
         else:
             request = trace.normalized_output
-            executor = state.executor
+            executor = state.executor_for_mode(
+                trace.route_decision.execution_mode if trace.route_decision else state.execution_mode_for_payload(payload),
+                None,
+            )
         result = await executor.execute(request, trace.execution_id)
         state.apply_execution_result(trace, result)
+        state.apply_route_metadata(trace)
         state.apply_real_voice_metadata(trace, payload)
         state.writer.write(trace)
         return state.trace_response(trace)
@@ -201,8 +212,16 @@ def create_app(runtime_dir: str | Path | None = None) -> FastAPI:
                 decided_by=payload.decided_by,
             )
             if isinstance(trace.normalized_output, BrowserTaskRequest):
-                result = await state.executor.execute(trace.normalized_output, trace.execution_id)
+                controlled_task = state.controlled_task_for_route(trace.route_decision)
+                executor = state.executor_for_mode(
+                    trace.route_decision.execution_mode
+                    if trace.route_decision
+                    else ExecutionMode.DEMO_PREVIEW,
+                    controlled_task,
+                )
+                result = await executor.execute(trace.normalized_output, trace.execution_id)
                 state.apply_execution_result(trace, result)
+                state.apply_route_metadata(trace)
         else:
             raise HTTPException(status_code=400, detail="decision must be confirm or cancel")
 
@@ -211,7 +230,7 @@ def create_app(runtime_dir: str | Path | None = None) -> FastAPI:
 
     @app.get("/api/traces/{execution_id}")
     def trace(execution_id: str) -> dict[str, Any]:
-        return state.get_trace(execution_id).model_dump(mode="json")
+        return state.trace_response(state.get_trace(execution_id))
 
     @app.get("/api/traces/{execution_id}/export")
     def export_trace(execution_id: str) -> JSONResponse:
@@ -266,6 +285,22 @@ class AppState:
         if isinstance(normalized, BrowserTaskRequest):
             trace.confirmation_decision = self.gate.evaluate(normalized, validation)
         return trace
+
+    def route_for_trace(self, trace: ExecutionTrace, payload: CommandPayload) -> RouteDecision:
+        if trace.normalized_output is None:
+            return RouteDecision(
+                route_type=RouteType.BLOCKED,
+                execution_mode=ExecutionMode.DEMO_PREVIEW,
+                evidence_mode="blocked",
+                route_reason="missing normalized output",
+                user_message="No normalized command was available for routing.",
+                live_evidence_eligible=False,
+            )
+        return select_execution_route(
+            trace.normalized_output,
+            trace.validator_decision,
+            trace.confirmation_decision,
+        )
 
     async def transcript_for_payload(self, payload: CommandPayload) -> ASRTranscript:
         if payload.transcript_text:
@@ -371,6 +406,25 @@ class AppState:
         trace.failure_reason = result.failure_reason
         trace.stop_reason = result.stop_reason
 
+    def apply_route_metadata(self, trace: ExecutionTrace) -> None:
+        if trace.route_decision is None:
+            return
+        trace.execution_mode = trace.execution_mode or trace.route_decision.execution_mode
+        route_payload = trace.route_decision.model_dump(mode="json")
+        trace.execution_runtime["route_decision"] = route_payload
+        trace.execution_runtime.setdefault("evidence_mode", trace.route_decision.evidence_mode)
+        trace.execution_runtime.setdefault("route_type", trace.route_decision.route_type.value)
+        if trace.route_decision.controlled_fixture_id:
+            trace.execution_runtime.setdefault(
+                "controlled_fixture_id",
+                trace.route_decision.controlled_fixture_id,
+            )
+        if trace.route_decision.controlled_target_ref:
+            trace.execution_runtime.setdefault(
+                "controlled_target_ref",
+                trace.route_decision.controlled_target_ref,
+            )
+
     def extend_grounding_refs(self, trace: ExecutionTrace, refs: list[str]) -> None:
         for ref in refs:
             if ref not in trace.grounding_evidence_refs:
@@ -378,6 +432,9 @@ class AppState:
 
     def apply_real_voice_metadata(self, trace: ExecutionTrace, payload: CommandPayload) -> None:
         if not payload.audio_id or not payload.reviewed_transcript_text:
+            return
+        if trace.route_decision is None or not trace.route_decision.live_evidence_eligible:
+            trace.execution_runtime["input_source"] = "audio"
             return
         trace.execution_runtime["evidence_mode"] = "real_voice_controlled"
         trace.execution_runtime["input_source"] = "audio"
@@ -432,6 +489,21 @@ class AppState:
             self.execution_mode_for_payload(payload),
         )
 
+    def controlled_task_for_route(
+        self,
+        route_decision: RouteDecision | None,
+    ) -> ControlledDemoTask | None:
+        if route_decision is None:
+            return None
+        if route_decision.route_type is not RouteType.CONTROLLED_LIVE:
+            return None
+        if route_decision.controlled_fixture_id is None:
+            return None
+        return self.controlled_task_for_mode(
+            route_decision.controlled_fixture_id,
+            route_decision.execution_mode,
+        )
+
     def with_controlled_target(
         self,
         request: BrowserTaskRequest,
@@ -475,7 +547,7 @@ class AppState:
         return self.writer.read(execution_id)
 
     def trace_response(self, trace: ExecutionTrace) -> dict[str, Any]:
-        payload = trace.model_dump(mode="json")
+        payload = sanitize_trace_dict(trace.model_dump(mode="json"))
         payload["status_voice"] = self.voice_feedback.render_status(
             status=trace.final_status.value,
             reason=trace.stop_reason or trace.failure_reason,

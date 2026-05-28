@@ -81,11 +81,11 @@ The command writes `runtime/speech-to-task-adaptation-dataset/manifest.json` and
 
 ## Operator Console Demo Flow
 
-Use the console as three separate execution paths:
+Use the console as a command-first operator workflow:
 
-- Transcript demo: paste a fixture transcript or short spoken-command text, then run the transcript path to show normalization, validation, clarification, confirmation, or preview evidence.
-- Fixture replay: select a fixture and execution mode, then run the fixture path to reproduce checked-in demo-preview traces or selected controlled local visual tasks.
-- Uploaded audio: upload or record one command, verify the stored `audio_id`, then run the audio path to execute the ingested transcript through the same safety and trace pipeline.
-- Reviewed audio: upload or record one command, review the ASR transcript, edit it if needed, preview normalization, then run the reviewed audio path on a controlled local page.
+- Primary command: type a short spoken-command transcript and run it. The backend selects a route, shows whether it is controlled live or preview-only, and records the route decision in the trace.
+- Reviewed audio: upload or record one command, review the ASR transcript, edit it if needed, then run the same route-aware execution path while preserving ASR provenance.
+- Controlled showcase: GitHub-shaped commands can route to a local controlled code-search page so reviewers see a visible browser action without depending on a real public website.
+- Advanced replay: fixture selection, execution-mode override, raw trace JSON, and sanitized export remain available for reproducibility and debugging.
 
-Use `demo_preview` for public showcase tasks such as GitHub or OpenAI pages. Use `live_controlled` only for fixtures explicitly selected for local controlled pages, such as icon search, color swatch, and SVG dashboard evidence. Clarification examples should stop before browser execution, confirmation examples should show the operator prompt before continuing, and exported traces must remain sanitized.
+Use `demo_preview` for public showcase tasks unless they have an explicit controlled local route. Use `live_controlled` only for configured controlled pages, such as icon search, color swatch, SVG dashboard, and the controlled GitHub-like showcase. Public-readonly execution is disabled by default and remains local/private unless a future change adds allowlists, isolated browser contexts, short step budgets, and explicit sanitization. Clarification examples should stop before browser execution, confirmation examples should show the operator prompt before continuing, and exported traces must remain sanitized.
