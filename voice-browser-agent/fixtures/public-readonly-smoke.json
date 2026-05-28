@@ -51,6 +51,75 @@
       "artifact_status": "local_private_until_sanitized"
     },
     {
+      "id": "github-repo-search",
+      "target_label": "GitHub",
+      "allowlist_id": "github",
+      "browser_intent_type": "search_open",
+      "task_kind": "github-repo-search",
+      "allowed_actions": ["navigate", "search", "extract"],
+      "command": "Search GitHub repositories for agent tooling",
+      "requested_slots": {
+        "target_site_hint": "GitHub",
+        "search_query": "agent tooling"
+      },
+      "url_template": "https://github.com/search?q={search_query}&type=repositories",
+      "completion_criteria": {
+        "criteria_id": "github-repo-search-results",
+        "required_proof": ["searched_query", "search_page_state", "repository_result_marker"],
+        "visible_markers": ["Repositories", "agent tooling"],
+        "url_path_contains": "/search"
+      },
+      "execution_mode": "live_public_readonly",
+      "limits": {
+        "max_steps": 3,
+        "timeout_seconds": 15
+      },
+      "safety_boundaries": [
+        "read-only",
+        "No login",
+        "no star/fork/comment/issue/pull-request",
+        "no upload/download"
+      ],
+      "artifact_status": "local_private_until_sanitized",
+      "visual_artifact_policy": "local_private_visible_result"
+    },
+    {
+      "id": "github-public-repo-read",
+      "target_label": "GitHub",
+      "allowlist_id": "github",
+      "browser_intent_type": "read_reference",
+      "task_kind": "github-public-repo-read",
+      "allowed_actions": ["navigate", "extract"],
+      "command": "Read the README for Raidriar7170/gui-agent-benchmark on GitHub",
+      "requested_slots": {
+        "target_site_hint": "GitHub",
+        "owner": "Raidriar7170",
+        "repo": "gui-agent-benchmark",
+        "repo_slug": "Raidriar7170/gui-agent-benchmark",
+        "read_target": "README"
+      },
+      "url_template": "https://github.com/{owner}/{repo}",
+      "completion_criteria": {
+        "criteria_id": "github-public-repo-page",
+        "required_proof": ["repo_slug", "repo_page_title", "readme_or_description_marker"],
+        "visible_markers": ["README", "gui-agent-benchmark"]
+      },
+      "execution_mode": "live_public_readonly",
+      "limits": {
+        "max_steps": 2,
+        "timeout_seconds": 15
+      },
+      "safety_boundaries": [
+        "read-only",
+        "No login",
+        "no private repository access",
+        "no star/fork/comment/issue/pull-request",
+        "no upload/download"
+      ],
+      "artifact_status": "local_private_until_sanitized",
+      "visual_artifact_policy": "local_private_visible_result"
+    },
+    {
       "id": "mdn-readonly-reference",
       "target_label": "MDN Web Docs",
       "allowlist_id": "mdn-docs",

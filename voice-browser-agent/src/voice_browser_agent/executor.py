@@ -18,6 +18,7 @@ from .models import (
     ExecutionStatus,
     PublicTaskCompletionState,
     PublicTaskContract,
+    PublicReadonlyVisualArtifact,
     SanitizerStatus,
 )
 from .public_readonly import (
@@ -49,6 +50,8 @@ class BrowserExecutorConfig(BaseModel):
     public_task_slots: dict[str, Any] = Field(default_factory=dict)
     public_timeout_seconds: int = 15
     public_sanitizer_required: bool = True
+    public_visual_artifacts_dir: Path | None = None
+    public_headed_debug: bool = False
 
     def resolved_execution_mode(self) -> ExecutionMode:
         if self.execution_mode is not None:
@@ -124,6 +127,7 @@ class BrowserExecutorAdapter:
                         "persistent_profile": False,
                         "cookies_reused": False,
                         "storage_state_reused": False,
+                        "headed_debug": self.config.public_headed_debug,
                     },
                 }
             )
@@ -201,6 +205,9 @@ class BrowserExecutorAdapter:
                 target_url=self.config.public_target_url,
                 timeout_seconds=self.config.public_timeout_seconds,
                 policy=public_policy,
+                execution_id=execution_id,
+                visual_artifacts_dir=self.config.public_visual_artifacts_dir,
+                headed_debug=self.config.public_headed_debug,
             )
             raw_result = await agent.run()
             return self._coerce_result(
@@ -318,6 +325,19 @@ class BrowserExecutorAdapter:
         for action in actions:
             grounding_refs.extend(action.grounding_evidence_refs)
         grounding_refs.extend(payload.get("grounding_evidence_refs", []))
+        visual_artifacts = _coerce_public_visual_artifacts(
+            payload.get("visual_artifacts"),
+            execution_id=execution_id,
+        )
+        if visual_artifacts:
+            runtime["public_visual_artifacts"] = [
+                artifact.model_dump(mode="json") for artifact in visual_artifacts
+            ]
+            final_artifact = next(
+                (artifact for artifact in reversed(visual_artifacts) if artifact.is_final),
+                visual_artifacts[-1],
+            )
+            runtime["public_final_visual_result"] = final_artifact.model_dump(mode="json")
         stop = budget_stop or _detect_stop(payload, actions, raw_action_items)
         failure_reason = payload.get("failure_reason")
         stop_reason = stop.reason if stop else payload.get("stop_reason")
@@ -349,6 +369,7 @@ class BrowserExecutorAdapter:
                 runtime["public_completion_state"] = completion.completion_state.value
                 runtime["public_observed_proof_summary"] = completion.observed_proof
                 runtime["public_unmet_criteria"] = completion.unmet_criteria
+                _apply_visual_artifact_completion(runtime, completion.completion_state)
                 if stop is not None:
                     status = ExecutionStatus.STOPPED
                     stop_reason = stop.reason
@@ -388,6 +409,43 @@ class BrowserExecutorAdapter:
             agent_task=agent_task,
             runtime=runtime,
         )
+
+
+def _coerce_public_visual_artifacts(
+    value: Any,
+    *,
+    execution_id: str,
+) -> list[PublicReadonlyVisualArtifact]:
+    if not isinstance(value, list):
+        return []
+    artifacts: list[PublicReadonlyVisualArtifact] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        payload = dict(item)
+        payload.setdefault("execution_id", execution_id)
+        if payload.get("execution_id") != execution_id:
+            continue
+        try:
+            artifacts.append(PublicReadonlyVisualArtifact.model_validate(payload))
+        except Exception:
+            continue
+    return artifacts
+
+
+def _apply_visual_artifact_completion(
+    runtime: dict[str, Any],
+    completion_state: PublicTaskCompletionState,
+) -> None:
+    artifacts = runtime.get("public_visual_artifacts")
+    if not isinstance(artifacts, list):
+        return
+    for artifact in artifacts:
+        if isinstance(artifact, dict):
+            artifact["completion_state"] = completion_state.value
+    final = runtime.get("public_final_visual_result")
+    if isinstance(final, dict):
+        final["completion_state"] = completion_state.value
 
 
 def _verify_public_task_completion(
@@ -451,9 +509,17 @@ def _public_task_completion_from_runtime_issue(
         variance_reason = "missing_selector"
     elif "target_not_allowlisted" in haystack or "redirect" in haystack:
         variance_reason = "redirect_off_allowlist"
-    elif "captcha" in haystack:
+    elif "captcha" in haystack or "verify you are human" in haystack or "verification" in haystack:
         variance_reason = "captcha"
-    elif "login_required" in haystack:
+    elif "rate limit" in haystack or "rate_limited" in haystack or "abuse detection" in haystack:
+        variance_reason = "rate_limited"
+    elif (
+        "permission" in haystack
+        or "private repository" in haystack
+        or "access denied" in haystack
+    ):
+        variance_reason = "permission"
+    elif "login_required" in haystack or "sign in" in haystack:
         variance_reason = "login_required"
     elif stop_reason == "public_task_action_not_allowed":
         result = verifier.classify_variance("public_task_action_not_allowed")
@@ -568,6 +634,9 @@ class PublicReadonlyBrowserAgent:
         target_url: str | None = None,
         timeout_seconds: int = 15,
         policy: PublicReadonlyPolicy | None = None,
+        execution_id: str | None = None,
+        visual_artifacts_dir: Path | None = None,
+        headed_debug: bool = False,
     ):
         self.task = task
         self.runtime = runtime
@@ -576,6 +645,9 @@ class PublicReadonlyBrowserAgent:
         self.timeout_seconds = timeout_seconds
         self.policy = policy
         self.public_task_contract = _public_task_contract_from_runtime(runtime)
+        self.execution_id = execution_id or "public-readonly"
+        self.visual_artifacts_dir = visual_artifacts_dir
+        self.headed_debug = headed_debug
 
     async def run(self) -> dict[str, Any]:
         if not self.target_url:
@@ -595,11 +667,12 @@ class PublicReadonlyBrowserAgent:
         from playwright.async_api import async_playwright
 
         actions: list[dict[str, Any]] = []
+        visual_artifacts: list[dict[str, Any]] = []
         browser = None
         context = None
         try:
             async with async_playwright() as playwright:
-                browser = await playwright.chromium.launch(**_chromium_launch_kwargs())
+                browser = await playwright.chromium.launch(**_chromium_launch_kwargs(self.headed_debug))
                 context = await browser.new_context(storage_state=None)
                 page = await context.new_page()
                 completed_search = False
@@ -620,25 +693,104 @@ class PublicReadonlyBrowserAgent:
                         "browser_state": browser_state,
                     }
                 )
+                artifact = await self._capture_visual_artifact(
+                    page=page,
+                    action_label="opened allowlisted public page",
+                    browser_state=browser_state,
+                    step_index=len(actions),
+                    artifact_kind="step_screenshot",
+                    completion_state=PublicTaskCompletionState.PARTIAL,
+                )
+                if artifact is not None:
+                    actions[-1]["screenshot_ref"] = artifact["local_ref"]
+                    visual_artifacts.append(artifact)
                 blocked = self._blocked_state(browser_state)
                 if blocked:
-                    return _public_readonly_stopped(blocked.reason, actions)
+                    _mark_last_visual_artifact_final(
+                        visual_artifacts,
+                        artifact_kind="blocked_screenshot",
+                        completion_state=PublicTaskCompletionState.STOPPED,
+                    )
+                    return _public_readonly_stopped(blocked.reason, actions, visual_artifacts)
 
                 if self._has_step_budget(actions):
-                    query = _extract_public_search_query(self.task)
-                    if query:
+                    query = str(
+                        (self.runtime.get("public_task_slots") or {}).get("search_query")
+                        or _extract_public_search_query(self.task)
+                        or ""
+                    )
+                    if self._is_github_search_contract() and query:
+                        action_decision = self._action_decision(
+                            "search",
+                            f"read-only GitHub repository search for {query}",
+                        )
+                        if action_decision is not None:
+                            return _public_readonly_stopped(
+                                action_decision.reason,
+                                actions,
+                                visual_artifacts,
+                            )
+                        browser_state = await _public_page_state(
+                            page,
+                            origin=self.runtime.get("public_origin"),
+                        )
+                        actions.append(
+                            {
+                                "type": "search",
+                                "description": f"searched GitHub repositories for {query}",
+                                "browser_state": browser_state,
+                            }
+                        )
+                        completed_search = True
+                        artifact = await self._capture_visual_artifact(
+                            page=page,
+                            action_label=f"searched GitHub repositories for {query}",
+                            browser_state=browser_state,
+                            step_index=len(actions),
+                            artifact_kind="step_screenshot",
+                            completion_state=PublicTaskCompletionState.PARTIAL,
+                        )
+                        if artifact is not None:
+                            actions[-1]["screenshot_ref"] = artifact["local_ref"]
+                            visual_artifacts.append(artifact)
+                        blocked = self._blocked_state(browser_state)
+                        if blocked:
+                            _mark_last_visual_artifact_final(
+                                visual_artifacts,
+                                artifact_kind="blocked_screenshot",
+                                completion_state=PublicTaskCompletionState.STOPPED,
+                            )
+                            return _public_readonly_stopped(blocked.reason, actions, visual_artifacts)
+                    elif query:
                         search_result = await self._try_public_search(page, query)
                         if search_result is not None:
                             if search_result.get("type") == "policy_stop":
                                 return _public_readonly_stopped(
                                     str(search_result.get("stop_reason") or "public_task_action_not_allowed"),
                                     actions,
+                                    visual_artifacts,
                                 )
                             actions.append(search_result)
                             completed_search = True
+                            artifact = await self._capture_visual_artifact(
+                                page=page,
+                                action_label=str(search_result.get("description") or "public search"),
+                                browser_state=search_result["browser_state"],
+                                step_index=len(actions),
+                                artifact_kind="step_screenshot",
+                                completion_state=PublicTaskCompletionState.PARTIAL,
+                            )
+                            if artifact is not None:
+                                actions[-1]["screenshot_ref"] = artifact["local_ref"]
+                                visual_artifacts.append(artifact)
                             blocked = self._blocked_state(search_result["browser_state"])
                             if blocked:
-                                return _public_readonly_stopped(blocked.reason, actions)
+                                _mark_last_visual_artifact_final(
+                                    visual_artifacts,
+                                    artifact_kind="blocked_screenshot",
+                                    completion_state=PublicTaskCompletionState.STOPPED,
+                                )
+                                return _public_readonly_stopped(blocked.reason, actions, visual_artifacts)
 
                 if self._has_step_budget(actions) and _wants_public_expand(self.task):
                     expand_result = await self._try_public_expand(page)
@@ -647,12 +799,18 @@ class PublicReadonlyBrowserAgent:
                             return _public_readonly_stopped(
                                 str(expand_result.get("stop_reason") or "public_task_action_not_allowed"),
                                 actions,
+                                visual_artifacts,
                             )
                         actions.append(expand_result)
                         completed_expand = True
                         blocked = self._blocked_state(expand_result["browser_state"])
                         if blocked:
-                            return _public_readonly_stopped(blocked.reason, actions)
+                            _mark_last_visual_artifact_final(
+                                visual_artifacts,
+                                artifact_kind="blocked_screenshot",
+                                completion_state=PublicTaskCompletionState.STOPPED,
+                            )
+                            return _public_readonly_stopped(blocked.reason, actions, visual_artifacts)
 
                 if self._has_step_budget(actions):
                     action_decision = self._action_decision(
@@ -660,7 +818,11 @@ class PublicReadonlyBrowserAgent:
                         "read public page title",
                     )
                     if action_decision is not None:
-                        return _public_readonly_stopped(action_decision.reason, actions)
+                        return _public_readonly_stopped(
+                            action_decision.reason,
+                            actions,
+                            visual_artifacts,
+                        )
                     browser_state = await _public_page_state(
                         page,
                         origin=self.runtime.get("public_origin"),
@@ -675,6 +837,18 @@ class PublicReadonlyBrowserAgent:
                             "browser_state": browser_state,
                         }
                     )
+                    artifact = await self._capture_visual_artifact(
+                        page=page,
+                        action_label=f"read public page title: {browser_state.get('page_title', '')}",
+                        browser_state=browser_state,
+                        step_index=len(actions),
+                        artifact_kind="final_screenshot",
+                        completion_state=PublicTaskCompletionState.PARTIAL,
+                        is_final=True,
+                    )
+                    if artifact is not None:
+                        actions[-1]["screenshot_ref"] = artifact["local_ref"]
+                        visual_artifacts.append(artifact)
                 stop_reason = _should_stop_for_incomplete_public_task(
                     task=self.task,
                     action_count=len(actions),
@@ -683,7 +857,11 @@ class PublicReadonlyBrowserAgent:
                     completed_expand=completed_expand,
                 )
                 if stop_reason is not None:
-                    return _public_readonly_stopped(stop_reason, actions)
+                    _mark_last_visual_artifact_final(
+                        visual_artifacts,
+                        completion_state=PublicTaskCompletionState.PARTIAL,
+                    )
+                    return _public_readonly_stopped(stop_reason, actions, visual_artifacts)
         except Exception as exc:
             return {
                 "status": "failed",
@@ -699,7 +877,11 @@ class PublicReadonlyBrowserAgent:
                 with suppress(Exception):
                     await browser.close()
 
-        return {"status": "succeeded", "actions": actions}
+        _mark_last_visual_artifact_final(
+            visual_artifacts,
+            completion_state=PublicTaskCompletionState.PARTIAL,
+        )
+        return {"status": "succeeded", "actions": actions, "visual_artifacts": visual_artifacts}
 
     def _has_step_budget(self, actions: list[dict[str, Any]]) -> bool:
         max_steps = self.policy.max_steps if self.policy is not None else 3
@@ -735,6 +917,54 @@ class PublicReadonlyBrowserAgent:
             return None
         decision = self.policy.check_browser_state(state)
         return None if decision.allowed else decision
+
+    def _is_github_search_contract(self) -> bool:
+        return (
+            self.public_task_contract is not None
+            and self.public_task_contract.task_kind == "github-repo-search"
+        )
+
+    async def _capture_visual_artifact(
+        self,
+        *,
+        page: Any,
+        action_label: str,
+        browser_state: dict[str, Any],
+        step_index: int,
+        artifact_kind: str,
+        completion_state: PublicTaskCompletionState,
+        is_final: bool = False,
+    ) -> dict[str, Any] | None:
+        if self.visual_artifacts_dir is None:
+            return None
+        execution_dir = self.visual_artifacts_dir / self.execution_id
+        execution_dir.mkdir(parents=True, exist_ok=True)
+        filename = f"step-{step_index}-{_slugify_artifact_label(action_label)}.png"
+        path = execution_dir / filename
+        try:
+            await page.screenshot(path=str(path), full_page=True)
+        except Exception:
+            return None
+        local_ref = f"artifacts/public-readonly/{self.execution_id}/{filename}"
+        artifact = PublicReadonlyVisualArtifact(
+            artifact_id=f"{self.execution_id}-step-{step_index}",
+            execution_id=self.execution_id,
+            artifact_kind=artifact_kind,
+            action_label=action_label,
+            local_ref=local_ref,
+            page_title=str(browser_state.get("page_title") or ""),
+            sanitized_origin=str(self.runtime.get("public_origin") or browser_state.get("origin") or ""),
+            completion_state=completion_state,
+            privacy_state=EvidencePrivacyState.LOCAL_PRIVATE,
+            sanitizer_status=(
+                SanitizerStatus.PENDING
+                if self.runtime.get("sanitizer_status") == SanitizerStatus.PENDING.value
+                else SanitizerStatus.NOT_REQUIRED
+            ),
+            step_index=step_index,
+            is_final=is_final,
+        )
+        return artifact.model_dump(mode="json")
 
     async def _try_public_search(self, page: Any, query: str) -> dict[str, Any] | None:
         decision = self._action_decision("search", f"read-only public search for {query}")
@@ -839,19 +1069,46 @@ def _should_stop_for_incomplete_public_task(
     return None
 
 
-def _public_readonly_stopped(reason: str, actions: list[dict[str, Any]]) -> dict[str, Any]:
-    return {
+def _public_readonly_stopped(
+    reason: str,
+    actions: list[dict[str, Any]],
+    visual_artifacts: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    payload = {
         "status": "stopped",
         "stop_reason": reason,
         "actions": actions,
     }
+    if visual_artifacts:
+        payload["visual_artifacts"] = visual_artifacts
+    return payload
 
 
-def _chromium_launch_kwargs() -> dict[str, Any]:
+def _mark_last_visual_artifact_final(
+    visual_artifacts: list[dict[str, Any]],
+    *,
+    artifact_kind: str | None = None,
+    completion_state: PublicTaskCompletionState,
+) -> None:
+    if not visual_artifacts:
+        return
+    artifact = visual_artifacts[-1]
+    artifact["is_final"] = True
+    artifact["completion_state"] = completion_state.value
+    if artifact_kind is not None:
+        artifact["artifact_kind"] = artifact_kind
+
+
+def _slugify_artifact_label(label: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")
+    return (slug or "visual")[:48]
+
+
+def _chromium_launch_kwargs(headed_debug: bool = False) -> dict[str, Any]:
     system_chrome = _system_chromium_executable()
     if system_chrome is not None:
-        return {"headless": True, "executable_path": str(system_chrome)}
-    return {"headless": True}
+        return {"headless": not headed_debug, "executable_path": str(system_chrome)}
+    return {"headless": not headed_debug}
 
 
 def _system_chromium_executable() -> Path | None:

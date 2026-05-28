@@ -33,6 +33,9 @@ def test_operator_console_exposes_distinct_input_source_controls(tmp_path):
     assert 'aria-label="Transcript command"' in html
     assert 'id="routePanel"' in html
     assert 'id="evidencePanel"' in html
+    assert 'id="visualResultPanel"' in html
+    assert 'id="visualResultPreview"' in html
+    assert 'id="visualStepTimeline"' in html
     assert 'aria-label="Demo fixture"' in html
     assert 'aria-label="Audio upload"' in html
     assert "Run Uploaded Audio" in html
@@ -50,8 +53,8 @@ def test_operator_console_uses_versioned_static_assets_to_avoid_stale_js_cache(t
 
     html = client.get("/").text
 
-    assert 'href="/static/styles.css?v=console-v2-20260528"' in html
-    assert 'src="/static/app.js?v=console-v2-20260528"' in html
+    assert 'href="/static/styles.css?v=console-v3-20260528"' in html
+    assert 'src="/static/app.js?v=console-v3-20260528"' in html
 
 
 def test_operator_console_javascript_posts_fixture_replay_endpoint():
@@ -70,6 +73,11 @@ def test_operator_console_javascript_posts_fixture_replay_endpoint():
     assert "primaryRunButton" in app_js
     assert "renderRoute" in app_js
     assert "renderEvidence" in app_js
+    assert "renderVisualResult" in app_js
+    assert "public_visual_artifacts" in app_js
+    assert "public_final_visual_result" in app_js
+    assert "visual-artifacts" in app_js
+    assert "No visual result captured" in app_js
     assert "updateFixtureModeSupport" in app_js
     assert "Execution mode:" in app_js
     assert "agentic_steps" in app_js

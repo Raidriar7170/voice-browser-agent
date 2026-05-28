@@ -47,7 +47,7 @@ Confirm `runtime/`, caches, local upload/recording directories, raw public-reado
 
 For the command-first console flow, also inspect one route-aware command run and confirm the response includes `route_decision`, preview-vs-live evidence mode, and sanitized trace export. The controlled GitHub-like showcase trace is `fixtures/traces/live-sanitized/live-github-showcase.json`.
 
-For the public-readonly flow, inspect one completed, partial, stopped, failed, and blocked state. Confirm the console shows task id, task kind, completion criteria, completion state, stop/failure reason, local/private sanitizer state, and never marks opened-but-incomplete public tasks as successful.
+For the public-readonly flow, inspect one completed, partial, stopped, failed, and blocked state. Confirm the console shows task id, task kind, completion criteria, completion state, stop/failure reason, local/private sanitizer state, visible result artifact state when available, and never marks opened-but-incomplete public tasks as successful. For GitHub, confirm controlled showcase and real `github.com` public-readonly evidence are labeled separately.
 
 ## Archive Order
 

@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote, quote_plus
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -250,6 +251,18 @@ def create_app(runtime_dir: str | Path | None = None) -> FastAPI:
     def export_trace(execution_id: str) -> JSONResponse:
         trace = state.get_trace(execution_id)
         return JSONResponse(state.writer.export_sanitized(trace))
+
+    @app.get("/api/executions/{execution_id}/visual-artifacts/{artifact_id}")
+    def visual_artifact(execution_id: str, artifact_id: str) -> FileResponse:
+        trace = state.get_trace(execution_id)
+        artifact = state.visual_artifact_for_trace(trace, artifact_id)
+        artifact_path = state.resolve_visual_artifact_path(artifact)
+        if not artifact_path.exists() or not artifact_path.is_file():
+            raise HTTPException(status_code=404, detail="visual artifact not found")
+        return FileResponse(
+            artifact_path,
+            media_type=str(artifact.get("media_type") or "image/png"),
+        )
 
     @app.get("/api/status-voice")
     def status_voice(status: str, reason: str | None = None) -> dict[str, str | bool]:
@@ -576,6 +589,8 @@ class AppState:
                 public_task_slots=route_decision.public_task_slots if route_decision else {},
                 public_timeout_seconds=self.public_readonly_timeout_seconds_for_route(route_decision),
                 public_sanitizer_required=self.config.public_readonly_sanitizer_required,
+                public_visual_artifacts_dir=self.config.public_readonly_artifacts_dir,
+                public_headed_debug=self.config.public_readonly_headed_debug,
             ),
             agent_factory=self.agent_factory,
         )
@@ -631,10 +646,9 @@ class AppState:
         if public_contract.target_url_template:
             try:
                 return public_contract.target_url_template.format(
-                    **{
-                        key: str(value)
-                        for key, value in (route_decision.public_task_slots if route_decision else {}).items()
-                    }
+                    **_format_public_url_slots(
+                        route_decision.public_task_slots if route_decision else {}
+                    )
                 )
             except KeyError:
                 return public_contract.target_url or (public_target.url if public_target else None)
@@ -653,6 +667,51 @@ class AppState:
             reason=trace.stop_reason or trace.failure_reason,
         )
         return payload
+
+    def visual_artifact_for_trace(
+        self,
+        trace: ExecutionTrace,
+        artifact_id: str,
+    ) -> dict[str, Any]:
+        artifacts = trace.execution_runtime.get("public_visual_artifacts") or []
+        if not isinstance(artifacts, list):
+            raise HTTPException(status_code=404, detail="visual artifact not found")
+        for artifact in artifacts:
+            if not isinstance(artifact, dict):
+                continue
+            if artifact.get("artifact_id") == artifact_id and artifact.get("execution_id") == trace.execution_id:
+                return artifact
+        raise HTTPException(status_code=404, detail="visual artifact not found")
+
+    def resolve_visual_artifact_path(self, artifact: dict[str, Any]) -> Path:
+        local_ref = str(artifact.get("local_ref") or "")
+        local_path = Path(local_ref)
+        if not local_ref or local_path.is_absolute() or ".." in local_path.parts:
+            raise HTTPException(status_code=404, detail="visual artifact not found")
+        execution_id = str(artifact.get("execution_id") or "")
+        expected_prefix = ("artifacts", "public-readonly", execution_id)
+        if not execution_id or local_path.parts[:3] != expected_prefix or len(local_path.parts) < 4:
+            raise HTTPException(status_code=404, detail="visual artifact not found")
+        runtime_root = self.config.runtime_dir.resolve()
+        artifact_path = (runtime_root / local_path).resolve()
+        try:
+            artifact_path.relative_to(runtime_root)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="visual artifact not found") from exc
+        return artifact_path
+
+
+def _format_public_url_slots(slots: dict[str, Any]) -> dict[str, str]:
+    formatted: dict[str, str] = {}
+    for key, value in slots.items():
+        text = str(value)
+        if key == "search_query":
+            formatted[key] = quote_plus(text)
+        elif key in {"owner", "repo"}:
+            formatted[key] = quote(text, safe="")
+        else:
+            formatted[key] = text
+    return formatted
 
 
 app = create_app()

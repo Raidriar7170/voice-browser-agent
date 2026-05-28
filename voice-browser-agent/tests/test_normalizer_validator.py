@@ -10,6 +10,10 @@ def test_clear_chinese_command_becomes_supported_browser_task_request():
     assert output.intent_type is BrowserIntentType.SEARCH_OPEN
     assert output.requires_confirmation is False
     assert "login_required" in output.stop_conditions
+    assert output.task == "打开 GitHub 搜索 browser-use-vision，不要登录"
+    assert output.public_task_slots["target_site_hint"] == "github"
+    assert output.public_task_slots["search_query"] == "browser-use-vision"
+    assert output.public_task_slots["read_only_intent"] is True
 
     result = NormalizerValidator().validate(output)
     assert result.accepted is True
@@ -101,3 +105,48 @@ def test_public_broad_or_mutation_commands_do_not_become_safe_public_tasks():
     assert isinstance(mutation, BrowserTaskRequest)
     assert "file_transfer" in mutation.safety_flags
     assert mutation.requires_confirmation is True
+
+
+def test_github_repository_search_preserves_query_and_readonly_boundaries():
+    output = RuleBasedNormalizer().normalize("Search GitHub repositories for agent tooling, do not log in")
+
+    assert isinstance(output, BrowserTaskRequest)
+    assert output.intent_type is BrowserIntentType.SEARCH_OPEN
+    assert output.task == "Search GitHub repositories for agent tooling, do not log in"
+    assert output.public_task_slots["target_site_hint"] == "github"
+    assert output.public_task_slots["task_kind_hint"] == "github-repo-search"
+    assert output.public_task_slots["search_query"] == "agent tooling"
+    assert output.public_task_slots["read_only_intent"] is True
+    assert "public_readonly" in output.constraints
+    assert "stop_if_login_required" in output.stop_conditions
+    assert output.safety_flags == []
+
+    result = NormalizerValidator().validate(output)
+    assert result.accepted is True
+    assert result.requires_confirmation is False
+
+
+def test_github_public_repository_read_preserves_repo_slug_and_read_target():
+    output = RuleBasedNormalizer().normalize("Read the README for Raidriar7170/gui-agent-benchmark on GitHub")
+
+    assert isinstance(output, BrowserTaskRequest)
+    assert output.intent_type is BrowserIntentType.EXTRACT_COMPARE_VISIBLE_INFO
+    assert output.public_task_slots["target_site_hint"] == "github"
+    assert output.public_task_slots["task_kind_hint"] == "github-public-repo-read"
+    assert output.public_task_slots["repo_slug"] == "Raidriar7170/gui-agent-benchmark"
+    assert output.public_task_slots["owner"] == "Raidriar7170"
+    assert output.public_task_slots["repo"] == "gui-agent-benchmark"
+    assert output.public_task_slots["read_target"] == "README"
+    assert output.public_task_slots["read_only_intent"] is True
+    assert output.safety_flags == []
+
+
+def test_unsupported_github_account_or_broad_research_commands_do_not_run_as_safe_public_tasks():
+    account = RuleBasedNormalizer().normalize("Open GitHub and star Raidriar7170/gui-agent-benchmark")
+    broad = RuleBasedNormalizer().normalize("Find the best GitHub agent projects and rank all of them")
+
+    assert isinstance(account, BrowserTaskRequest)
+    assert "github_account_action" in account.safety_flags
+    assert account.requires_confirmation is True
+    assert isinstance(broad, ClarificationRequest)
+    assert broad.reason == "unsupported_public_task_scope"

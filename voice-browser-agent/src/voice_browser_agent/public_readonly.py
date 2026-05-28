@@ -4,7 +4,7 @@ import ipaddress
 import json
 import re
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, unquote_plus, urlparse
 
 from pydantic import BaseModel, Field
 
@@ -24,6 +24,10 @@ PUBLIC_TARGET_MARKERS = (
     "python",
     "mdn",
     "wikipedia",
+    "github",
+    "repository",
+    "repositories",
+    "repo",
     "docs",
     "documentation",
     "public",
@@ -166,8 +170,30 @@ class PublicReadonlyPolicy:
             for key in ("url", "title", "visible_text", "page_title")
         ).lower()
         checks = [
-            ("file_transfer", ("upload", "download", "上传", "下载", "file")),
-            ("login_required", ("login", "log in", "sign in", "登录", "账号", "密码")),
+            ("file_transfer", ("upload", "download", "上传", "下载")),
+            (
+                "public_task_captcha_or_verification",
+                (
+                    "captcha",
+                    "verify you are human",
+                    "verification",
+                    "are you a human",
+                    "human verification",
+                ),
+            ),
+            (
+                "public_task_rate_limited",
+                ("rate limit", "rate-limited", "abuse detection", "secondary rate limit"),
+            ),
+            (
+                "public_task_private_or_permission_boundary",
+                ("private repository", "permission denied", "access denied"),
+            ),
+            (
+                "public_task_login_boundary",
+                ("sign in to github", "you must be logged in", "login to github"),
+            ),
+            ("login_required", ("login", "log in", "登录", "账号", "密码")),
             ("payment_or_checkout", ("checkout", "payment", "pay", "结账", "付款", "支付")),
             ("deletion", ("delete", "删除", "remove account")),
             ("posting", ("post", "publish", "发布", "发送")),
@@ -215,8 +241,28 @@ class PublicTaskCompletionVerifier:
             "timeout": (PublicTaskCompletionState.FAILED, None, "public_task_timeout"),
             "missing_selector": (PublicTaskCompletionState.PARTIAL, "public_task_missing_selector", None),
             "redirect_off_allowlist": (PublicTaskCompletionState.STOPPED, "target_not_allowlisted", None),
-            "captcha": (PublicTaskCompletionState.STOPPED, "captcha_boundary", None),
+            "captcha": (
+                PublicTaskCompletionState.STOPPED,
+                "public_task_captcha_or_verification",
+                None,
+            ),
+            "verification": (
+                PublicTaskCompletionState.STOPPED,
+                "public_task_captcha_or_verification",
+                None,
+            ),
             "login_required": (PublicTaskCompletionState.STOPPED, "login_required", None),
+            "github_login_required": (
+                PublicTaskCompletionState.STOPPED,
+                "public_task_login_boundary",
+                None,
+            ),
+            "rate_limited": (PublicTaskCompletionState.STOPPED, "public_task_rate_limited", None),
+            "permission": (
+                PublicTaskCompletionState.STOPPED,
+                "public_task_private_or_permission_boundary",
+                None,
+            ),
             "network_error": (PublicTaskCompletionState.FAILED, None, "public_task_network_error"),
             "step_budget_exhausted": (
                 PublicTaskCompletionState.PARTIAL,
@@ -249,9 +295,17 @@ class PublicTaskCompletionVerifier:
     ) -> dict[str, Any]:
         observed: dict[str, Any] = {}
         combined_parts: list[str] = []
+        visible_parts: list[str] = []
         for action in actions:
             state = action.get("browser_state", {})
             state = state if isinstance(state, dict) else {}
+            visible_parts.extend(
+                [
+                    str(state.get("page_title", "")),
+                    str(state.get("title", "")),
+                    str(state.get("visible_text", "")),
+                ]
+            )
             combined_parts.extend(
                 [
                     str(action.get("type", "")),
@@ -262,6 +316,7 @@ class PublicTaskCompletionVerifier:
                 ]
             )
         combined = " ".join(combined_parts).lower()
+        visible_combined = " ".join(visible_parts).lower()
         query = str(requested_slots.get("search_query") or "").strip()
         if query and query.lower() in combined and any(action.get("type") == "search" for action in actions):
             observed["searched_query"] = query
@@ -284,12 +339,26 @@ class PublicTaskCompletionVerifier:
                 )
             except KeyError:
                 continue
-        if markers and any(marker.lower() in combined for marker in markers):
+        if markers and any(marker.lower() in visible_combined for marker in markers):
             visible_marker = next(
-                marker for marker in markers if marker.lower() in combined
+                marker for marker in markers if marker.lower() in visible_combined
             )
             observed["result_heading"] = visible_marker
             observed["visible_marker"] = visible_marker
+        if self.contract.task_kind == "github-repo-search":
+            _observe_github_search(
+                observed=observed,
+                requested_slots=requested_slots,
+                final_state=final_state,
+                visible_combined=visible_combined,
+            )
+        if self.contract.task_kind == "github-public-repo-read":
+            _observe_github_repo_read(
+                observed=observed,
+                requested_slots=requested_slots,
+                final_state=final_state,
+                combined=combined,
+            )
         return observed
 
 
@@ -395,10 +464,23 @@ def normalized_public_task_slots(request: BrowserTaskRequest) -> dict[str, Any]:
             slots["target_site_hint"] = "mdn"
         elif "wikipedia" in text:
             slots["target_site_hint"] = "wikipedia"
+        elif "github" in text:
+            slots["target_site_hint"] = "github"
     if "search_query" not in slots:
         query = _extract_search_query(text)
         if query:
             slots["search_query"] = query
+            if "github" in text:
+                slots["task_kind_hint"] = "github-repo-search"
+    if "github" in text and not {"owner", "repo"}.issubset(slots):
+        repo_slug = _extract_github_repo_slug(text)
+        if repo_slug:
+            owner, repo = repo_slug.split("/", 1)
+            slots["target_site_hint"] = "github"
+            slots["task_kind_hint"] = "github-public-repo-read"
+            slots["repo_slug"] = repo_slug
+            slots["owner"] = owner
+            slots["repo"] = repo
     if "read_only_intent" not in slots and request.safety_flags == []:
         slots["read_only_intent"] = True
     return slots
@@ -489,6 +571,19 @@ def _contract_matches_request(
         return False
     if contract.task_kind == "documentation_search":
         return bool(slots.get("search_query"))
+    if contract.task_kind == "github-repo-search":
+        return (
+            _slot_matches_github(slots)
+            and bool(slots.get("search_query"))
+            and slots.get("task_kind_hint", "github-repo-search") == "github-repo-search"
+        )
+    if contract.task_kind == "github-public-repo-read":
+        has_repo = bool(slots.get("owner") and slots.get("repo")) or bool(slots.get("repo_slug"))
+        return (
+            _slot_matches_github(slots)
+            and has_repo
+            and slots.get("task_kind_hint", "github-public-repo-read") == "github-public-repo-read"
+        )
     if contract.task_kind in {"direct_reference_read", "visible_extraction"}:
         return bool(
             slots.get("read_target")
@@ -511,8 +606,94 @@ def _extract_search_query(text: str) -> str | None:
             words = query.split()
             if len(words) > 1 and words[0] in {"python", "docs", "documentation"}:
                 query = words[-1]
+            query = _clean_github_search_query(query)
             return query[:80] if query else None
     return None
+
+
+def _clean_github_search_query(query: str) -> str:
+    return re.sub(
+        r"^(?:github\s+)?(?:repositories|repository|repos|repo)\s+for\s+",
+        "",
+        query,
+        flags=re.IGNORECASE,
+    ).strip()
+
+
+def _extract_github_repo_slug(text: str) -> str | None:
+    if "github" not in text and "github.com/" not in text:
+        return None
+    url_match = re.search(
+        r"github\.com/([a-z0-9_.-]+)/([a-z0-9_.-]+)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if url_match:
+        return f"{url_match.group(1)}/{url_match.group(2).removesuffix('.git')}"
+    match = re.search(r"\b([a-z0-9_.-]+)/([a-z0-9_.-]+)\b", text, flags=re.IGNORECASE)
+    if not match:
+        return None
+    owner, repo = match.group(1), match.group(2).removesuffix(".git")
+    if owner in {"http:", "https:"}:
+        return None
+    return f"{owner}/{repo}"
+
+
+def _slot_matches_github(slots: dict[str, Any]) -> bool:
+    return str(slots.get("target_site_hint") or "").lower() in {"github", "github.com"}
+
+
+def _observe_github_search(
+    *,
+    observed: dict[str, Any],
+    requested_slots: dict[str, Any],
+    final_state: dict[str, Any],
+    visible_combined: str,
+) -> None:
+    query = str(requested_slots.get("search_query") or "").strip()
+    url = str(final_state.get("url") or "")
+    parsed = urlparse(url)
+    query_params = parse_qs(parsed.query)
+    searched = unquote_plus(" ".join(query_params.get("q", []))).strip()
+    if parsed.hostname == "github.com" and parsed.path.startswith("/search"):
+        observed["search_page_state"] = "github_repository_search"
+    if query and (query.lower() == searched.lower() or query.lower() in visible_combined):
+        observed["searched_query"] = query
+    if _github_repository_results_visible(visible_combined):
+        observed["repository_result_marker"] = "Repositories"
+
+
+def _github_repository_results_visible(visible_combined: str) -> bool:
+    return bool(
+        re.search(r"\brepositories\b", visible_combined)
+        or re.search(r"\brepository\s+results?\b", visible_combined)
+    )
+
+
+def _observe_github_repo_read(
+    *,
+    observed: dict[str, Any],
+    requested_slots: dict[str, Any],
+    final_state: dict[str, Any],
+    combined: str,
+) -> None:
+    owner = str(requested_slots.get("owner") or "").strip()
+    repo = str(requested_slots.get("repo") or "").strip()
+    repo_slug = str(requested_slots.get("repo_slug") or f"{owner}/{repo}").strip("/")
+    url = str(final_state.get("url") or "")
+    parsed = urlparse(url)
+    path_parts = [part for part in parsed.path.split("/") if part]
+    if len(path_parts) >= 2:
+        observed_slug = f"{path_parts[0]}/{path_parts[1]}"
+        if not repo_slug or observed_slug.lower() == repo_slug.lower():
+            observed["repo_slug"] = repo_slug or observed_slug
+    title = str(final_state.get("page_title") or final_state.get("title") or "")
+    if repo and repo.lower() in title.lower():
+        observed["repo_page_title"] = title
+    for marker in ("README", "About", "Code"):
+        if marker.lower() in combined:
+            observed["readme_or_description_marker"] = marker
+            break
 
 
 def _last_browser_state(actions: list[dict[str, Any]]) -> dict[str, Any]:

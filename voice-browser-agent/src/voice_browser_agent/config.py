@@ -27,6 +27,7 @@ class RuntimeConfig(BaseSettings):
     public_readonly_timeout_seconds: int = Field(default=15, ge=1, le=60)
     public_readonly_private_traces: bool = True
     public_readonly_sanitizer_required: bool = True
+    public_readonly_headed_debug: bool = False
 
     @property
     def uploads_dir(self) -> Path:
@@ -36,6 +37,10 @@ class RuntimeConfig(BaseSettings):
     def traces_dir(self) -> Path:
         return self.runtime_dir / "traces"
 
+    @property
+    def public_readonly_artifacts_dir(self) -> Path:
+        return self.runtime_dir / "artifacts" / "public-readonly"
+
 
 def load_config(runtime_dir: str | Path | None = None) -> RuntimeConfig:
     config = RuntimeConfig()
@@ -43,4 +48,5 @@ def load_config(runtime_dir: str | Path | None = None) -> RuntimeConfig:
         config.runtime_dir = Path(runtime_dir)
     config.uploads_dir.mkdir(parents=True, exist_ok=True)
     config.traces_dir.mkdir(parents=True, exist_ok=True)
+    config.public_readonly_artifacts_dir.mkdir(parents=True, exist_ok=True)
     return config

@@ -15,11 +15,90 @@ function showJson(id, value) {
   $(id).textContent = JSON.stringify(value, null, 2);
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
 function setCards(id, cards) {
   $(id).innerHTML = cards
     .map(
       ([label, value, tone = ""]) =>
         `<div class="metric-card ${tone}"><span>${label}</span><strong>${value || "n/a"}</strong></div>`,
+    )
+    .join("");
+}
+
+function artifactImageSrc(trace, artifact) {
+  if (!trace.execution_id || !artifact?.artifact_id) return "";
+  return `/api/executions/${encodeURIComponent(trace.execution_id)}/visual-artifacts/${encodeURIComponent(
+    artifact.artifact_id,
+  )}`;
+}
+
+function renderVisualResult(trace) {
+  const route = trace.route_decision || trace.execution_runtime?.route_decision || {};
+  const runtime = trace.execution_runtime || {};
+  const artifacts = runtime.public_visual_artifacts || [];
+  const finalArtifact =
+    runtime.public_final_visual_result ||
+    [...artifacts].reverse().find((artifact) => artifact.is_final) ||
+    artifacts.at(-1);
+  const preview = $("visualResultPreview");
+  const meta = $("visualResultMeta");
+  const steps = $("visualStepTimeline");
+  const isPublicRun = route.route_type === "public_readonly" || trace.execution_mode === "live_public_readonly";
+
+  if (!isPublicRun) {
+    preview.className = "visual-preview empty";
+    preview.textContent = "No visual result captured";
+    meta.innerHTML = "";
+    steps.innerHTML = "";
+    return;
+  }
+
+  if (!finalArtifact) {
+    preview.className = "visual-preview empty";
+    preview.textContent = "No visual result captured";
+    const proof = runtime.public_observed_proof_summary || {};
+    meta.innerHTML = Object.keys(proof).length
+      ? `<span>proof: ${escapeHtml(Object.keys(proof).join(", "))}</span>`
+      : `<span>state: ${escapeHtml(trace.final_status || "unknown")}</span>`;
+    steps.innerHTML = "";
+    return;
+  }
+
+  const statusClass = ["succeeded", "completed"].includes(
+    trace.final_status || finalArtifact.completion_state,
+  )
+    ? "good"
+    : "warn";
+  preview.className = `visual-preview ${statusClass}`;
+  preview.innerHTML = `<img alt="Public-readonly final visual result" src="${artifactImageSrc(
+    trace,
+    finalArtifact,
+  )}" />`;
+  meta.innerHTML = [
+    ["Page", finalArtifact.page_title || route.public_target_label || "unknown"],
+    ["Target", route.public_target_label || "public target"],
+    ["Origin", finalArtifact.sanitized_origin || route.public_origin || "unknown"],
+    ["Completion", finalArtifact.completion_state || runtime.public_completion_state || "unknown"],
+    ["Privacy", finalArtifact.privacy_state || trace.evidence_privacy_state || "unknown"],
+    ["Sanitizer", finalArtifact.sanitizer_status || trace.sanitizer_status || "unknown"],
+  ]
+    .map(([label, value]) => `<span><b>${escapeHtml(label)}</b>${escapeHtml(value)}</span>`)
+    .join("");
+  steps.innerHTML = artifacts
+    .map(
+      (artifact) => `
+        <button class="visual-step" type="button" title="${escapeHtml(artifact.action_label)}">
+          <img alt="${escapeHtml(artifact.action_label)}" src="${artifactImageSrc(trace, artifact)}" />
+          <span>${escapeHtml(artifact.step_index || "")}</span>
+        </button>
+      `,
     )
     .join("");
 }
@@ -180,6 +259,7 @@ function renderTrace(trace) {
   showJson("tracePanel", trace);
   renderRoute(trace);
   renderEvidence(trace);
+  renderVisualResult(trace);
   renderSummary(trace);
   renderTimeline(trace);
   const pending = trace.confirmation_decision?.state === "pending";

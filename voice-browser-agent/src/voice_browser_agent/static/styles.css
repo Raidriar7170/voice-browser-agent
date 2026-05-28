@@ -157,6 +157,93 @@ label {
   background: #fff8ec;
 }
 
+.visual-result-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.visual-preview {
+  align-items: center;
+  background: #f1f4f6;
+  border: 1px solid #d6dde2;
+  border-radius: 6px;
+  display: flex;
+  justify-content: center;
+  min-height: 220px;
+  overflow: hidden;
+}
+
+.visual-preview.good {
+  border-color: #6aa879;
+  background: #f1f8f3;
+}
+
+.visual-preview.warn {
+  border-color: #d8aa54;
+  background: #fff8ec;
+}
+
+.visual-preview.empty {
+  color: #53636d;
+  font-size: 13px;
+}
+
+.visual-preview img {
+  display: block;
+  max-height: 360px;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.visual-meta {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.visual-meta span {
+  border: 1px solid #d6dde2;
+  border-radius: 6px;
+  color: #172026;
+  display: block;
+  font-size: 12px;
+  min-height: 42px;
+  overflow-wrap: anywhere;
+  padding: 6px;
+}
+
+.visual-meta b {
+  color: #53636d;
+  display: block;
+  font-weight: 600;
+}
+
+.visual-steps {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.visual-step {
+  background: #ffffff;
+  border: 1px solid #d6dde2;
+  color: #172026;
+  display: grid;
+  gap: 4px;
+  height: 92px;
+  padding: 4px;
+}
+
+.visual-step img {
+  height: 62px;
+  object-fit: cover;
+  width: 100%;
+}
+
+.visual-step span {
+  font-size: 12px;
+}
+
 .readiness-item strong,
 .readiness-item span,
 .metric-card strong,
@@ -273,23 +360,27 @@ ol {
     padding: 16px;
   }
 
-  .toolbar,
-  .console-grid,
-  .advanced-grid,
-  .readiness-grid,
-  .metric-grid {
-    display: block;
-  }
+	  .toolbar,
+	  .console-grid,
+	  .advanced-grid,
+	  .readiness-grid,
+	  .metric-grid,
+	  .visual-meta,
+	  .visual-steps {
+	    display: block;
+	  }
 
   .actions,
   .primary-actions,
   .run-actions,
   .upload-strip,
-  .panel,
-  .metric-card,
-  .readiness-item {
-    margin-top: 10px;
-  }
+	  .panel,
+	  .metric-card,
+	  .readiness-item,
+	  .visual-meta span,
+	  .visual-step {
+	    margin-top: 10px;
+	  }
 
   .primary-actions,
   .run-actions,

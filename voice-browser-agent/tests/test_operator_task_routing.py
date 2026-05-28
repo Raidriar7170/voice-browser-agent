@@ -50,6 +50,61 @@ def _public_task_config() -> PublicReadonlyRoutingConfig:
     )
 
 
+def _github_task_config(enabled: bool = True) -> PublicReadonlyRoutingConfig:
+    contracts = json.dumps(
+        [
+            {
+                "task_id": "github-repo-search",
+                "task_kind": "github-repo-search",
+                "target_url_template": "https://github.com/search?q={search_query}&type=repositories",
+                "allowed_actions": ["navigate", "search", "extract"],
+                "slots": ["target_site_hint", "search_query"],
+                "completion_criteria": {
+                    "criteria_id": "github-repo-search-results",
+                    "required_proof": [
+                        "searched_query",
+                        "search_page_state",
+                        "repository_result_marker",
+                    ],
+                    "visible_markers": ["Repositories", "{search_query}"],
+                    "url_path_contains": "/search",
+                    "title_contains": "Search",
+                },
+                "max_steps": 3,
+                "timeout_seconds": 15,
+                "privacy_policy": "local_private",
+            },
+            {
+                "task_id": "github-public-repo-read",
+                "task_kind": "github-public-repo-read",
+                "target_url_template": "https://github.com/{owner}/{repo}",
+                "allowed_actions": ["navigate", "extract"],
+                "slots": ["target_site_hint", "owner", "repo"],
+                "completion_criteria": {
+                    "criteria_id": "github-public-repo-page",
+                    "required_proof": [
+                        "repo_slug",
+                        "repo_page_title",
+                        "readme_or_description_marker",
+                    ],
+                    "visible_markers": ["README", "{repo}", "{owner}"],
+                },
+                "max_steps": 2,
+                "timeout_seconds": 15,
+                "privacy_policy": "local_private",
+            },
+        ]
+    )
+    return PublicReadonlyRoutingConfig.from_runtime_config(
+        RuntimeConfig(
+            public_readonly_enabled=enabled,
+            public_readonly_allowlist=f"github|GitHub|https://github.com/|github,repo,repositories|{contracts}",
+            public_readonly_max_steps=5,
+            public_readonly_timeout_seconds=20,
+        )
+    )
+
+
 class IconSearchASRAdapter:
     name = "route-smoke-asr"
 
@@ -152,6 +207,95 @@ def test_public_showcase_command_routes_to_controlled_showcase_not_real_public_w
     assert "controlled_target_url" not in json.dumps(body, ensure_ascii=False)
     assert body["execution_runtime"]["evidence_mode"] == "controlled_showcase"
     assert body["execution_mode"] == "live_controlled"
+
+
+def test_github_search_prefers_real_public_readonly_when_enabled_and_contracted():
+    request = BrowserTaskRequest(
+        task="Search GitHub repositories for agent tooling",
+        intent_type=BrowserIntentType.SEARCH_OPEN,
+        constraints=["bounded single browser task", "public_readonly"],
+        visual_references=[],
+        requires_confirmation=False,
+        stop_conditions=["login_required", "stop_if_login_required"],
+        public_task_slots={
+            "target_site_hint": "github",
+            "task_kind_hint": "github-repo-search",
+            "search_query": "agent tooling",
+            "read_only_intent": True,
+        },
+    )
+
+    route = select_execution_route(
+        request,
+        ValidationResult(accepted=True, reason="accepted"),
+        ConfirmationDecision(state=ConfirmationState.CONFIRMED, reason="confirmed"),
+        public_readonly_config=_github_task_config(enabled=True),
+    )
+
+    payload = route.model_dump(mode="json")
+    assert payload["route_type"] == "public_readonly"
+    assert payload["execution_mode"] == "live_public_readonly"
+    assert payload["public_target_label"] == "GitHub"
+    assert payload["public_origin"] == "https://github.com"
+    assert payload["public_allowlist_id"] == "github"
+    assert payload["public_task_id"] == "github-repo-search"
+    assert payload["public_task_kind"] == "github-repo-search"
+    assert payload["public_task_slots"]["search_query"] == "agent tooling"
+    assert payload["public_completion_criteria_id"] == "github-repo-search-results"
+    assert payload["evidence_privacy_state"] == "local_private"
+
+
+def test_github_search_keeps_controlled_showcase_fallback_when_public_readonly_disabled():
+    request = BrowserTaskRequest(
+        task="Search GitHub repositories for agent tooling",
+        intent_type=BrowserIntentType.SEARCH_OPEN,
+        constraints=["bounded single browser task", "public_readonly"],
+        visual_references=[],
+        requires_confirmation=False,
+        stop_conditions=["login_required", "stop_if_login_required"],
+        public_task_slots={
+            "target_site_hint": "github",
+            "task_kind_hint": "github-repo-search",
+            "search_query": "agent tooling",
+            "read_only_intent": True,
+        },
+    )
+
+    route = select_execution_route(
+        request,
+        ValidationResult(accepted=True, reason="accepted"),
+        ConfirmationDecision(state=ConfirmationState.CONFIRMED, reason="confirmed"),
+        public_readonly_config=_github_task_config(enabled=False),
+    )
+
+    assert route.route_type is RouteType.CONTROLLED_LIVE
+    assert route.execution_mode is ExecutionMode.LIVE_CONTROLLED
+    assert route.controlled_fixture_id == "github-showcase"
+    assert route.controlled_target_ref == "demo/pages/github_showcase.html"
+
+
+def test_github_public_readonly_rejects_manual_override_without_matching_contract():
+    request = BrowserTaskRequest(
+        task="Open https://github.com/login and sign in",
+        intent_type=BrowserIntentType.SEARCH_OPEN,
+        constraints=["bounded single browser task", "public_readonly"],
+        visual_references=[],
+        requires_confirmation=True,
+        stop_conditions=["login_required", "irreversible_submit"],
+        safety_flags=["login"],
+        public_task_slots={"target_site_hint": "github"},
+    )
+
+    route = select_execution_route(
+        request,
+        ValidationResult(accepted=True, reason="accepted", requires_confirmation=True),
+        ConfirmationDecision(state=ConfirmationState.CONFIRMED, reason="confirmed"),
+        public_readonly_config=_github_task_config(enabled=True),
+        requested_execution_mode=ExecutionMode.LIVE_PUBLIC_READONLY,
+    )
+
+    assert route.route_type is RouteType.BLOCKED
+    assert route.route_reason == "public_readonly_unsafe_command"
 
 
 def test_unsafe_command_does_not_select_live_execution(tmp_path):

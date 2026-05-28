@@ -34,6 +34,18 @@ The preflight reports primary ASR, fallback ASR, Playwright browser automation, 
 - `VOICE_BROWSER_PUBLIC_READONLY_ENABLED=false` keeps `live_public_readonly` disabled by default. When enabled, it only runs allowlisted public read-only targets in a fresh local browser context, with short step/time budgets, No login, no file transfer, and private-by-default traces until sanitizer approval. A task-contract and completion verifier must match before a public task is reported as complete.
 - Trace-derived training examples can be created from sanitized Execution Traces for later Speech-to-Task Adaptation. This is not a fine-tuning pipeline or model result claim.
 
+### Visible Real GitHub Public-Readonly Smoke
+
+Real GitHub execution is opt-in and stays local/private. Use one allowlist entry with two GitHub task contracts, then run the console and type `Search GitHub repositories for agent tooling, do not log in` or `Read the README for microsoft/playwright on GitHub`.
+
+```bash
+export VOICE_BROWSER_PUBLIC_READONLY_ENABLED=true
+export VOICE_BROWSER_PUBLIC_READONLY_ALLOWLIST='github|GitHub|https://github.com/|github,repo,repositories|[{"task_id":"github-repo-search","task_kind":"github-repo-search","target_url_template":"https://github.com/search?q={search_query}&type=repositories","allowed_actions":["navigate","search","extract"],"slots":["target_site_hint","search_query"],"completion_criteria":{"criteria_id":"github-repo-search-results","required_proof":["searched_query","search_page_state","repository_result_marker"],"visible_markers":["Repositories","{search_query}"],"url_path_contains":"/search","title_contains":"Search"},"max_steps":3,"timeout_seconds":15,"privacy_policy":"local_private"},{"task_id":"github-public-repo-read","task_kind":"github-public-repo-read","target_url_template":"https://github.com/{owner}/{repo}","allowed_actions":["navigate","extract"],"slots":["target_site_hint","owner","repo"],"completion_criteria":{"criteria_id":"github-public-repo-page","required_proof":["repo_slug","repo_page_title","readme_or_description_marker"],"visible_markers":["README","{repo}","{owner}"]},"max_steps":2,"timeout_seconds":15,"privacy_policy":"local_private"}]'
+uv run uvicorn voice_browser_agent.app:app --reload
+```
+
+The console's Visible Result panel shows the final real-page screenshot and step screenshots from `runtime/artifacts/public-readonly/`. These screenshots, raw page traces, cookies, browser profiles, and local paths are not public release-pack evidence unless a sanitizer pass explicitly approves them. If GitHub shows captcha, verification, login, rate-limit, permission, or network boundaries, the run is reported as stopped, failed, blocked, or incomplete rather than successful.
+
 ## Demo Evidence
 
 - Demo tasks: `docs/demo/demo-task-suite.md`
@@ -86,7 +98,8 @@ Use the console as a command-first operator workflow:
 
 - Primary command: type a short spoken-command transcript and run it. The backend selects a route, shows whether it is controlled live or preview-only, and records the route decision in the trace.
 - Reviewed audio: upload or record one command, review the ASR transcript, edit it if needed, then run the same route-aware execution path while preserving ASR provenance.
-- Controlled showcase: GitHub-shaped commands can route to a local controlled code-search page so reviewers see a visible browser action without depending on a real public website.
+- Controlled showcase: GitHub-shaped commands route to a local controlled code-search page unless real GitHub public-readonly is explicitly enabled with a matching task contract.
+- Real GitHub public-readonly: when enabled, supported GitHub search/read commands show the real-page visual result or block state in the console while artifacts remain local/private.
 - Advanced replay: fixture selection, execution-mode override, raw trace JSON, and sanitized export remain available for reproducibility and debugging.
 
-Use `demo_preview` for public showcase tasks unless they have an explicit controlled local route. Use `live_controlled` only for configured controlled pages, such as icon search, color swatch, SVG dashboard, and the controlled GitHub-like showcase. Use `live_public_readonly` only for allowlisted public documentation or reference pages where every action is read-only and local/private evidence remains private-by-default until sanitizer approval. This is a bounded public-readonly lane, not a broad public-web autonomy claim. Clarification examples should stop before browser execution, confirmation examples should show the operator prompt before continuing, and exported traces must remain sanitized.
+Use `demo_preview` for public showcase tasks unless they have an explicit controlled local route. Use `live_controlled` only for configured controlled pages, such as icon search, color swatch, SVG dashboard, and the controlled GitHub-like showcase. Use `live_public_readonly` only for allowlisted public documentation, reference, or GitHub public repository search/read tasks where every action is read-only and local/private evidence remains private-by-default until sanitizer approval. This is a bounded public-readonly lane, not a broad public-web autonomy claim. Clarification examples should stop before browser execution, confirmation examples should show the operator prompt before continuing, and exported traces must remain sanitized.

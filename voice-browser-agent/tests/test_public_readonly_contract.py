@@ -15,6 +15,7 @@ from voice_browser_agent.models import (
     ExecutionTrace,
     PublicTaskCompletionState,
     PublicTaskContract,
+    PublicReadonlyVisualArtifact,
     RouteDecision,
     RouteType,
     SanitizerStatus,
@@ -85,6 +86,68 @@ def _routing_config(enabled: bool = True) -> PublicReadonlyRoutingConfig:
     return PublicReadonlyRoutingConfig.from_runtime_config(_runtime_with_public_task_contracts(enabled))
 
 
+def _runtime_with_github_task_contracts(enabled: bool = True) -> RuntimeConfig:
+    contracts = json.dumps(
+        [
+            {
+                "task_id": "github-repo-search",
+                "task_kind": "github-repo-search",
+                "target_url_template": "https://github.com/search?q={search_query}&type=repositories",
+                "allowed_actions": ["navigate", "search", "extract"],
+                "slots": ["target_site_hint", "search_query"],
+                "completion_criteria": {
+                    "criteria_id": "github-repo-search-results",
+                    "required_proof": [
+                        "searched_query",
+                        "search_page_state",
+                        "repository_result_marker",
+                    ],
+                    "visible_markers": ["Repositories", "{search_query}"],
+                    "url_path_contains": "/search",
+                    "title_contains": "Search",
+                },
+                "max_steps": 3,
+                "timeout_seconds": 15,
+                "privacy_policy": "local_private",
+            },
+            {
+                "task_id": "github-public-repo-read",
+                "task_kind": "github-public-repo-read",
+                "target_url_template": "https://github.com/{owner}/{repo}",
+                "allowed_actions": ["navigate", "extract"],
+                "slots": ["target_site_hint", "owner", "repo"],
+                "completion_criteria": {
+                    "criteria_id": "github-public-repo-page",
+                    "required_proof": [
+                        "repo_slug",
+                        "repo_page_title",
+                        "readme_or_description_marker",
+                    ],
+                    "visible_markers": ["README", "{repo}", "{owner}"],
+                    "url_path_contains": "/{owner}/{repo}",
+                },
+                "max_steps": 2,
+                "timeout_seconds": 15,
+                "privacy_policy": "local_private",
+            },
+        ]
+    )
+    return RuntimeConfig(
+        public_readonly_enabled=enabled,
+        public_readonly_allowlist=(
+            f"github|GitHub|https://github.com/|github,repo,repositories|{contracts}"
+        ),
+        public_readonly_max_steps=5,
+        public_readonly_timeout_seconds=20,
+        public_readonly_private_traces=True,
+        public_readonly_sanitizer_required=True,
+    )
+
+
+def _github_routing_config(enabled: bool = True) -> PublicReadonlyRoutingConfig:
+    return PublicReadonlyRoutingConfig.from_runtime_config(_runtime_with_github_task_contracts(enabled))
+
+
 def test_public_task_contract_parses_policy_slots_criteria_and_limits():
     targets = parse_public_readonly_targets(_runtime_with_public_task_contracts(enabled=True))
 
@@ -102,6 +165,31 @@ def test_public_task_contract_parses_policy_slots_criteria_and_limits():
     assert contract.max_steps == 3
     assert contract.timeout_seconds == 12
     assert contract.privacy_policy == "local_private"
+
+
+def test_github_public_task_contracts_parse_search_read_and_visual_policy():
+    targets = parse_public_readonly_targets(_runtime_with_github_task_contracts(enabled=True))
+
+    github = targets[0]
+    search, read = github.task_contracts
+
+    assert github.allowlist_id == "github"
+    assert github.origin == "https://github.com"
+    assert search.task_id == "github-repo-search"
+    assert search.task_kind == "github-repo-search"
+    assert search.target_url_template == "https://github.com/search?q={search_query}&type=repositories"
+    assert search.allowed_actions == ["navigate", "search", "extract"]
+    assert search.slots == ["target_site_hint", "search_query"]
+    assert search.completion_criteria.required_proof == [
+        "searched_query",
+        "search_page_state",
+        "repository_result_marker",
+    ]
+    assert search.privacy_policy == "local_private"
+    assert read.task_id == "github-public-repo-read"
+    assert read.target_url_template == "https://github.com/{owner}/{repo}"
+    assert read.slots == ["target_site_hint", "owner", "repo"]
+    assert read.completion_criteria.criteria_id == "github-public-repo-page"
 
 
 def test_public_readonly_model_schema_records_route_privacy_and_sanitizer_state():
@@ -136,6 +224,31 @@ def test_public_readonly_model_schema_records_route_privacy_and_sanitizer_state(
     assert payload["route_decision"]["evidence_privacy_state"] == "local_private"
     assert payload["route_decision"]["sanitizer_status"] == "pending"
     assert payload["evidence_privacy_state"] == "local_private"
+
+
+def test_public_readonly_visual_artifact_model_records_private_runtime_reference():
+    artifact = PublicReadonlyVisualArtifact(
+        artifact_id="exec-github-final",
+        execution_id="exec-github",
+        artifact_kind="final_screenshot",
+        action_label="final GitHub search result",
+        local_ref="artifacts/public-readonly/exec-github/final.png",
+        page_title="Search · agent tooling · GitHub",
+        sanitized_origin="https://github.com",
+        completion_state=PublicTaskCompletionState.COMPLETED,
+        privacy_state=EvidencePrivacyState.LOCAL_PRIVATE,
+        sanitizer_status=SanitizerStatus.PENDING,
+        step_index=2,
+        is_final=True,
+    )
+
+    payload = artifact.model_dump(mode="json")
+
+    assert payload["local_ref"] == "artifacts/public-readonly/exec-github/final.png"
+    assert payload["privacy_state"] == "local_private"
+    assert payload["sanitizer_status"] == "pending"
+    assert payload["completion_state"] == "completed"
+    assert "raw_screenshot" not in json.dumps(payload)
 
 
 def test_public_readonly_config_parses_allowlist_and_limits_without_enabling_by_default():
@@ -261,6 +374,56 @@ def test_allowlisted_origin_without_matching_task_contract_is_blocked_before_nav
     assert decision.public_readonly_enabled is False
 
 
+def test_github_contract_matching_requires_bounded_search_or_repo_read_slots():
+    config = _github_routing_config(enabled=True)
+    search_request = BrowserTaskRequest(
+        task="Search GitHub repositories for agent tooling",
+        intent_type=BrowserIntentType.SEARCH_OPEN,
+        constraints=["bounded single browser task", "public_readonly"],
+        visual_references=[],
+        requires_confirmation=False,
+        stop_conditions=["login_required"],
+        public_task_slots={
+            "target_site_hint": "github",
+            "task_kind_hint": "github-repo-search",
+            "search_query": "agent tooling",
+        },
+    )
+    read_request = BrowserTaskRequest(
+        task="Read README for Raidriar7170/gui-agent-benchmark on GitHub",
+        intent_type=BrowserIntentType.EXTRACT_COMPARE_VISIBLE_INFO,
+        constraints=["bounded single browser task", "public_readonly"],
+        visual_references=[],
+        requires_confirmation=False,
+        stop_conditions=["login_required"],
+        public_task_slots={
+            "target_site_hint": "github",
+            "task_kind_hint": "github-public-repo-read",
+            "owner": "Raidriar7170",
+            "repo": "gui-agent-benchmark",
+            "repo_slug": "Raidriar7170/gui-agent-benchmark",
+            "read_target": "README",
+        },
+    )
+    missing_query = search_request.model_copy(
+        update={
+            "task": "Open GitHub",
+            "public_task_slots": {"target_site_hint": "github"},
+        }
+    )
+
+    search_route = select_execution_route(search_request, _validation(), _confirmed(), config)
+    read_route = select_execution_route(read_request, _validation(), _confirmed(), config)
+    blocked = select_execution_route(missing_query, _validation(), _confirmed(), config)
+
+    assert search_route.route_type is RouteType.PUBLIC_READONLY
+    assert search_route.public_task_id == "github-repo-search"
+    assert read_route.route_type is RouteType.PUBLIC_READONLY
+    assert read_route.public_task_id == "github-public-repo-read"
+    assert blocked.route_type is RouteType.BLOCKED
+    assert blocked.route_reason == "public_task_contract_mismatch"
+
+
 def test_public_readonly_policy_blocks_unsafe_urls_mutations_and_sensitive_state():
     policy = PublicReadonlyPolicy(_routing_config(enabled=True))
 
@@ -284,6 +447,33 @@ def test_public_readonly_policy_blocks_unsafe_urls_mutations_and_sensitive_state
         in {"login_required", "file_transfer"}
     )
     assert policy.max_steps == 3
+
+
+def test_public_readonly_policy_classifies_github_site_variance_boundaries():
+    policy = PublicReadonlyPolicy(_github_routing_config(enabled=True))
+
+    assert policy.check_url("https://github.com/search?q=agent&type=repositories").allowed is True
+    assert policy.check_url("https://token:secret@github.com/owner/repo").reason == "credentialed_url"
+    assert (
+        policy.check_browser_state(
+            {
+                "url": "https://github.com/search?q=agent&type=repositories",
+                "page_title": "Verify you are human",
+                "visible_text": "Please verify you are human to continue",
+            }
+        ).reason
+        == "public_task_captcha_or_verification"
+    )
+    assert (
+        policy.check_browser_state(
+            {
+                "url": "https://github.com/rate_limit",
+                "page_title": "Rate limit",
+                "visible_text": "You have exceeded a secondary rate limit",
+            }
+        ).reason
+        == "public_task_rate_limited"
+    )
 
 
 class PublicReadonlyEvidenceAgent:
@@ -495,6 +685,54 @@ def _python_direct_read_contract():
     }
 
 
+def _github_search_contract():
+    return _github_routing_config(enabled=True).targets[0].task_contracts[0]
+
+
+def _github_repo_read_contract():
+    return _github_routing_config(enabled=True).targets[0].task_contracts[1]
+
+
+class PublicReadonlyVisualArtifactAgent:
+    def __init__(self, task, **kwargs):
+        self.task = task
+        self.kwargs = kwargs
+
+    async def run(self):
+        return {
+            "status": "succeeded",
+            "actions": [
+                {
+                    "type": "search",
+                    "description": "searched GitHub repositories for agent tooling",
+                    "screenshot_ref": "artifacts/public-readonly/exec-github/step-1-search.png",
+                    "browser_state": {
+                        "page_title": "Search · agent tooling · GitHub",
+                        "origin": "https://github.com",
+                        "url": "https://github.com/search?q=agent+tooling&type=repositories",
+                        "visible_text": "Repositories agent tooling public repositories",
+                    },
+                }
+            ],
+            "visual_artifacts": [
+                {
+                    "artifact_id": "exec-github-step-1",
+                    "execution_id": "exec-github",
+                    "artifact_kind": "step_screenshot",
+                    "action_label": "searched GitHub repositories for agent tooling",
+                    "local_ref": "artifacts/public-readonly/exec-github/step-1-search.png",
+                    "page_title": "Search · agent tooling · GitHub",
+                    "sanitized_origin": "https://github.com",
+                    "completion_state": "partial",
+                    "privacy_state": "local_private",
+                    "sanitizer_status": "pending",
+                    "step_index": 1,
+                    "is_final": True,
+                }
+            ],
+        }
+
+
 @pytest.mark.asyncio
 async def test_public_readonly_executor_records_isolation_and_sanitizes_action_state():
     adapter = BrowserExecutorAdapter(
@@ -532,6 +770,71 @@ async def test_public_readonly_executor_records_isolation_and_sanitizes_action_s
     assert "https://platform.openai.com/docs" not in serialized
     assert '"url"' not in serialized
     assert "public_target_url" not in serialized
+
+
+@pytest.mark.asyncio
+async def test_public_readonly_headed_debug_preserves_ephemeral_context_flags():
+    adapter = BrowserExecutorAdapter(
+        config=BrowserExecutorConfig(
+            dry_run=False,
+            execution_mode=ExecutionMode.LIVE_PUBLIC_READONLY,
+            max_steps=3,
+            public_target_url="https://platform.openai.com/docs",
+            public_target_label="OpenAI Docs",
+            public_origin="https://platform.openai.com",
+            public_allowlist_id="openai-docs",
+            public_task_contract=_openai_direct_read_contract(),
+            public_task_slots={"target_site_hint": "openai docs"},
+            public_headed_debug=True,
+        ),
+        agent_factory=PublicReadonlyEvidenceAgent,
+    )
+
+    result = await adapter.execute(_public_request(), execution_id="exec-public-headed")
+
+    assert result.final_status is ExecutionStatus.SUCCEEDED
+    assert result.runtime["browser_context"]["headed_debug"] is True
+    assert result.runtime["browser_context"]["isolation"] == "fresh_ephemeral"
+    assert result.runtime["browser_context"]["persistent_profile"] is False
+    assert result.runtime["browser_context"]["cookies_reused"] is False
+    assert result.runtime["browser_context"]["storage_state_reused"] is False
+
+
+@pytest.mark.asyncio
+async def test_public_readonly_executor_preserves_visual_artifact_metadata_without_raw_bytes():
+    adapter = BrowserExecutorAdapter(
+        config=BrowserExecutorConfig(
+            dry_run=False,
+            execution_mode=ExecutionMode.LIVE_PUBLIC_READONLY,
+            max_steps=3,
+            public_target_url="https://github.com/search?q=agent+tooling&type=repositories",
+            public_target_label="GitHub",
+            public_origin="https://github.com",
+            public_allowlist_id="github",
+            public_task_contract=_github_search_contract(),
+            public_task_slots={"target_site_hint": "github", "search_query": "agent tooling"},
+            public_timeout_seconds=15,
+            public_sanitizer_required=True,
+        ),
+        agent_factory=PublicReadonlyVisualArtifactAgent,
+    )
+
+    result = await adapter.execute(
+        _public_request("Search GitHub repositories for agent tooling"),
+        execution_id="exec-github",
+    )
+    serialized = json.dumps(result.model_dump(mode="json"), ensure_ascii=False)
+
+    assert result.final_status is ExecutionStatus.SUCCEEDED
+    assert result.runtime["public_completion_state"] == "completed"
+    artifact = result.runtime["public_visual_artifacts"][0]
+    assert artifact["artifact_id"] == "exec-github-step-1"
+    assert artifact["local_ref"] == "artifacts/public-readonly/exec-github/step-1-search.png"
+    assert artifact["completion_state"] == "completed"
+    assert result.runtime["public_final_visual_result"]["artifact_id"] == "exec-github-step-1"
+    assert "raw_screenshot" not in serialized
+    assert "data:image" not in serialized
+    assert "/Users/" not in serialized
 
 
 @pytest.mark.asyncio
@@ -935,6 +1238,100 @@ def test_public_task_completion_verifier_applies_title_constraint_and_safe_marke
 
     assert "final_title" in wrong_title.unmet_criteria
     assert completed.completion_state is PublicTaskCompletionState.COMPLETED
+
+
+def test_public_task_completion_verifier_records_github_search_proof():
+    verifier = PublicTaskCompletionVerifier(_github_search_contract())
+
+    completed = verifier.verify(
+        requested_slots={"target_site_hint": "github", "search_query": "agent tooling"},
+        actions=[
+            {
+                "type": "search",
+                "description": "searched GitHub repositories for agent tooling",
+                "browser_state": {
+                    "page_title": "Search · agent tooling · GitHub",
+                    "url": "https://github.com/search?q=agent+tooling&type=repositories",
+                    "visible_text": "Repositories agent tooling public repositories",
+                },
+            }
+        ],
+    )
+    opened_only = verifier.verify(
+        requested_slots={"target_site_hint": "github", "search_query": "agent tooling"},
+        actions=[
+            {
+                "type": "navigate",
+                "description": "opened GitHub home",
+                "browser_state": {
+                    "page_title": "GitHub",
+                    "url": "https://github.com/",
+                    "visible_text": "GitHub homepage",
+                },
+            }
+        ],
+    )
+
+    assert completed.completion_state is PublicTaskCompletionState.COMPLETED
+    assert completed.observed_proof["searched_query"] == "agent tooling"
+    assert completed.observed_proof["search_page_state"] == "github_repository_search"
+    assert completed.observed_proof["repository_result_marker"] == "Repositories"
+    assert opened_only.completion_state is PublicTaskCompletionState.PARTIAL
+    assert "search_page_state" in opened_only.unmet_criteria
+
+
+def test_public_task_completion_verifier_rejects_github_search_without_visible_result_marker():
+    verifier = PublicTaskCompletionVerifier(_github_search_contract())
+
+    opened_search_url_only = verifier.verify(
+        requested_slots={"target_site_hint": "github", "search_query": "agent tooling"},
+        actions=[
+            {
+                "type": "search",
+                "description": "searched GitHub repositories for agent tooling",
+                "browser_state": {
+                    "page_title": "Search · agent tooling · GitHub",
+                    "url": "https://github.com/search?q=agent+tooling&type=repositories",
+                    "visible_text": "",
+                },
+            }
+        ],
+    )
+
+    assert opened_search_url_only.completion_state is PublicTaskCompletionState.PARTIAL
+    assert opened_search_url_only.observed_proof["searched_query"] == "agent tooling"
+    assert opened_search_url_only.observed_proof["search_page_state"] == "github_repository_search"
+    assert "repository_result_marker" in opened_search_url_only.unmet_criteria
+
+
+def test_public_task_completion_verifier_records_github_repo_read_proof():
+    verifier = PublicTaskCompletionVerifier(_github_repo_read_contract())
+
+    completed = verifier.verify(
+        requested_slots={
+            "target_site_hint": "github",
+            "owner": "Raidriar7170",
+            "repo": "gui-agent-benchmark",
+            "repo_slug": "Raidriar7170/gui-agent-benchmark",
+            "read_target": "README",
+        },
+        actions=[
+            {
+                "type": "extract",
+                "description": "read GitHub public repository README",
+                "browser_state": {
+                    "page_title": "Raidriar7170/gui-agent-benchmark: GUI Agent Benchmark",
+                    "url": "https://github.com/Raidriar7170/gui-agent-benchmark",
+                    "visible_text": "README GUI Agent Benchmark Code Issues Pull requests",
+                },
+            }
+        ],
+    )
+
+    assert completed.completion_state is PublicTaskCompletionState.COMPLETED
+    assert completed.observed_proof["repo_slug"] == "Raidriar7170/gui-agent-benchmark"
+    assert "gui-agent-benchmark" in completed.observed_proof["repo_page_title"]
+    assert completed.observed_proof["readme_or_description_marker"] == "README"
 
 
 def test_public_task_completion_verifier_classifies_site_variance_outcomes():

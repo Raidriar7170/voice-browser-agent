@@ -200,6 +200,22 @@ class PublicTaskCompletionResult(BaseModel):
     failure_reason: str | None = None
 
 
+class PublicReadonlyVisualArtifact(BaseModel):
+    artifact_id: str
+    execution_id: str
+    artifact_kind: Literal["step_screenshot", "final_screenshot", "blocked_screenshot"]
+    action_label: str
+    local_ref: str
+    media_type: str = "image/png"
+    page_title: str | None = None
+    sanitized_origin: str | None = None
+    completion_state: PublicTaskCompletionState
+    privacy_state: EvidencePrivacyState = EvidencePrivacyState.LOCAL_PRIVATE
+    sanitizer_status: SanitizerStatus = SanitizerStatus.PENDING
+    step_index: int | None = None
+    is_final: bool = False
+
+
 class BrowserActionEvent(BaseModel):
     action_type: str
     description: str

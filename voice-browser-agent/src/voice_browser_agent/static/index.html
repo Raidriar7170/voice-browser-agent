@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Voice-to-Browser Agent</title>
-    <link rel="stylesheet" href="/static/styles.css?v=console-v2-20260528" />
+    <link rel="stylesheet" href="/static/styles.css?v=console-v3-20260528" />
   </head>
   <body>
     <main class="shell">
@@ -68,6 +68,13 @@
           <p id="routeMessage" class="hint">No command has been routed yet.</p>
         </section>
 
+        <section id="visualResultPanel" class="panel visual-result-panel">
+          <h2>Visible Result</h2>
+          <div id="visualResultPreview" class="visual-preview empty"></div>
+          <div id="visualResultMeta" class="visual-meta"></div>
+          <div id="visualStepTimeline" class="visual-steps"></div>
+        </section>
+
         <section id="evidencePanel" class="panel evidence-panel">
           <h2>Execution Evidence</h2>
           <div id="evidenceCards" class="metric-grid"></div>
@@ -128,6 +135,6 @@
         </details>
       </section>
     </main>
-    <script src="/static/app.js?v=console-v2-20260528"></script>
+    <script src="/static/app.js?v=console-v3-20260528"></script>
   </body>
 </html>

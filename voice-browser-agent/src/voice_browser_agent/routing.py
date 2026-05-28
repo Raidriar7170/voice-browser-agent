@@ -70,6 +70,15 @@ def select_execution_route(
         if public_route is not None:
             return public_route
 
+    if public_readonly_config is not None and public_readonly_config.enabled:
+        public_route = _public_readonly_route(
+            normalized,
+            public_readonly_config,
+            requested_execution_mode=requested_execution_mode,
+        )
+        if public_route is not None:
+            return public_route
+
     fixture_id = _fixture_for_request(normalized)
     if fixture_id is not None:
         controlled_task = get_live_controlled_task(fixture_id)

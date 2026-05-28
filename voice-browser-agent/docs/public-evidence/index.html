@@ -122,14 +122,15 @@
       <section>
         <h2>Route-Aware Console Flow</h2>
         <p>
-          Operator Console v2 records a <code>route_decision</code> for command-first runs.
+          Operator Console v3 records a <code>route_decision</code> for command-first runs.
           GitHub-shaped commands can route to <code>demo/pages/github_showcase.html</code>
-          as controlled local evidence. Public-readonly execution remains disabled by default unless
-          an allowlist and matching task contract are configured for <code>live_public_readonly</code>.
+          as controlled local evidence when real public-readonly is disabled. Real GitHub
+          public-readonly execution remains disabled by default unless an allowlist and matching
+          <code>github-repo-search</code> or <code>github-public-repo-read</code> task contract
+          are configured for <code>live_public_readonly</code>.
           Public tasks that only open a page are shown as incomplete, stopped, failed, or blocked until
-          the completion verifier observes task-specific proof. GitHub public search remains a later
-          target because login, captcha, UI drift, and anti-bot boundaries are less stable than
-          documentation/reference smoke tasks.
+          the completion verifier observes task-specific proof. Real GitHub screenshots are visible
+          in the local Operator Console but remain local/private unless a sanitizer-approved trace exists.
         </p>
       </section>
 

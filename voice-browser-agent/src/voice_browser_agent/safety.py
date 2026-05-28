@@ -54,8 +54,21 @@ class ConfirmationGate:
 def detect_browser_state_stop(state: dict[str, Any]) -> BrowserStateStop | None:
     haystack = " ".join(str(state.get(key, "")) for key in ("url", "title", "visible_text")).lower()
     checks = [
-        ("file_transfer", ("upload", "download", "上传", "下载", "file")),
-        ("login_required", ("login", "log in", "sign in", "登录", "账号", "密码")),
+        ("file_transfer", ("upload", "download", "上传", "下载")),
+        (
+            "public_task_captcha_or_verification",
+            ("captcha", "verify you are human", "verification", "are you a human", "human verification"),
+        ),
+        ("public_task_rate_limited", ("rate limit", "rate-limited", "abuse detection", "secondary rate limit")),
+        (
+            "public_task_private_or_permission_boundary",
+            ("private repository", "permission denied", "not found", "access denied"),
+        ),
+        (
+            "public_task_login_boundary",
+            ("sign in to github", "you must be logged in", "login to github"),
+        ),
+        ("login_required", ("login", "log in", "登录", "账号", "密码")),
         ("payment_or_checkout", ("checkout", "payment", "pay", "结账", "付款", "支付")),
         ("deletion", ("delete", "删除", "remove account")),
         ("posting", ("post", "publish", "发布", "发送")),

@@ -79,7 +79,10 @@ def _is_ambiguous(text: str) -> bool:
 
 def _is_unsupported_public_scope(text: str) -> bool:
     lowered = text.lower()
-    if not any(marker in lowered for marker in ("public", "docs", "documentation", "网站", "公开", "文档")):
+    if not any(
+        marker in lowered
+        for marker in ("github", "public", "docs", "documentation", "网站", "公开", "文档")
+    ):
         return False
     broad_markers = (
         "all websites",
@@ -87,9 +90,16 @@ def _is_unsupported_public_scope(text: str) -> bool:
         "until you find",
         "keep searching",
         "browse all",
+        "best",
+        "top",
+        "rank",
         "全网",
         "所有",
         "一直",
+        "最好",
+        "最佳",
+        "排名",
+        "推荐",
     )
     return any(marker in lowered for marker in broad_markers)
 
@@ -108,8 +118,6 @@ def _intent_for(text: str) -> BrowserIntentType:
 
 
 def _task_for(text: str, lowered: str) -> str:
-    if "github" in lowered and ("搜索" in text or "search" in lowered):
-        return "Open GitHub and search for browser-use-vision on public pages."
     if "图标" in text or "icon" in lowered:
         return text
     return text
@@ -158,10 +166,24 @@ def _public_task_slots_for(text: str) -> dict[str, object]:
         slots["target_site_hint"] = "mdn"
     elif "wikipedia" in lowered:
         slots["target_site_hint"] = "wikipedia"
+    elif "github" in lowered:
+        slots["target_site_hint"] = "github"
     search_query = _extract_search_query(text)
     if search_query:
         slots["search_query"] = search_query
+        if "github" in lowered:
+            slots["task_kind_hint"] = "github-repo-search"
+    repo_slug = _extract_github_repo_slug(text)
+    if repo_slug:
+        owner, repo = repo_slug.split("/", 1)
+        slots["target_site_hint"] = "github"
+        slots["task_kind_hint"] = "github-public-repo-read"
+        slots["repo_slug"] = repo_slug
+        slots["owner"] = owner
+        slots["repo"] = repo
     read_target = _extract_read_target(text)
+    if repo_slug and not read_target:
+        read_target = "README" if "readme" in lowered else "repository page"
     if read_target:
         slots["read_target"] = read_target
         slots["extraction_target"] = read_target
@@ -192,12 +214,24 @@ def _extract_search_query(text: str) -> str | None:
             words = query.split()
             if len(words) > 1 and words[0].lower() in {"python", "docs", "documentation"}:
                 query = words[-1]
+            query = _clean_github_search_query(query)
             return query[:80] if query else None
     return None
 
 
+def _clean_github_search_query(query: str) -> str:
+    return re.sub(
+        r"^(?:github\s+)?(?:repositories|repository|repos|repo)\s+for\s+",
+        "",
+        query,
+        flags=re.IGNORECASE,
+    ).strip()
+
+
 def _extract_read_target(text: str) -> str | None:
     lowered = text.lower()
+    if "github" in lowered and "readme" in lowered:
+        return "README"
     if not any(marker in lowered for marker in ("read", "extract", "读取", "提取")):
         return None
     patterns = (
@@ -210,3 +244,27 @@ def _extract_read_target(text: str) -> str | None:
             target = match.group(1).strip()
             return target[:120] if target else None
     return None
+
+
+def _extract_github_repo_slug(text: str) -> str | None:
+    lowered = text.lower()
+    if "github" not in lowered and "github.com/" not in lowered:
+        return None
+    url_match = re.search(
+        r"github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if url_match:
+        return f"{url_match.group(1)}/{url_match.group(2).removesuffix('.git')}"
+    slug_match = re.search(
+        r"\b([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)\b",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if not slug_match:
+        return None
+    owner, repo = slug_match.group(1), slug_match.group(2).removesuffix(".git")
+    if owner.lower() in {"http:", "https:"}:
+        return None
+    return f"{owner}/{repo}"
