@@ -141,8 +141,9 @@
         <h2>Bounded Scope</h2>
         <p>
           The system supports one utterance at a time. It normalizes the transcript into a Browser
-          Task Request or Clarification Request, applies safety checks, and runs either preview,
-          live-controlled, agentic live-controlled, or real-vision controlled evidence paths.
+          Task Request or Clarification Request, applies safety checks, supports ASR review,
+          and runs preview, live-controlled, agentic live-controlled, real-vision controlled,
+          or real-voice controlled evidence paths.
         </p>
         <div>
           <span class="pill">Chinese-first spoken commands</span>
@@ -179,6 +180,7 @@
         <ol>
           <li>One spoken command is accepted through upload, recording, transcript, or fixture replay.</li>
           <li>The ASR adapter or fixture manifest creates transcript metadata.</li>
+          <li>The operator can review and edit real ASR output before normalization.</li>
           <li>The Spoken Command Normalizer creates a task request or clarification request.</li>
           <li>The Normalizer Validator and Confirmation Gate block unsafe or ambiguous actions.</li>
           <li>The executor records browser actions, agentic steps, final status, and sanitized evidence.</li>
@@ -192,12 +194,16 @@
           <li><code>live_controlled</code>: selected local controlled visual tasks with action evidence.</li>
           <li><code>agentic_live_controlled</code>: observe-act-verify traces with agentic step evidence.</li>
           <li><code>real_vision_controlled</code>: controlled <code>icon-search</code> evidence that calls <code>browser_use_vision.som.annotate_screenshot</code>.</li>
+          <li><code>real_voice_controlled</code>: reviewed audio command evidence with ASR provenance, controlled execution, and sanitized grounding references.</li>
+          <li><code>real_use_failure</code>: ASR unavailable, clarification, confirmation, cancellation, and ambiguous-target traces as reliability evidence.</li>
         </ul>
         <p>
           Committed trace sources live in <code>fixtures/traces/sanitized/</code>,
-          <code>fixtures/traces/live-sanitized/</code>, and
-          <code>fixtures/traces/agentic-sanitized/</code>, and
-          <code>fixtures/traces/real-vision-sanitized/</code>.
+          <code>fixtures/traces/live-sanitized/</code>,
+          <code>fixtures/traces/agentic-sanitized/</code>,
+          <code>fixtures/traces/real-vision-sanitized/</code>,
+          <code>fixtures/traces/real-voice-sanitized/</code>, and
+          <code>fixtures/traces/real-use-sanitized/</code>.
         </p>
       </section>
 
@@ -231,7 +237,10 @@
       <section>
         <h2>Validation Surface</h2>
         <div class="callout">
+          <p><code>uv run python scripts/preflight_real_use.py</code></p>
+          <p><code>uv run python scripts/generate_real_voice_trace.py</code></p>
           <p><code>uv run pytest</code></p>
+          <p><code>openspec validate real-voice-e2e-useful-agent-readiness --strict</code></p>
           <p><code>openspec validate --all --strict</code></p>
           <p><code>git diff --check</code></p>
         </div>
@@ -248,10 +257,13 @@
         <ul>
           <li><code>README.md</code></li>
           <li><code>docs/demo/demo-task-suite.md</code></li>
+          <li><code>docs/demo/useful-scenarios.md</code></li>
           <li><code>docs/demo/ablations.md</code></li>
           <li><code>docs/demo/video-plan.md</code></li>
           <li><code>docs/demo/closeout-checklist.md</code></li>
           <li><code>docs/public-evidence/index.html</code></li>
+          <li><code>scripts/preflight_real_use.py</code></li>
+          <li><code>scripts/generate_real_voice_trace.py</code></li>
           <li><code>scripts/build_demo_evidence_pack.py</code></li>
           <li><code>scripts/build_speech_to_task_dataset.py</code></li>
         </ul>
@@ -275,7 +287,7 @@
         <h2>Interview Talk Track</h2>
         <ol>
           <li>Start with the bounded problem: one spoken command becomes one auditable browser task.</li>
-          <li>Show the architecture: ASR adapter, normalizer, validator, local execution, visual grounding.</li>
+          <li>Show the architecture: ASR adapter, transcript review, normalizer, validator, local execution, visual grounding.</li>
           <li>Walk through evidence modes and sanitized trace sources.</li>
           <li>Run or inspect the release pack and adaptation seed-set manifests.</li>
           <li>Close with safety boundaries, limitations, and why evidence completeness matters.</li>

@@ -1,0 +1,23 @@
+{
+  "execution_id": "usage-asr-unavailable",
+  "execution_mode": "demo_preview",
+  "transcript": null,
+  "normalized_output": null,
+  "validator_decision": null,
+  "confirmation_decision": null,
+  "browser_actions": [],
+  "agentic_steps": [],
+  "grounding_evidence_refs": [],
+  "execution_runtime": {
+    "evidence_mode": "real_use_failure",
+    "input_source": "audio",
+    "failure_category": "asr_unavailable",
+    "asr": {"adapter_name": "unconfigured-asr", "status": "unavailable"},
+    "privacy_scan": {"status": "passed"}
+  },
+  "final_status": "failed",
+  "failure_reason": "asr_unavailable",
+  "stop_reason": null,
+  "created_at": "2026-05-27T10:00:00Z",
+  "updated_at": "2026-05-27T10:00:00Z"
+}

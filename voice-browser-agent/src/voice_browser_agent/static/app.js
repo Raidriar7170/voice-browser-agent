@@ -4,6 +4,7 @@ const state = {
   recorder: null,
   chunks: [],
   audioId: null,
+  reviewedTranscript: null,
   fixtures: [],
   currentInputSource: null,
 };
@@ -123,6 +124,50 @@ function renderError(error) {
   $("uploadStatus").textContent = error.message || String(error);
 }
 
+function renderReadiness(report) {
+  const checks = report.checks || {};
+  const primary_asr = checks.primary_asr || {};
+  const fallback_asr = checks.fallback_asr || {};
+  const items = [
+    ["primary_asr", primary_asr],
+    ["fallback_asr", fallback_asr],
+    ["browser_automation", checks.browser_automation || {}],
+    ["real_vision_grounding", checks.real_vision_grounding || {}],
+    ["runtime_privacy", checks.runtime_privacy || {}],
+  ];
+  const actions = report.recommended_actions || [];
+  const unavailable =
+    primary_asr.status !== "configured" && fallback_asr.status !== "ready"
+      ? '<p class="hint">ASR unavailable: configure a primary ASR endpoint or install the local fallback.</p>'
+      : "";
+  $("readinessPanel").innerHTML = `
+    <h2>Real-Use Readiness</h2>
+    <div class="readiness-grid">
+      ${items
+        .map(
+          ([name, check]) =>
+            `<div class="readiness-item"><strong>${name}</strong><span>${check.status || "unknown"}</span></div>`,
+        )
+        .join("")}
+    </div>
+    ${unavailable}
+    <p class="hint">${actions.join(" ")}</p>
+  `;
+}
+
+async function loadReadiness() {
+  try {
+    const response = await fetch("/api/readiness");
+    if (!response.ok) throw new Error(await response.text());
+    renderReadiness(await response.json());
+  } catch (error) {
+    $("readinessPanel").innerHTML = `
+      <h2>Real-Use Readiness</h2>
+      <p class="hint">ASR unavailable: run the preflight command before real audio execution.</p>
+    `;
+  }
+}
+
 function speakStatus(statusVoice) {
   if (!statusVoice?.enabled) return;
   if (!window.speechSynthesis) return;
@@ -173,6 +218,15 @@ function updateFixtureModeSupport() {
     : "This fixture is preview-only unless selected for live-controlled execution.";
 }
 
+function resetAudioReview() {
+  state.reviewedTranscript = null;
+  $("audioReviewButton").disabled = !state.audioId;
+  $("audioPreviewButton").disabled = true;
+  $("audioRunButton").disabled = true;
+  $("reviewedTranscriptInput").value = "";
+  $("asrReviewStatus").textContent = "Review ASR output before running reviewed audio.";
+}
+
 async function loadFixtures() {
   try {
     const response = await fetch("/api/fixtures");
@@ -206,7 +260,7 @@ $("uploadForm").addEventListener("submit", async (event) => {
   }
   const commandInput = await response.json();
   state.audioId = commandInput.audio_id;
-  $("audioRunButton").disabled = false;
+  resetAudioReview();
   $("uploadStatus").textContent = `Audio accepted. audio_id: ${state.audioId}`;
 });
 
@@ -242,7 +296,52 @@ $("audioRunButton").addEventListener("click", async () => {
   }
   try {
     state.currentInputSource = "audio-based execution";
-    const trace = await postJson("/api/executions", { audio_id: state.audioId });
+    const reviewed = $("reviewedTranscriptInput").value.trim() || state.reviewedTranscript || "";
+    if (!reviewed) {
+      $("uploadStatus").textContent = "Review ASR transcript before running reviewed audio.";
+      return;
+    }
+    const trace = await postJson("/api/executions", {
+      audio_id: state.audioId,
+      reviewed_transcript_text: reviewed,
+      execution_mode: "live_controlled",
+      controlled_fixture_id: $("fixtureSelect").value || "icon-search",
+    });
+    renderTrace(trace);
+  } catch (error) {
+    renderError(error);
+  }
+});
+
+$("audioReviewButton").addEventListener("click", async () => {
+  if (!state.audioId) {
+    $("uploadStatus").textContent = "Upload or record audio before ASR review.";
+    return;
+  }
+  try {
+    const transcript = await postJson(`/api/audio/${state.audioId}/transcript`, {});
+    state.reviewedTranscript = transcript.text || "";
+    $("reviewedTranscriptInput").value = state.reviewedTranscript;
+    $("audioPreviewButton").disabled = false;
+    $("audioRunButton").disabled = false;
+    const metadata = transcript.metadata || {};
+    $("asrReviewStatus").textContent =
+      `ASR: ${metadata.adapter_name || "unknown"} | confidence: ${metadata.confidence ?? "unknown"}`;
+  } catch (error) {
+    $("asrReviewStatus").textContent = `ASR unavailable: ${error.message || String(error)}`;
+    renderError(error);
+  }
+});
+
+$("audioPreviewButton").addEventListener("click", async () => {
+  if (!state.audioId) return;
+  try {
+    state.currentInputSource = "audio-based execution";
+    const reviewed = $("reviewedTranscriptInput").value.trim() || state.reviewedTranscript || "";
+    const trace = await postJson("/api/normalize", {
+      audio_id: state.audioId,
+      reviewed_transcript_text: reviewed,
+    });
     renderTrace(trace);
   } catch (error) {
     renderError(error);
@@ -310,7 +409,7 @@ $("recordButton").addEventListener("click", async () => {
     if (response.ok) {
       const commandInput = await response.json();
       state.audioId = commandInput.audio_id;
-      $("audioRunButton").disabled = false;
+      resetAudioReview();
       $("uploadStatus").textContent = `Recording accepted. audio_id: ${state.audioId}`;
     } else {
       $("uploadStatus").textContent = await response.text();
@@ -322,3 +421,4 @@ $("recordButton").addEventListener("click", async () => {
 });
 
 loadFixtures();
+loadReadiness();

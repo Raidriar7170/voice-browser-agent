@@ -100,15 +100,28 @@
               <td><code>fixtures/traces/real-vision-sanitized/</code></td>
               <td>Controlled <code>icon-search</code> trace produced by calling <code>browser_use_vision.som.annotate_screenshot</code>.</td>
             </tr>
+            <tr>
+              <td><code>real_voice_controlled</code></td>
+              <td><code>fixtures/traces/real-voice-sanitized/</code></td>
+              <td>Reviewed audio input, ASR metadata, controlled local browser execution, and sanitized grounding evidence.</td>
+            </tr>
+            <tr>
+              <td><code>real_use_failure</code></td>
+              <td><code>fixtures/traces/real-use-sanitized/</code></td>
+              <td>ASR unavailable, clarification, confirmation, cancellation, and ambiguous-target traces as reliability evidence.</td>
+            </tr>
           </tbody>
         </table>
       </section>
 
       <section>
         <h2>Local Review Commands</h2>
+        <p><code>uv run python scripts/preflight_real_use.py</code></p>
         <p><code>uv run python scripts/generate_real_vision_trace.py</code></p>
+        <p><code>uv run python scripts/generate_real_voice_trace.py</code></p>
         <p><code>uv run python scripts/build_demo_evidence_pack.py</code></p>
         <p><code>uv run python scripts/build_speech_to_task_dataset.py --seed-set</code></p>
+        <p><code>openspec validate real-voice-e2e-useful-agent-readiness --strict</code></p>
         <p><code>openspec validate public-evidence-and-real-vision-integration --strict</code></p>
         <p><code>uv run pytest</code></p>
       </section>
@@ -117,8 +130,9 @@
         <h2>Demo Media Contract</h2>
         <p>
           The 60-90 second demo contract is defined in <code>docs/demo/video-plan.md</code>.
-          It shows transcript or fixture input, normalization, safety gate behavior, controlled
-          visual execution, sanitized trace export, release-pack inspection, and seed-set inspection.
+          It shows transcript or fixture input, real audio review, normalization, safety gate
+          behavior, controlled visual execution, sanitized trace export, release-pack inspection,
+          and seed-set inspection.
         </p>
       </section>
 

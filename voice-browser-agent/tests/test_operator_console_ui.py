@@ -32,6 +32,10 @@ def test_operator_console_exposes_distinct_input_source_controls(tmp_path):
     assert 'aria-label="Audio upload"' in html
     assert "Run Uploaded Audio" in html
     assert "Run Fixture" in html
+    assert 'id="readinessPanel"' in html
+    assert 'id="reviewedTranscriptInput"' in html
+    assert "Review ASR Transcript" in html
+    assert "Run Reviewed Audio" in html
 
 
 def test_operator_console_uses_versioned_static_assets_to_avoid_stale_js_cache(tmp_path):
@@ -75,8 +79,27 @@ def test_operator_console_javascript_runs_uploaded_audio_by_audio_id():
 
     assert "audioId" in app_js
     assert "state.audioId" in app_js
-    assert 'postJson("/api/executions", { audio_id: state.audioId })' in app_js
+    assert "/api/audio/${state.audioId}/transcript" in app_js
+    assert "reviewed_transcript_text" in app_js
+    assert "controlled_fixture_id" in app_js
+    assert "Run reviewed audio" in app_js or "audioReviewButton" in app_js
     assert "audioRunButton" in app_js
+
+
+def test_operator_console_javascript_loads_real_use_readiness():
+    app_js = (
+        __import__("pathlib")
+        .Path(__file__)
+        .resolve()
+        .parents[1]
+        / "src/voice_browser_agent/static/app.js"
+    ).read_text(encoding="utf-8")
+
+    assert "/api/readiness" in app_js
+    assert "readinessPanel" in app_js
+    assert "primary_asr" in app_js
+    assert "fallback_asr" in app_js
+    assert "ASR unavailable" in app_js
 
 
 def test_operator_console_javascript_renders_compact_summary_before_raw_trace():

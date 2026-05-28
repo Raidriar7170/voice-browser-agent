@@ -16,6 +16,11 @@
         </div>
       </section>
 
+      <section id="readinessPanel" class="panel readiness" aria-live="polite">
+        <h2>Real-Use Readiness</h2>
+        <p class="hint">Checking local ASR, browser automation, visual grounding, and privacy boundaries.</p>
+      </section>
+
       <section class="grid">
         <form id="uploadForm" class="panel">
           <h2>Command Inputs</h2>
@@ -40,10 +45,20 @@
             aria-label="Transcript command"
             placeholder="打开 GitHub 搜索 browser-use-vision，不要登录"
           ></textarea>
+          <div class="audio-review">
+            <button id="audioReviewButton" type="button" disabled>Review ASR Transcript</button>
+            <textarea
+              id="reviewedTranscriptInput"
+              aria-label="Reviewed ASR transcript"
+              placeholder="Review ASR output before execution"
+            ></textarea>
+            <p id="asrReviewStatus" class="hint">Run Uploaded Audio after reviewing the ASR transcript.</p>
+          </div>
           <div class="run-actions">
             <button id="transcriptRunButton" type="button">Run Transcript</button>
             <button id="fixtureRunButton" type="button">Run Fixture</button>
-            <button id="audioRunButton" type="button" disabled>Run Uploaded Audio</button>
+            <button id="audioPreviewButton" type="button" disabled>Preview Reviewed Audio</button>
+            <button id="audioRunButton" type="button" disabled>Run Reviewed Audio</button>
           </div>
           <button type="submit">Upload</button>
           <p id="uploadStatus" class="status"></p>

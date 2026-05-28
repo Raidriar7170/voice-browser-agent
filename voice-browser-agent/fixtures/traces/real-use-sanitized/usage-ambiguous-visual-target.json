@@ -1,0 +1,56 @@
+{
+  "execution_id": "usage-ambiguous-visual-target",
+  "execution_mode": "live_controlled",
+  "transcript": {
+    "text": "点那个图标",
+    "metadata": {
+      "adapter_name": "real-use-smoke-asr",
+      "input_audio_id": "real-audio-command-redacted",
+      "language_mode": "zh-first",
+      "created_at": "2026-05-27T10:00:00Z",
+      "confidence": 0.72,
+      "diagnostics": {"input_source": "audio", "transcript_review": {"status": "accepted"}}
+    }
+  },
+  "normalized_output": {
+    "kind": "browser_task_request",
+    "task": "点那个图标",
+    "intent_type": "click_visual_target",
+    "constraints": ["bounded single browser task", "controlled demo page only"],
+    "visual_references": [{"kind": "icon", "text": "unspecified icon", "source": "transcript", "confidence": 0.4}],
+    "requires_confirmation": false,
+    "stop_conditions": ["ambiguous_visual_target"],
+    "safety_flags": [],
+    "controlled_target_ref": "demo/pages/icon_only_toolbar.html"
+  },
+  "validator_decision": {"accepted": true, "reason": "request accepted by deterministic validator", "issues": [], "requires_confirmation": false},
+  "confirmation_decision": {"state": "confirmed", "reason": "no confirmation required", "decided_by": null, "created_at": "2026-05-27T10:00:00Z"},
+  "browser_actions": [],
+  "agentic_steps": [
+    {
+      "step_index": 1,
+      "observation_summary": "Multiple icon buttons are visible and the transcript does not identify which one to click.",
+      "target_status": "ambiguous",
+      "selected_target_ref": null,
+      "target_candidates": ["som:settings", "som:search", "som:help"],
+      "grounding_evidence_refs": ["grounding/real-use/ambiguous-icon.json"],
+      "screenshot_ref": null,
+      "selected_action": null,
+      "action_result": null,
+      "verification_decision": {"passed": false, "reason": "ambiguous target"},
+      "recovery_decision": {"kind": "clarify", "reason": "operator clarification required"}
+    }
+  ],
+  "grounding_evidence_refs": ["grounding/real-use/ambiguous-icon.json"],
+  "execution_runtime": {
+    "evidence_mode": "real_use_failure",
+    "input_source": "audio",
+    "failure_category": "ambiguous_visual_target",
+    "privacy_scan": {"status": "passed"}
+  },
+  "final_status": "clarification_required",
+  "failure_reason": null,
+  "stop_reason": "ambiguous_visual_target",
+  "created_at": "2026-05-27T10:00:00Z",
+  "updated_at": "2026-05-27T10:00:00Z"
+}

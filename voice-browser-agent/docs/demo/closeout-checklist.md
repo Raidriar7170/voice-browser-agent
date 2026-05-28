@@ -5,6 +5,8 @@ Use this checklist before archiving or committing the final Voice-to-Browser Age
 ## Generate Local Review Artifacts
 
 ```bash
+uv run python scripts/preflight_real_use.py
+uv run python scripts/generate_real_voice_trace.py
 uv run python scripts/build_demo_evidence_pack.py
 uv run python scripts/build_speech_to_task_dataset.py
 uv run python scripts/build_speech_to_task_dataset.py --seed-set
@@ -23,6 +25,8 @@ Generated runtime artifacts stay local. The committed evidence sources are:
 - `fixtures/traces/live-sanitized/`
 - `fixtures/traces/agentic-sanitized/`
 - `fixtures/traces/real-vision-sanitized/`
+- `fixtures/traces/real-voice-sanitized/`
+- `fixtures/traces/real-use-sanitized/`
 - `fixtures/seed-set/reviewed-variants.json`
 
 ## Validate Repo State
@@ -30,6 +34,7 @@ Generated runtime artifacts stay local. The committed evidence sources are:
 ```bash
 openspec validate project-closeout-interview-pack --strict
 openspec validate public-evidence-and-real-vision-integration --strict
+openspec validate real-voice-e2e-useful-agent-readiness --strict
 openspec validate --all --strict
 uv run pytest
 git diff --check

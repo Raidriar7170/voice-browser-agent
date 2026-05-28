@@ -36,6 +36,8 @@ TRACE_GROUPS = (
     ("live-sanitized", "live_controlled", "live-*.json"),
     ("agentic-sanitized", "agentic_live_controlled", "agentic-*.json"),
     ("real-vision-sanitized", "real_vision_controlled", "real-vision-*.json"),
+    ("real-voice-sanitized", "real_voice_controlled", "real-voice-*.json"),
+    ("real-use-sanitized", "real_use_failure", "usage-*.json"),
 )
 
 
@@ -91,14 +93,20 @@ def collect_artifacts(project_root: Path, trace_root: Path) -> list[dict[str, An
         for trace_path in sorted(group_dir.glob(pattern)):
             payload = read_trace(trace_path)
             scan_payload_for_private_markers(payload, path=trace_path)
-            fixture_id = payload.get("transcript", {}).get("metadata", {}).get("input_audio_id")
+            runtime = payload.get("execution_runtime") or {}
+            fixture_id = fixture_id_for_payload(
+                payload=payload,
+                runtime=runtime,
+                evidence_mode=evidence_mode,
+                trace_path=trace_path,
+            )
             if not fixture_id:
                 raise EvidencePackError(f"malformed trace missing fixture id: {trace_path}")
             agentic_steps = payload.get("agentic_steps") or []
             grounding_refs = payload.get("grounding_evidence_refs") or []
-            runtime = payload.get("execution_runtime") or {}
             artifact = {
                 "fixture_id": fixture_id,
+                "execution_id": payload.get("execution_id"),
                 "evidence_mode": evidence_mode,
                 "execution_mode": payload.get("execution_mode") or "demo_preview",
                 "source_path": f"fixtures/traces/{directory}/{trace_path.name}",
@@ -110,12 +118,32 @@ def collect_artifacts(project_root: Path, trace_root: Path) -> list[dict[str, An
                 "agentic_step_count": len(agentic_steps),
                 "provider": runtime.get("provider"),
                 "adapter": runtime.get("adapter"),
-                "privacy_scan": "passed",
+                "asr": runtime.get("asr"),
+                "transcript_review": runtime.get("transcript_review"),
+                "input_source": runtime.get("input_source"),
+                "privacy_scan": (runtime.get("privacy_scan") or {}).get("status", "passed"),
                 "_source_abs": trace_path,
             }
             validate_artifact(artifact, trace_path)
             artifacts.append(artifact)
     return artifacts
+
+
+def fixture_id_for_payload(
+    payload: dict[str, Any],
+    runtime: dict[str, Any],
+    evidence_mode: str,
+    trace_path: Path,
+) -> str | None:
+    if evidence_mode == "real_use_failure":
+        return payload.get("execution_id")
+    if evidence_mode == "real_voice_controlled":
+        return runtime.get("controlled_fixture_id")
+    transcript = payload.get("transcript") or {}
+    if not isinstance(transcript, dict):
+        raise EvidencePackError(f"malformed trace transcript in {trace_path}")
+    metadata = transcript.get("metadata") or {}
+    return metadata.get("input_audio_id")
 
 
 def read_trace(trace_path: Path) -> dict[str, Any]:
@@ -159,6 +187,26 @@ def validate_artifact(artifact: dict[str, Any], trace_path: Path) -> None:
             raise EvidencePackError(f"real-vision trace missing adapter metadata: {trace_path}")
         if not artifact["grounding_evidence_refs"]:
             raise EvidencePackError(f"real-vision trace has no grounding refs: {trace_path}")
+    if artifact["evidence_mode"] == "real_voice_controlled":
+        if artifact["execution_mode"] != "live_controlled":
+            raise EvidencePackError(f"real-voice trace has wrong execution mode: {trace_path}")
+        if artifact.get("input_source") != "audio":
+            raise EvidencePackError(f"real-voice trace is not audio-sourced: {trace_path}")
+        asr = artifact.get("asr") or {}
+        if not asr.get("adapter_name"):
+            raise EvidencePackError(f"real-voice trace missing ASR adapter metadata: {trace_path}")
+        review = artifact.get("transcript_review") or {}
+        if review.get("status") not in {"edited", "accepted"}:
+            raise EvidencePackError(f"real-voice trace missing transcript review: {trace_path}")
+        if not artifact["grounding_evidence_refs"] and artifact["agentic_step_count"] < 1:
+            raise EvidencePackError(f"real-voice trace has no grounding or step evidence: {trace_path}")
+        if artifact.get("privacy_scan") != "passed":
+            raise EvidencePackError(f"real-voice privacy scan did not pass: {trace_path}")
+    if artifact["evidence_mode"] == "real_use_failure":
+        if artifact.get("input_source") != "audio":
+            raise EvidencePackError(f"real-use trace is not audio-sourced: {trace_path}")
+        if artifact.get("privacy_scan") != "passed":
+            raise EvidencePackError(f"real-use privacy scan did not pass: {trace_path}")
 
 
 def check_completeness(project_root: Path, artifacts: list[dict[str, Any]]) -> None:
@@ -184,6 +232,15 @@ def check_completeness(project_root: Path, artifacts: list[dict[str, Any]]) -> N
     missing_live = sorted(selected_live - by_mode["live_controlled"])
     missing_agentic = sorted(selected_live - by_mode["agentic_live_controlled"])
     missing_real_vision = sorted({"icon-search"} - by_mode["real_vision_controlled"])
+    missing_real_voice = sorted({"icon-search"} - by_mode["real_voice_controlled"])
+    required_usage = {
+        "usage-asr-unavailable",
+        "usage-clarification-required",
+        "usage-confirmation-pending",
+        "usage-confirmation-cancelled",
+        "usage-ambiguous-visual-target",
+    }
+    missing_usage = sorted(required_usage - by_mode["real_use_failure"])
     if missing_preview:
         raise EvidencePackError(f"missing demo_preview evidence for: {', '.join(missing_preview)}")
     if missing_live:
@@ -196,6 +253,16 @@ def check_completeness(project_root: Path, artifacts: list[dict[str, Any]]) -> N
         raise EvidencePackError(
             "missing real_vision_controlled evidence for: "
             + ", ".join(missing_real_vision)
+        )
+    if missing_real_voice:
+        raise EvidencePackError(
+            "missing real_voice_controlled evidence for: "
+            + ", ".join(missing_real_voice)
+        )
+    if missing_usage:
+        raise EvidencePackError(
+            "missing real_use_failure evidence for: "
+            + ", ".join(missing_usage)
         )
 
 
@@ -249,6 +316,8 @@ def render_html(manifest: dict[str, Any]) -> str:
           <th>Trace</th>
           <th>Grounding</th>
           <th>Provider</th>
+          <th>ASR</th>
+          <th>Review</th>
         </tr>
       </thead>
       <tbody>
@@ -265,6 +334,8 @@ def render_row(item: dict[str, Any]) -> str:
     refs = ", ".join(item.get("grounding_evidence_refs") or [])
     provider = item.get("provider") or {}
     provider_label = provider.get("package") or ""
+    asr = item.get("asr") or {}
+    review = item.get("transcript_review") or {}
     return (
         "        <tr>"
         f"<td>{html.escape(item['fixture_id'])}</td>"
@@ -274,6 +345,8 @@ def render_row(item: dict[str, Any]) -> str:
         f"<td><code>{html.escape(item['packaged_path'])}</code></td>"
         f"<td>{html.escape(refs)}</td>"
         f"<td>{html.escape(provider_label)}</td>"
+        f"<td>{html.escape(asr.get('adapter_name') or '')}</td>"
+        f"<td>{html.escape(review.get('status') or '')}</td>"
         "</tr>"
     )
 

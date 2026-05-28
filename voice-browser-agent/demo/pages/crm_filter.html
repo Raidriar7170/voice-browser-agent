@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Controlled CRM Filter</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; color: #172026; }
+      header { border-bottom: 1px solid #ccd4d9; padding: 16px 24px; }
+      main { padding: 24px; }
+      label, select { display: block; max-width: 320px; width: 100%; }
+      select { border: 1px solid #9aa8b1; border-radius: 6px; margin: 8px 0 18px; min-height: 38px; padding: 0 10px; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #d6dde2; padding: 8px; text-align: left; }
+      th { background: #f3f6f8; }
+    </style>
+  </head>
+  <body>
+    <header><h1>Accounts</h1></header>
+    <main>
+      <label for="priority">Lead priority</label>
+      <select id="priority" aria-label="lead priority filter">
+        <option>All leads</option>
+        <option>High priority</option>
+        <option>Renewal risk</option>
+      </select>
+      <table aria-label="account list">
+        <thead>
+          <tr><th>Account</th><th>Priority</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Acme Labs</td><td>High priority</td><td>Follow up</td></tr>
+          <tr><td>Northwind</td><td>Renewal risk</td><td>Review</td></tr>
+          <tr><td>Contoso</td><td>High priority</td><td>Ready</td></tr>
+        </tbody>
+      </table>
+    </main>
+  </body>
+</html>

@@ -25,7 +25,7 @@ def copy_trace_sources(tmp_path: Path) -> Path:
     return target_root
 
 
-def test_release_pack_manifest_covers_preview_live_agentic_and_real_vision_evidence(tmp_path):
+def test_release_pack_manifest_covers_preview_live_agentic_real_vision_and_real_voice_evidence(tmp_path):
     builder = load_builder()
     trace_root = copy_trace_sources(tmp_path)
     output_dir = tmp_path / "release-pack"
@@ -45,6 +45,8 @@ def test_release_pack_manifest_covers_preview_live_agentic_and_real_vision_evide
         "live_controlled",
         "agentic_live_controlled",
         "real_vision_controlled",
+        "real_voice_controlled",
+        "real_use_failure",
     }
 
     preview = [item for item in manifest["artifacts"] if item["evidence_mode"] == "demo_preview"]
@@ -55,12 +57,20 @@ def test_release_pack_manifest_covers_preview_live_agentic_and_real_vision_evide
     real_vision = [
         item for item in manifest["artifacts"] if item["evidence_mode"] == "real_vision_controlled"
     ]
+    real_voice = [
+        item for item in manifest["artifacts"] if item["evidence_mode"] == "real_voice_controlled"
+    ]
+    failures = [item for item in manifest["artifacts"] if item["evidence_mode"] == "real_use_failure"]
     assert len(preview) == 8
     assert {"icon-search", "color-swatch"}.issubset({item["fixture_id"] for item in live})
     assert {"icon-search", "color-swatch"}.issubset({item["fixture_id"] for item in agentic})
     assert {item["fixture_id"] for item in real_vision} == {"icon-search"}
+    assert {item["fixture_id"] for item in real_voice} == {"icon-search"}
+    assert len(failures) >= 5
     assert real_vision[0]["provider"]["package"] == "browser-use-vision"
     assert real_vision[0]["adapter"]["api"] == "browser_use_vision.som.annotate_screenshot"
+    assert real_voice[0]["asr"]["adapter_name"] == "real-use-smoke-asr"
+    assert real_voice[0]["transcript_review"]["status"] == "edited"
     assert all(item["privacy_scan"] == "passed" for item in manifest["artifacts"])
     assert all(item["packaged_path"].startswith("traces/") for item in manifest["artifacts"])
 
@@ -95,6 +105,20 @@ def test_release_pack_fails_when_real_vision_evidence_is_missing_or_empty(tmp_pa
             output_dir=tmp_path / "release-pack",
         )
 
+
+def test_release_pack_fails_when_real_voice_evidence_is_missing(tmp_path):
+    builder = load_builder()
+    trace_root = copy_trace_sources(tmp_path)
+    shutil.rmtree(trace_root / "real-voice-sanitized")
+
+    with pytest.raises(builder.EvidencePackError, match="missing real_voice_controlled evidence"):
+        builder.build_release_pack(
+            project_root=PROJECT_ROOT,
+            trace_root=trace_root,
+            output_dir=tmp_path / "release-pack",
+        )
+
+    shutil.rmtree(trace_root / "real-vision-sanitized")
     (trace_root / "real-vision-sanitized").mkdir()
     with pytest.raises(builder.EvidencePackError, match="missing real_vision_controlled evidence"):
         builder.build_release_pack(

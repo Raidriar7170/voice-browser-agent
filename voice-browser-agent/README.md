@@ -15,6 +15,14 @@ Open `http://127.0.0.1:8000`, upload a supported audio file, or paste one of the
 
 The local visual grounding dependency is resolved by `uv` from `../../../browser-use-vision` through `[tool.uv.sources]`. If the repo lives elsewhere, edit that path or install `browser-use-vision` into the environment before running non-demo vision checks.
 
+Check real-use readiness before running uploaded or recorded audio:
+
+```bash
+uv run python scripts/preflight_real_use.py
+```
+
+The preflight reports primary ASR, fallback ASR, Playwright browser automation, real `browser-use-vision` grounding, and runtime privacy status without exposing local runtime paths.
+
 ## Runtime
 
 - The Operator Console and browser execution run locally.
@@ -28,6 +36,7 @@ The local visual grounding dependency is resolved by `uv` from `../../../browser
 ## Demo Evidence
 
 - Demo tasks: `docs/demo/demo-task-suite.md`
+- Useful local scenarios: `docs/demo/useful-scenarios.md`
 - Ablations: `docs/demo/ablations.md`
 - Video plan: `docs/demo/video-plan.md`
 - Closeout checklist: `docs/demo/closeout-checklist.md`
@@ -37,6 +46,8 @@ The local visual grounding dependency is resolved by `uv` from `../../../browser
 - Live controlled trace artifacts: `fixtures/traces/live-sanitized/`
 - Agentic live controlled trace artifacts: `fixtures/traces/agentic-sanitized/`
 - Real browser-use-vision controlled trace artifacts: `fixtures/traces/real-vision-sanitized/`
+- Real voice controlled trace artifacts: `fixtures/traces/real-voice-sanitized/`
+- Real-use failure and operator-decision traces: `fixtures/traces/real-use-sanitized/`
 
 The public artifacts show bounded spoken-command execution, explicit safety stops, and traceable evidence. Demo-preview traces are separate from live controlled and agentic live controlled traces. They do not claim broad web autonomy.
 
@@ -46,13 +57,19 @@ Refresh the committed real-vision controlled trace when the local Playwright bro
 uv run python scripts/generate_real_vision_trace.py
 ```
 
+Refresh the committed real voice controlled smoke trace after running a local audio flow:
+
+```bash
+uv run python scripts/generate_real_voice_trace.py
+```
+
 Build the reviewer release pack from the committed evidence sources:
 
 ```bash
 uv run python scripts/build_demo_evidence_pack.py
 ```
 
-The command writes a generated local artifact under `runtime/demo-evidence-release-pack/`. Open `runtime/demo-evidence-release-pack/index.html` for the browser-readable evidence index, or inspect `runtime/demo-evidence-release-pack/manifest.json` for the machine-readable manifest. The generated directory stays local; the committed evidence sources remain `fixtures/traces/sanitized/`, `fixtures/traces/live-sanitized/`, `fixtures/traces/agentic-sanitized/`, and `fixtures/traces/real-vision-sanitized/`.
+The command writes a generated local artifact under `runtime/demo-evidence-release-pack/`. Open `runtime/demo-evidence-release-pack/index.html` for the browser-readable evidence index, or inspect `runtime/demo-evidence-release-pack/manifest.json` for the machine-readable manifest. The generated directory stays local; the committed evidence sources remain `fixtures/traces/sanitized/`, `fixtures/traces/live-sanitized/`, `fixtures/traces/agentic-sanitized/`, `fixtures/traces/real-vision-sanitized/`, `fixtures/traces/real-voice-sanitized/`, and `fixtures/traces/real-use-sanitized/`.
 
 Build the local Speech-to-Task adaptation preparation dataset from the same committed trace sources:
 
@@ -69,5 +86,6 @@ Use the console as three separate execution paths:
 - Transcript demo: paste a fixture transcript or short spoken-command text, then run the transcript path to show normalization, validation, clarification, confirmation, or preview evidence.
 - Fixture replay: select a fixture and execution mode, then run the fixture path to reproduce checked-in demo-preview traces or selected controlled local visual tasks.
 - Uploaded audio: upload or record one command, verify the stored `audio_id`, then run the audio path to execute the ingested transcript through the same safety and trace pipeline.
+- Reviewed audio: upload or record one command, review the ASR transcript, edit it if needed, preview normalization, then run the reviewed audio path on a controlled local page.
 
 Use `demo_preview` for public showcase tasks such as GitHub or OpenAI pages. Use `live_controlled` only for fixtures explicitly selected for local controlled pages, such as icon search, color swatch, and SVG dashboard evidence. Clarification examples should stop before browser execution, confirmation examples should show the operator prompt before continuing, and exported traces must remain sanitized.

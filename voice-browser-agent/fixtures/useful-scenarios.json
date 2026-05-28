@@ -1,0 +1,34 @@
+{
+  "scenarios": [
+    {
+      "id": "crm-filter",
+      "title": "CRM account filter",
+      "local_page": "demo/pages/crm_filter.html",
+      "user_intent": "Filter the visible account list to high-priority leads.",
+      "intent_type": "select_filter",
+      "safety_behavior": "Only changes the local filter state; no external records are modified.",
+      "evidence_mode": "controlled_local_use",
+      "privacy_boundary": "local controlled page"
+    },
+    {
+      "id": "settings-toggle",
+      "title": "Settings notification toggle",
+      "local_page": "demo/pages/settings_toggle.html",
+      "user_intent": "Turn on a visible notification setting after review.",
+      "intent_type": "fill_form",
+      "safety_behavior": "Requires confirmation before any irreversible or account-like setting change.",
+      "evidence_mode": "controlled_local_use",
+      "privacy_boundary": "local controlled page"
+    },
+    {
+      "id": "metrics-dashboard",
+      "title": "Metrics dashboard comparison",
+      "local_page": "demo/pages/metrics_dashboard.html",
+      "user_intent": "Compare visible dashboard metrics and report the strongest trend.",
+      "intent_type": "extract_compare_info",
+      "safety_behavior": "Read-only extraction from a local dashboard.",
+      "evidence_mode": "controlled_local_use",
+      "privacy_boundary": "local controlled page"
+    }
+  ]
+}

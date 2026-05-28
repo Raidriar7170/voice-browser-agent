@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Controlled Settings Toggle</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; color: #172026; }
+      header { border-bottom: 1px solid #ccd4d9; padding: 16px 24px; }
+      main { display: grid; gap: 18px; max-width: 720px; padding: 24px; }
+      .row { align-items: center; border: 1px solid #d6dde2; border-radius: 8px; display: flex; justify-content: space-between; padding: 14px; }
+      button { border: 1px solid #6b7a84; border-radius: 6px; background: #172026; color: white; min-height: 36px; padding: 0 14px; }
+    </style>
+  </head>
+  <body>
+    <header><h1>Workspace Settings</h1></header>
+    <main>
+      <div class="row">
+        <span>Email summaries</span>
+        <button type="button" aria-label="turn on email summaries">Off</button>
+      </div>
+      <div class="row">
+        <span>Daily browser run limit</span>
+        <button type="button" aria-label="open run limit settings">Review</button>
+      </div>
+    </main>
+  </body>
+</html>

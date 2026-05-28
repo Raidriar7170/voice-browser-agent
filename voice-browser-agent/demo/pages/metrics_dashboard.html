@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Controlled Metrics Dashboard</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; color: #172026; }
+      header { border-bottom: 1px solid #ccd4d9; padding: 16px 24px; }
+      main { display: grid; gap: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 24px; }
+      article { border: 1px solid #d6dde2; border-radius: 8px; padding: 16px; }
+      strong { display: block; font-size: 28px; margin: 8px 0; }
+      @media (max-width: 720px) { main { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <header><h1>Pipeline Metrics</h1></header>
+    <main aria-label="metrics cards">
+      <article aria-label="conversion metric"><span>Conversion</span><strong>18%</strong><span>up 3 points</span></article>
+      <article aria-label="latency metric"><span>Median latency</span><strong>420 ms</strong><span>down 80 ms</span></article>
+      <article aria-label="handoff metric"><span>Human handoff</span><strong>7%</strong><span>down 2 points</span></article>
+    </main>
+  </body>
+</html>

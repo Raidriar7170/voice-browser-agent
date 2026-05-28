@@ -79,7 +79,7 @@ h2 {
 .run-actions {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin: 12px 0;
 }
 
@@ -95,6 +95,39 @@ h2 {
   border-radius: 8px;
   min-height: 210px;
   padding: 16px;
+}
+
+.readiness {
+  margin-bottom: 14px;
+  min-height: auto;
+}
+
+.readiness-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.readiness-item {
+  border: 1px solid #d6dde2;
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.readiness-item strong,
+.readiness-item span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.audio-review {
+  border-top: 1px solid #d6dde2;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.audio-review button {
+  margin-bottom: 8px;
 }
 
 .wide {
@@ -185,6 +218,10 @@ ol {
   }
 
   .run-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .readiness-grid {
     grid-template-columns: 1fr;
   }
 }

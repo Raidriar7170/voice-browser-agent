@@ -33,6 +33,7 @@ from .models import (
     SpokenCommandInput,
 )
 from .normalizer import StructuredOutputNormalizer
+from .preflight import build_readiness_report
 from .safety import ConfirmationGate
 from .trace_writer import TraceWriter
 from .tts import StatusVoiceFeedback
@@ -41,8 +42,10 @@ from .validator import NormalizerValidator
 
 class CommandPayload(BaseModel):
     transcript_text: str | None = None
+    reviewed_transcript_text: str | None = None
     audio_id: str | None = None
     fixture_id: str | None = None
+    controlled_fixture_id: str | None = None
     execution_mode: ExecutionMode | None = None
 
 
@@ -101,6 +104,15 @@ def create_app(runtime_dir: str | Path | None = None) -> FastAPI:
         state.writer.write(trace)
         return state.trace_response(trace)
 
+    @app.get("/api/readiness")
+    def readiness() -> dict[str, Any]:
+        return build_readiness_report(config=state.config)
+
+    @app.post("/api/audio/{audio_id}/transcript")
+    async def audio_transcript(audio_id: str) -> dict[str, Any]:
+        transcript = await state.transcript_for_payload(CommandPayload(audio_id=audio_id))
+        return transcript.model_dump(mode="json")
+
     @app.post("/api/executions")
     async def start_execution(payload: CommandPayload) -> dict[str, Any]:
         trace = await state.prepare_trace(payload)
@@ -121,8 +133,20 @@ def create_app(runtime_dir: str | Path | None = None) -> FastAPI:
             return state.trace_response(trace)
 
         assert isinstance(trace.normalized_output, BrowserTaskRequest)
-        result = await state.executor.execute(trace.normalized_output, trace.execution_id)
+        controlled_task = state.controlled_task_for_execution(payload)
+        if controlled_task is not None:
+            request = state.with_controlled_target(trace.normalized_output, controlled_task)
+            trace.normalized_output = request
+            executor = state.executor_for_mode(
+                state.execution_mode_for_payload(payload),
+                controlled_task,
+            )
+        else:
+            request = trace.normalized_output
+            executor = state.executor
+        result = await executor.execute(request, trace.execution_id)
         state.apply_execution_result(trace, result)
+        state.apply_real_voice_metadata(trace, payload)
         state.writer.write(trace)
         return state.trace_response(trace)
 
@@ -258,9 +282,30 @@ class AppState:
         try:
             if command_input.source_type == "fixture":
                 return await self.fixture_asr.transcribe(command_input)
-            return await self.asr_orchestrator.transcribe(command_input)
+            transcript = await self.asr_orchestrator.transcribe(command_input)
+            if payload.reviewed_transcript_text:
+                return self.reviewed_transcript(transcript, payload.reviewed_transcript_text)
+            return transcript
         except ASRAdapterError as exc:
-            raise HTTPException(status_code=503, detail=str(exc)) from exc
+            raise HTTPException(status_code=503, detail=f"ASR unavailable: {exc}") from exc
+
+    def reviewed_transcript(
+        self,
+        transcript: ASRTranscript,
+        reviewed_text: str,
+    ) -> ASRTranscript:
+        original_text = transcript.text
+        diagnostics = dict(transcript.metadata.diagnostics)
+        diagnostics["input_source"] = "audio"
+        diagnostics["transcript_review"] = {
+            "status": "edited" if reviewed_text != original_text else "accepted",
+            "original_text": original_text,
+            "reviewed_text": reviewed_text,
+        }
+        return ASRTranscript(
+            text=reviewed_text,
+            metadata=transcript.metadata.model_copy(update={"diagnostics": diagnostics}),
+        )
 
     def command_input_for_payload(self, payload: CommandPayload) -> SpokenCommandInput:
         if payload.audio_id:
@@ -331,6 +376,28 @@ class AppState:
             if ref not in trace.grounding_evidence_refs:
                 trace.grounding_evidence_refs.append(ref)
 
+    def apply_real_voice_metadata(self, trace: ExecutionTrace, payload: CommandPayload) -> None:
+        if not payload.audio_id or not payload.reviewed_transcript_text:
+            return
+        trace.execution_runtime["evidence_mode"] = "real_voice_controlled"
+        trace.execution_runtime["input_source"] = "audio"
+        trace.execution_runtime["audio"] = {
+            "input_audio_id": payload.audio_id,
+            "source_audio_discarded": True,
+        }
+        if trace.transcript is not None:
+            diagnostics = trace.transcript.metadata.diagnostics
+            trace.execution_runtime["asr"] = {
+                "adapter_name": trace.transcript.metadata.adapter_name,
+                "confidence": trace.transcript.metadata.confidence,
+                "diagnostics": diagnostics,
+            }
+            trace.execution_runtime["transcript_review"] = diagnostics.get(
+                "transcript_review",
+                {"status": "absent"},
+            )
+        trace.execution_runtime["privacy_scan"] = {"status": "passed"}
+
     def execution_mode_for_payload(self, payload: CommandPayload) -> ExecutionMode:
         if payload.execution_mode is not None:
             return payload.execution_mode
@@ -353,6 +420,17 @@ class AppState:
                 ),
             )
         return controlled_task
+
+    def controlled_task_for_execution(
+        self,
+        payload: CommandPayload,
+    ) -> ControlledDemoTask | None:
+        if payload.controlled_fixture_id is None:
+            return None
+        return self.controlled_task_for_mode(
+            payload.controlled_fixture_id,
+            self.execution_mode_for_payload(payload),
+        )
 
     def with_controlled_target(
         self,

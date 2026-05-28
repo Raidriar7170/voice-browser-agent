@@ -130,6 +130,9 @@ def test_release_pack_docs_define_build_command_and_artifact_boundaries():
     assert "fixtures/traces/sanitized/" in readme
     assert "fixtures/traces/live-sanitized/" in readme
     assert "fixtures/traces/agentic-sanitized/" in readme
+    assert "fixtures/traces/real-vision-sanitized/" in readme
+    assert "fixtures/traces/real-voice-sanitized/" in readme
+    assert "fixtures/traces/real-use-sanitized/" in readme
     assert "generated local artifact" in readme
     assert "committed evidence sources" in readme
 
@@ -207,6 +210,8 @@ def test_interview_project_overview_covers_required_story_and_evidence_sources()
         "fixtures/traces/sanitized/",
         "fixtures/traces/live-sanitized/",
         "fixtures/traces/agentic-sanitized/",
+        "fixtures/traces/real-voice-sanitized/",
+        "fixtures/traces/real-use-sanitized/",
         "runtime/demo-evidence-release-pack/manifest.json",
         "runtime/speech-to-task-adaptation-dataset/manifest.json",
         "openspec validate --all --strict",
@@ -278,6 +283,58 @@ def test_speech_to_task_dataset_docs_define_build_command_and_boundaries():
     assert "not an ASR/TTS corpus" in dataset_doc
     assert "not a model checkpoint" in dataset_doc
     assert "not broad web-autonomy evidence" in dataset_doc
+
+
+def test_real_use_scenarios_are_documented_and_controlled():
+    scenario_doc = (PROJECT_ROOT / "docs/demo/useful-scenarios.md").read_text(encoding="utf-8")
+    scenario_manifest = json.loads(
+        (PROJECT_ROOT / "fixtures/useful-scenarios.json").read_text(encoding="utf-8")
+    )
+
+    assert "controlled local workflows" in scenario_doc
+    assert "not broad public-web automation" in scenario_doc
+    assert len(scenario_manifest["scenarios"]) >= 3
+    scenario_ids = {scenario["id"] for scenario in scenario_manifest["scenarios"]}
+    assert {"crm-filter", "settings-toggle", "metrics-dashboard"}.issubset(scenario_ids)
+    assert all(
+        scenario["privacy_boundary"] == "local controlled page"
+        for scenario in scenario_manifest["scenarios"]
+    )
+
+
+def test_real_voice_and_usage_traces_are_sanitized():
+    trace_dirs = [
+        PROJECT_ROOT / "fixtures/traces/real-voice-sanitized",
+        PROJECT_ROOT / "fixtures/traces/real-use-sanitized",
+    ]
+    forbidden = (
+        "raw_audio_path",
+        "raw_screenshot",
+        "browser_profile",
+        "cookie",
+        "credential",
+        "password",
+        "token",
+        "remote_host",
+        "private_url",
+        "file:///Users/",
+        "storage_path",
+    )
+    traces = [trace for trace_dir in trace_dirs for trace in sorted(trace_dir.glob("*.json"))]
+    assert traces
+    usage_ids = {trace.stem for trace in traces if trace.parent.name == "real-use-sanitized"}
+    assert {
+        "usage-asr-unavailable",
+        "usage-clarification-required",
+        "usage-confirmation-pending",
+        "usage-confirmation-cancelled",
+        "usage-ambiguous-visual-target",
+    }.issubset(usage_ids)
+    for trace in traces:
+        text = trace.read_text(encoding="utf-8")
+        payload = json.loads(text)
+        assert payload["execution_runtime"]["privacy_scan"]["status"] == "passed"
+        assert not any(marker in text for marker in forbidden), trace
 
 
 def test_demo_docs_distinguish_agentic_evidence_and_ablations():
