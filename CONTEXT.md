@@ -88,6 +88,18 @@ _Avoid_: one-off successful recording, benchmark leaderboard
 A public artifact stripped of credentials, private URLs, personal data, and live browser state.
 _Avoid_: raw user recording, real website trace dump, secret-bearing screenshot
 
+**Public Task Contract**:
+An explicit allowlisted public-readonly task definition containing task id, kind, target, allowed read-only actions, slots, completion criteria, limits, and private trace policy.
+_Avoid_: domain-only allowlist, transcript-emitted arbitrary URL, broad public-web goal
+
+**Public Task Completion Verifier**:
+A deterministic verifier that decides whether a public-readonly task met task-specific proof before success is reported.
+_Avoid_: page opened equals success, action count equals completion
+
+**Public-Readonly Smoke Evidence**:
+Local/private evidence from a small set of allowlisted documentation or reference tasks that records completed, partial, stopped, failed, or blocked outcomes without publishing raw page content.
+_Avoid_: production automation, public benchmark, unrestricted browsing trace
+
 **Reproducible Audio Fixture**:
 A saved audio sample paired with an expected spoken command and demo task.
 _Avoid_: live-only microphone input, non-repeatable demo speech
@@ -157,6 +169,9 @@ This matrix is the current line-by-line coverage audit for the domain language a
 | L79-L81 | Demo Ablation | module-value ablation docs without rankings | `test_demo_evidence.py` | `docs/demo/ablations.md`, `demo-evidence-set` | Covered |
 | L83-L85 | Demo Evidence Set | quickstart, video plan, suite, preview/live/agentic/real-vision traces | `test_demo_evidence.py`, `test_demo_evidence_release_pack.py`, `test_real_vision_controlled_evidence.py` | README, `docs/demo/*`, `docs/public-evidence/index.html`, trace fixtures | Covered |
 | L87-L89 | Sanitized Demo Artifact | sanitizer, ignored raw artifacts, public trace scans, real-vision metadata-only export | `test_demo_evidence.py`, `test_core_schemas_trace.py`, `test_real_vision_controlled_evidence.py` | `.gitignore`, sanitized trace directories, `fixtures/traces/real-vision-sanitized/` | Covered |
+| 2026-05-28 | Public Task Contract | `PublicTaskContract`, parser, route selection, executor contract guard | `test_public_readonly_contract.py`, `test_operator_task_routing.py`, `test_public_readonly_api_ui_evidence.py` | `public-readonly-web-execution`, `fixtures/public-readonly-smoke.json`, README | Covered |
+| 2026-05-28 | Public Task Completion Verifier | `PublicTaskCompletionVerifier` records observed proof, unmet criteria, and outcome state | `test_public_readonly_contract.py` | `safe-browser-execution`, `docs/demo/demo-task-suite.md`, public evidence page | Covered |
+| 2026-05-28 | Public-Readonly Smoke Evidence | smoke fixture defines OpenAI Docs, Python Docs, and MDN bounded tasks with private artifact status | `test_public_readonly_api_ui_evidence.py` | `fixtures/public-readonly-smoke.json`, `docs/demo/useful-scenarios.md`, `docs/demo/video-plan.md` | Covered as local/private until sanitized |
 | 2026-05-27 | Real Voice E2E Smoke | uploaded or recorded audio can be reviewed and executed against a controlled local visual task | `test_real_voice_e2e_readiness.py`, `test_operator_console_ui.py` | `fixtures/traces/real-voice-sanitized/`, `scripts/generate_real_voice_trace.py`, `spoken-command-ingestion` | Covered |
 | 2026-05-27 | Local Real-Use Preflight | readiness report for primary ASR, fallback ASR, browser automation, visual grounding, and privacy | `test_real_voice_e2e_readiness.py` | `scripts/preflight_real_use.py`, `/api/readiness`, README | Covered |
 | 2026-05-27 | ASR Transcript Review | original ASR output and reviewed transcript are recorded before normalization/execution | `test_real_voice_e2e_readiness.py`, `test_operator_console_ui.py` | Operator Console, `fixtures/traces/real-voice-sanitized/`, `operator-console` | Covered |

@@ -224,3 +224,65 @@ The system SHALL record public-readonly execution evidence while excluding brows
 #### Scenario: Public-readonly sanitizer exports trace
 - **WHEN** a public-readonly trace is exported through the sanitizer
 - **THEN** the exported payload excludes raw browser state and marks whether the trace is public-safe or local-private
+
+### Requirement: Record real browser-use-vision controlled evidence
+The system SHALL provide a controlled execution evidence path that invokes `browser-use-vision` visual grounding functionality through the installed package dependency boundary and records a sanitized Execution Trace.
+
+#### Scenario: Real visual grounding path runs on controlled page
+- **WHEN** a selected controlled visual task is executed in real-vision controlled mode
+- **THEN** the system invokes `browser-use-vision` visual grounding code and records evidence mode, provider metadata, adapter metadata, grounding references, final status, and failure or stop reason when present
+
+#### Scenario: Real visual evidence is separated from deterministic evidence
+- **WHEN** the real-vision controlled trace is exported as a public artifact
+- **THEN** its file path or metadata distinguishes it from demo-preview, deterministic live-controlled, and deterministic agentic live-controlled traces
+
+### Requirement: Gate real-vision evidence honesty
+The system SHALL NOT count deterministic controlled adapter output as real `browser-use-vision` visual grounding evidence.
+
+#### Scenario: browser-use-vision entry point is unavailable
+- **WHEN** the installed `browser-use-vision` package or required visual grounding entry point cannot be imported or invoked
+- **THEN** the real-vision evidence workflow fails or marks the trace unavailable with a clear reason instead of producing passing real-vision evidence
+
+#### Scenario: Visual grounding produces no meaningful evidence
+- **WHEN** real-vision controlled mode returns no provider metadata, no grounding references, and no visual evidence summary
+- **THEN** the system marks the run as failed or unavailable instead of counting it as real-vision evidence
+
+### Requirement: Preserve privacy in real-vision controlled traces
+The system SHALL export only sanitized real-vision controlled traces.
+
+#### Scenario: Real-vision trace is committed or packaged
+- **WHEN** a real-vision controlled trace is included in committed evidence or a release pack
+- **THEN** it excludes raw screenshots, raw audio, browser profile data, cookies, credentials, private URLs, remote host details, absolute local file URIs, and unsanitized runtime state
+
+### Requirement: Execute public tasks with completion-aware verifier
+The public-readonly executor SHALL run allowed public task actions and then verify task-specific completion criteria before returning success.
+
+#### Scenario: Public task verifier passes
+- **WHEN** the executor performs the configured read-only task steps and observes the required task-specific proof
+- **THEN** the execution result records succeeded status, completed public task state, observed proof summary, browser action evidence, and grounding references when available
+
+#### Scenario: Public task verifier fails
+- **WHEN** the executor performs safe actions but cannot observe the required task-specific proof
+- **THEN** the execution result is failed or stopped with a missing public task completion reason instead of succeeded
+
+### Requirement: Preserve policy stops during public task execution
+The public-readonly executor SHALL enforce URL, action, browser-state, and stop-condition policy checks before and during task execution.
+
+#### Scenario: Sensitive state appears before completion
+- **WHEN** a public task reaches login, captcha, checkout, submit, posting, deletion, upload, download, password entry, private-data entry, off-allowlist navigation, or another configured sensitive state
+- **THEN** the executor stops before the next action and records the matched policy reason and incomplete task state
+
+#### Scenario: Next action is outside task policy
+- **WHEN** the next proposed action is not listed in the task contract's allowed read-only action classes
+- **THEN** the executor blocks the action and records an action-policy stop reason
+
+### Requirement: Classify real public task outcomes
+The execution result SHALL distinguish completed, partial, stopped, failed, and blocked public task outcomes.
+
+#### Scenario: Public task partially completes
+- **WHEN** the run collects useful public page evidence but does not meet all completion criteria before a safe stop or budget limit
+- **THEN** the trace records partial completion state with collected proof and the remaining unmet criteria
+
+#### Scenario: Public task is blocked before navigation
+- **WHEN** validation, confirmation, route policy, URL safety, or task contract policy blocks a public command before opening a public page
+- **THEN** the trace records blocked outcome without claiming that a public webpage was operated

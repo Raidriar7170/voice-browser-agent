@@ -65,3 +65,39 @@ def test_safety_detection_covers_private_and_irreversible_actions():
 
     assert {"login", "file_transfer", "posting"}.issubset(set(flags))
 
+
+def test_public_documentation_search_preserves_task_slots_and_readonly_boundaries():
+    output = RuleBasedNormalizer().normalize("Search Python docs for pathlib, do not log in")
+
+    assert isinstance(output, BrowserTaskRequest)
+    assert output.public_task_slots["target_site_hint"] == "python docs"
+    assert output.public_task_slots["search_query"] == "pathlib"
+    assert output.public_task_slots["read_only_intent"] is True
+    assert "public_readonly" in output.constraints
+    assert "stop_if_login_required" in output.stop_conditions
+    assert output.safety_flags == []
+
+    result = NormalizerValidator().validate(output)
+    assert result.accepted is True
+
+
+def test_public_reference_read_preserves_read_and_extraction_targets():
+    output = RuleBasedNormalizer().normalize("Read the pathlib Path section on Python docs")
+
+    assert isinstance(output, BrowserTaskRequest)
+    assert output.intent_type is BrowserIntentType.EXTRACT_COMPARE_VISIBLE_INFO
+    assert output.public_task_slots["target_site_hint"] == "python docs"
+    assert output.public_task_slots["read_target"] == "pathlib Path section"
+    assert output.public_task_slots["extraction_target"] == "pathlib Path section"
+    assert output.public_task_slots["read_only_intent"] is True
+
+
+def test_public_broad_or_mutation_commands_do_not_become_safe_public_tasks():
+    broad = RuleBasedNormalizer().normalize("Browse all public docs websites until you find everything")
+    mutation = RuleBasedNormalizer().normalize("Open Python docs and download the PDF")
+
+    assert isinstance(broad, ClarificationRequest)
+    assert broad.reason == "unsupported_public_task_scope"
+    assert isinstance(mutation, BrowserTaskRequest)
+    assert "file_transfer" in mutation.safety_flags
+    assert mutation.requires_confirmation is True

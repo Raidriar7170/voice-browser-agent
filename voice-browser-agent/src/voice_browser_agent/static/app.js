@@ -45,6 +45,13 @@ function renderSummary(trace) {
   ];
   if (route.route_type === "public_readonly") {
     lines.push(`Public-readonly target: ${route.public_target_label || "unknown"}`);
+    lines.push(`Public task: ${route.public_task_id || "unknown"} (${route.public_task_kind || "unknown"})`);
+    lines.push(`Completion criteria: ${route.public_completion_criteria_id || "unknown"}`);
+    lines.push(
+      `Completion state: ${
+        trace.execution_runtime?.public_completion_state || route.public_completion_state || "pending"
+      }`,
+    );
     lines.push(`Private trace state: ${route.evidence_privacy_state || trace.evidence_privacy_state || "unknown"}`);
     lines.push(`Sanitizer status: ${route.sanitizer_status || trace.sanitizer_status || "unknown"}`);
   }
@@ -68,11 +75,15 @@ function renderRoute(trace) {
   setCards("routeCards", [
     ["Route", route.route_type || "unknown", tone],
     ["Target", route.public_target_label || route.controlled_fixture_id || "none"],
+    ["Task", route.public_task_id || "n/a"],
+    ["Task kind", route.public_task_kind || "n/a"],
     ["Mode", route.execution_mode || trace.execution_mode || "unknown"],
     ["Evidence", route.evidence_mode || trace.execution_runtime?.evidence_mode || "unknown"],
     ["Eligibility", live, tone],
     ["Allowlist", route.public_allowlist_id || "n/a"],
     ["Origin", route.public_origin || "n/a"],
+    ["Criteria", route.public_completion_criteria_id || "n/a"],
+    ["Completion", trace.execution_runtime?.public_completion_state || route.public_completion_state || "n/a"],
     ["Privacy", route.evidence_privacy_state || trace.evidence_privacy_state || "n/a"],
     ["Sanitizer", route.sanitizer_status || trace.sanitizer_status || "n/a"],
     ["Limits", limits.max_steps ? `${limits.max_steps} steps / ${limits.timeout_seconds}s` : "n/a"],
@@ -86,11 +97,17 @@ function renderEvidence(trace) {
   const lastStep = (trace.agentic_steps || []).at(-1) || {};
   const browserState = lastAction.browser_state || lastStep.action_result?.browser_state || {};
   const refs = trace.grounding_evidence_refs || lastAction.grounding_evidence_refs || [];
+  const completionState = trace.execution_runtime?.public_completion_state;
+  const observedProof = trace.execution_runtime?.public_observed_proof_summary || {};
+  const unmetCriteria = trace.execution_runtime?.public_unmet_criteria || [];
   setCards("evidenceCards", [
     ["Status", trace.final_status || "unknown", trace.final_status === "succeeded" ? "good" : "warn"],
     ["Page", browserState.page_title || route.public_target_label || route.controlled_target_ref || "none"],
     ["Action", lastAction.action_type || lastStep.selected_action || "none"],
     ["Grounding", refs.length ? `${refs.length} refs` : "none"],
+    ["Public completion", completionState || "n/a", completionState === "completed" ? "good" : "warn"],
+    ["Observed proof", Object.keys(observedProof).length ? Object.keys(observedProof).join(", ") : "none"],
+    ["Unmet criteria", unmetCriteria.length ? unmetCriteria.join(", ") : "none"],
     ["Trace privacy", trace.evidence_privacy_state || route.evidence_privacy_state || "n/a"],
     ["Sanitizer", trace.sanitizer_status || route.sanitizer_status || "n/a"],
   ]);

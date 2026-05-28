@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from .models import BrowserIntentType, BrowserTaskRequest, ClarificationRequest, VisualReference
 from .validator import detect_safety_flags
 
@@ -22,6 +24,12 @@ class RuleBasedNormalizer:
                 reason="ambiguous_target",
                 transcript_text=transcript_text,
             )
+        if _is_unsupported_public_scope(text):
+            return ClarificationRequest(
+                question="请把公开网页任务限定为一个只读搜索、读取或提取目标。",
+                reason="unsupported_public_task_scope",
+                transcript_text=transcript_text,
+            )
 
         safety_flags = detect_safety_flags(text)
         if safety_flags:
@@ -33,16 +41,19 @@ class RuleBasedNormalizer:
                 requires_confirmation=True,
                 stop_conditions=["payment_or_checkout", "login_required", "irreversible_submit"],
                 safety_flags=safety_flags,
+                public_task_slots=_public_task_slots_for(text),
             )
 
+        public_slots = _public_task_slots_for(text)
         return BrowserTaskRequest(
             task=_task_for(text, lowered),
             intent_type=_intent_for(text),
             constraints=_constraints_for(text),
             visual_references=_visual_references_for(text),
             requires_confirmation=False,
-            stop_conditions=["login_required", "payment_or_checkout", "irreversible_submit"],
+            stop_conditions=_stop_conditions_for(public_slots),
             safety_flags=[],
+            public_task_slots=public_slots,
         )
 
 
@@ -66,6 +77,23 @@ def _is_ambiguous(text: str) -> bool:
     )
 
 
+def _is_unsupported_public_scope(text: str) -> bool:
+    lowered = text.lower()
+    if not any(marker in lowered for marker in ("public", "docs", "documentation", "网站", "公开", "文档")):
+        return False
+    broad_markers = (
+        "all websites",
+        "everything",
+        "until you find",
+        "keep searching",
+        "browse all",
+        "全网",
+        "所有",
+        "一直",
+    )
+    return any(marker in lowered for marker in broad_markers)
+
+
 def _intent_for(text: str) -> BrowserIntentType:
     lowered = text.lower()
     if any(word in lowered for word in ("点击", "click", "图标", "按钮")):
@@ -74,7 +102,7 @@ def _intent_for(text: str) -> BrowserIntentType:
         return BrowserIntentType.FILL_FORM
     if any(word in lowered for word in ("筛选", "选择", "filter", "select")):
         return BrowserIntentType.SELECT_FILTER_OR_OPTION
-    if any(word in lowered for word in ("比较", "提取", "读取", "compare", "extract")):
+    if any(word in lowered for word in ("比较", "提取", "读取", "read", "compare", "extract")):
         return BrowserIntentType.EXTRACT_COMPARE_VISIBLE_INFO
     return BrowserIntentType.SEARCH_OPEN
 
@@ -89,10 +117,19 @@ def _task_for(text: str, lowered: str) -> str:
 
 def _constraints_for(text: str) -> list[str]:
     constraints = ["bounded single browser task"]
+    if _public_task_slots_for(text):
+        constraints.append("public_readonly")
     if "不要登录" in text or "无需登录" in text:
         constraints.append("do not log in")
     constraints.append("public or controlled pages only")
     return constraints
+
+
+def _stop_conditions_for(public_slots: dict[str, object]) -> list[str]:
+    conditions = ["login_required", "payment_or_checkout", "irreversible_submit"]
+    if public_slots:
+        conditions.append("stop_if_login_required")
+    return conditions
 
 
 def _visual_references_for(text: str) -> list[VisualReference]:
@@ -108,3 +145,68 @@ def _visual_references_for(text: str) -> list[VisualReference]:
         references.append(VisualReference(kind="card", text=text, source="transcript"))
     return references
 
+
+def _public_task_slots_for(text: str) -> dict[str, object]:
+    lowered = text.lower()
+    slots: dict[str, object] = {}
+    mentions_docs = "doc" in lowered or "文档" in text
+    if "python" in lowered and mentions_docs:
+        slots["target_site_hint"] = "python docs"
+    elif "openai" in lowered and mentions_docs:
+        slots["target_site_hint"] = "openai docs"
+    elif "mdn" in lowered:
+        slots["target_site_hint"] = "mdn"
+    elif "wikipedia" in lowered:
+        slots["target_site_hint"] = "wikipedia"
+    search_query = _extract_search_query(text)
+    if search_query:
+        slots["search_query"] = search_query
+    read_target = _extract_read_target(text)
+    if read_target:
+        slots["read_target"] = read_target
+        slots["extraction_target"] = read_target
+    if slots:
+        slots["read_only_intent"] = True
+    return slots
+
+
+def _extract_search_query(text: str) -> str | None:
+    lowered = text.lower()
+    markers = ("search", "look up", "find", "搜索", "查找", "查询")
+    if not any(marker in lowered for marker in markers):
+        return None
+    patterns = (
+        r"(?:search|look up|find)\s+(?:[^,\n]*?\s+)?(?:for\s+)?([a-z0-9_.\- ]+?)(?:,|\.|\n|$)",
+        r"(?:搜索|查找|查询)\s*([^，。；\n|]+)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            query = match.group(1).strip()
+            query = re.sub(
+                r"\s+(?:do not log in|without login)$",
+                "",
+                query,
+                flags=re.IGNORECASE,
+            )
+            words = query.split()
+            if len(words) > 1 and words[0].lower() in {"python", "docs", "documentation"}:
+                query = words[-1]
+            return query[:80] if query else None
+    return None
+
+
+def _extract_read_target(text: str) -> str | None:
+    lowered = text.lower()
+    if not any(marker in lowered for marker in ("read", "extract", "读取", "提取")):
+        return None
+    patterns = (
+        r"(?:read|extract)\s+(?:the\s+)?(.+?)(?:\s+on\s+|\s+from\s+|,|\.|$)",
+        r"(?:读取|提取)\s*([^，。；\n]+)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            target = match.group(1).strip()
+            return target[:120] if target else None
+    return None

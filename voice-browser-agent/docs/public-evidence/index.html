@@ -113,7 +113,7 @@
             <tr>
               <td><code>live_public_readonly</code></td>
               <td>local private runtime traces until sanitized</td>
-              <td>Allowlisted public read-only pages only; No login, no mutation, private-by-default evidence.</td>
+              <td>Allowlisted public read-only pages only; task-contract match and completion verifier required; No login, no mutation, private-by-default evidence.</td>
             </tr>
           </tbody>
         </table>
@@ -125,7 +125,11 @@
           Operator Console v2 records a <code>route_decision</code> for command-first runs.
           GitHub-shaped commands can route to <code>demo/pages/github_showcase.html</code>
           as controlled local evidence. Public-readonly execution remains disabled by default unless
-          an allowlist is configured for <code>live_public_readonly</code>.
+          an allowlist and matching task contract are configured for <code>live_public_readonly</code>.
+          Public tasks that only open a page are shown as incomplete, stopped, failed, or blocked until
+          the completion verifier observes task-specific proof. GitHub public search remains a later
+          target because login, captcha, UI drift, and anti-bot boundaries are less stable than
+          documentation/reference smoke tasks.
         </p>
       </section>
 

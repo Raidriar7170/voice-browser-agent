@@ -18,6 +18,7 @@ from .models import (
 from .public_readonly import (
     PublicReadonlyRoutingConfig,
     has_transcript_url,
+    match_public_readonly_task,
     match_public_readonly_target,
     request_looks_public,
 )
@@ -127,6 +128,7 @@ def _public_readonly_route(
         return None
 
     target = match_public_readonly_target(request, config)
+    task_match = match_public_readonly_task(request, config) if target is not None else None
     looks_public = request_looks_public(request)
     if request.safety_flags:
         if target or looks_public or requested_execution_mode is ExecutionMode.LIVE_PUBLIC_READONLY:
@@ -136,28 +138,39 @@ def _public_readonly_route(
             )
         return None
 
-    if target is not None and config.enabled:
+    if target is not None and config.enabled and task_match is None:
+        return _blocked_public_route(
+            reason="public_task_contract_mismatch",
+            message="Public-readonly execution was blocked because no configured task contract matched.",
+        )
+
+    if target is not None and config.enabled and task_match is not None:
+        task_target, contract, slots = task_match
         return RouteDecision(
             route_type=RouteType.PUBLIC_READONLY,
             execution_mode=ExecutionMode.LIVE_PUBLIC_READONLY,
             evidence_mode="live_public_readonly",
             route_reason="matched_allowlisted_public_target",
             user_message=(
-                f"Running local isolated public-readonly execution for {target.label}; "
+                f"Running local isolated public-readonly execution for {task_target.label}; "
                 "trace evidence stays local/private until sanitizer approval."
             ),
             live_evidence_eligible=False,
             public_readonly_enabled=True,
-            public_target_label=target.label,
-            public_origin=target.origin,
-            public_allowlist_id=target.allowlist_id,
+            public_target_label=task_target.label,
+            public_origin=task_target.origin,
+            public_allowlist_id=task_target.allowlist_id,
+            public_task_id=contract.task_id,
+            public_task_kind=contract.task_kind,
+            public_task_slots=slots,
+            public_completion_criteria_id=contract.completion_criteria.criteria_id,
             evidence_privacy_state=EvidencePrivacyState.LOCAL_PRIVATE,
             sanitizer_status=SanitizerStatus.PENDING
             if config.sanitizer_required
             else SanitizerStatus.NOT_REQUIRED,
             execution_limits={
-                "max_steps": config.max_steps,
-                "timeout_seconds": config.timeout_seconds,
+                "max_steps": contract.max_steps,
+                "timeout_seconds": contract.timeout_seconds,
             },
         )
 

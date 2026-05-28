@@ -149,6 +149,7 @@
           <span class="pill">Chinese-first spoken commands</span>
           <span class="pill">Local Operator Console</span>
           <span class="pill">Route decision evidence</span>
+          <span class="pill">Public task contracts</span>
           <span class="pill">browser-use-vision dependency</span>
           <span class="pill">Sanitized trace evidence</span>
         </div>
@@ -167,7 +168,7 @@
           </div>
           <div class="card">
             <h3>Browser Execution</h3>
-            <p>The executor runs bounded local browser tasks and records actions, statuses, and stops.</p>
+            <p>The executor runs bounded local browser tasks, enforces task contracts, verifies completion proof, and records actions, statuses, and stops.</p>
           </div>
           <div class="card">
             <h3>Visual Grounding</h3>
@@ -198,6 +199,7 @@
           <li><code>real_vision_controlled</code>: controlled <code>icon-search</code> evidence that calls <code>browser_use_vision.som.annotate_screenshot</code>.</li>
           <li><code>real_voice_controlled</code>: reviewed audio command evidence with ASR provenance, controlled execution, and sanitized grounding references.</li>
           <li><code>real_use_failure</code>: ASR unavailable, clarification, confirmation, cancellation, and ambiguous-target traces as reliability evidence.</li>
+          <li><code>live_public_readonly</code>: optional local public-docs tasks that require an allowlist, task-contract match, completion verifier proof, No login/read-only boundaries, and private-by-default sanitizer state.</li>
         </ul>
         <p>
           Committed trace sources live in <code>fixtures/traces/sanitized/</code>,

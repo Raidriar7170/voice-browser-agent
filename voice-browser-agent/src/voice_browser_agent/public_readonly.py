@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 import ipaddress
+import json
 import re
+from typing import Any
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field
 
 from .config import RuntimeConfig
-from .models import BrowserTaskRequest
+from .models import (
+    BrowserTaskRequest,
+    PublicTaskCompletionResult,
+    PublicTaskCompletionState,
+    PublicTaskContract,
+)
 
 
 PUBLIC_TARGET_MARKERS = (
@@ -32,6 +39,7 @@ class PublicReadonlyTarget(BaseModel):
     url: str
     origin: str
     keywords: list[str] = Field(default_factory=list)
+    task_contracts: list[PublicTaskContract] = Field(default_factory=list)
 
 
 class PublicReadonlyRoutingConfig(BaseModel):
@@ -172,6 +180,119 @@ class PublicReadonlyPolicy:
         return PublicReadonlyPolicyDecision(allowed=True, reason="browser_state_safe")
 
 
+class PublicTaskCompletionVerifier:
+    def __init__(self, contract: PublicTaskContract):
+        self.contract = contract
+
+    def verify(
+        self,
+        *,
+        requested_slots: dict[str, Any],
+        actions: list[dict[str, Any]],
+    ) -> PublicTaskCompletionResult:
+        observed = self._observed_proof(requested_slots, actions)
+        unmet = [
+            proof
+            for proof in self.contract.completion_criteria.required_proof
+            if proof not in observed
+        ]
+        if not unmet:
+            return PublicTaskCompletionResult(
+                completion_state=PublicTaskCompletionState.COMPLETED,
+                observed_proof=observed,
+                unmet_criteria=[],
+            )
+        return PublicTaskCompletionResult(
+            completion_state=PublicTaskCompletionState.PARTIAL if actions else PublicTaskCompletionState.FAILED,
+            observed_proof=observed,
+            unmet_criteria=unmet,
+            stop_reason="missing_public_task_completion" if actions else None,
+            failure_reason=None if actions else "public_readonly_missing_evidence",
+        )
+
+    def classify_variance(self, reason: str) -> PublicTaskCompletionResult:
+        mapping = {
+            "timeout": (PublicTaskCompletionState.FAILED, None, "public_task_timeout"),
+            "missing_selector": (PublicTaskCompletionState.PARTIAL, "public_task_missing_selector", None),
+            "redirect_off_allowlist": (PublicTaskCompletionState.STOPPED, "target_not_allowlisted", None),
+            "captcha": (PublicTaskCompletionState.STOPPED, "captcha_boundary", None),
+            "login_required": (PublicTaskCompletionState.STOPPED, "login_required", None),
+            "network_error": (PublicTaskCompletionState.FAILED, None, "public_task_network_error"),
+            "step_budget_exhausted": (
+                PublicTaskCompletionState.PARTIAL,
+                "public_readonly_step_budget_reached",
+                None,
+            ),
+        }
+        state, stop_reason, failure_reason = mapping.get(
+            reason,
+            (PublicTaskCompletionState.FAILED, None, f"public_task_{reason}"),
+        )
+        return PublicTaskCompletionResult(
+            completion_state=state,
+            unmet_criteria=list(self.contract.completion_criteria.required_proof),
+            stop_reason=stop_reason,
+            failure_reason=failure_reason,
+        )
+
+    def classify_blocked(self, reason: str) -> PublicTaskCompletionResult:
+        return PublicTaskCompletionResult(
+            completion_state=PublicTaskCompletionState.BLOCKED,
+            unmet_criteria=list(self.contract.completion_criteria.required_proof),
+            stop_reason=reason,
+        )
+
+    def _observed_proof(
+        self,
+        requested_slots: dict[str, Any],
+        actions: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        observed: dict[str, Any] = {}
+        combined_parts: list[str] = []
+        for action in actions:
+            state = action.get("browser_state", {})
+            state = state if isinstance(state, dict) else {}
+            combined_parts.extend(
+                [
+                    str(action.get("type", "")),
+                    str(action.get("description", "")),
+                    str(state.get("page_title", "")),
+                    str(state.get("visible_text", "")),
+                    str(state.get("url", "")),
+                ]
+            )
+        combined = " ".join(combined_parts).lower()
+        query = str(requested_slots.get("search_query") or "").strip()
+        if query and query.lower() in combined and any(action.get("type") == "search" for action in actions):
+            observed["searched_query"] = query
+        final_state = _last_browser_state(actions)
+        title = str(final_state.get("page_title") or final_state.get("title") or "")
+        expected_title = self.contract.completion_criteria.title_contains
+        if title and (not expected_title or expected_title.lower() in title.lower()):
+            observed["final_title"] = title
+        url = str(final_state.get("url") or "")
+        parsed = urlparse(url)
+        path = parsed.path if parsed.scheme else ""
+        expected_path = self.contract.completion_criteria.url_path_contains
+        if path and (not expected_path or expected_path in path):
+            observed["url_path"] = path
+        markers = []
+        for marker in self.contract.completion_criteria.visible_markers:
+            try:
+                markers.append(
+                    marker.format(**{key: str(value) for key, value in requested_slots.items()})
+                )
+            except KeyError:
+                continue
+        if markers and any(marker.lower() in combined for marker in markers):
+            visible_marker = next(
+                marker for marker in markers if marker.lower() in combined
+            )
+            observed["result_heading"] = visible_marker
+            observed["visible_marker"] = visible_marker
+        return observed
+
+
 def parse_public_readonly_targets(config: RuntimeConfig) -> list[PublicReadonlyTarget]:
     entries = [
         entry.strip()
@@ -194,6 +315,10 @@ def parse_public_readonly_targets(config: RuntimeConfig) -> list[PublicReadonlyT
             if len(parts) > 3
             else _default_keywords(allowlist_id, label, url)
         )
+        task_contracts = _parse_task_contracts(
+            raw_contracts=parts[4:] if len(parts) > 4 else [],
+            allowlist_id=allowlist_id,
+        )
         targets.append(
             PublicReadonlyTarget(
                 allowlist_id=allowlist_id,
@@ -201,9 +326,24 @@ def parse_public_readonly_targets(config: RuntimeConfig) -> list[PublicReadonlyT
                 url=url,
                 origin=origin,
                 keywords=keywords,
+                task_contracts=task_contracts,
             )
         )
     return targets
+
+
+def match_public_readonly_task(
+    request: BrowserTaskRequest,
+    config: PublicReadonlyRoutingConfig,
+) -> tuple[PublicReadonlyTarget, PublicTaskContract, dict[str, Any]] | None:
+    target = match_public_readonly_target(request, config)
+    if target is None:
+        return None
+    slots = normalized_public_task_slots(request)
+    for contract in target.task_contracts:
+        if _contract_matches_request(contract, request, slots):
+            return target, contract, slots
+    return None
 
 
 def match_public_readonly_target(
@@ -223,9 +363,13 @@ def match_public_readonly_target(
             elif matches[0].allowlist_id != matched_target.allowlist_id:
                 return None
         return matched_target
-    for target in config.targets:
-        if any(keyword and keyword in text for keyword in target.keywords):
-            return target
+    scored_targets = [
+        (sum(1 for keyword in target.keywords if keyword and keyword in text), target)
+        for target in config.targets
+    ]
+    scored_targets = [(score, target) for score, target in scored_targets if score > 0]
+    if scored_targets:
+        return max(scored_targets, key=lambda item: item[0])[1]
     return None
 
 
@@ -238,14 +382,40 @@ def has_transcript_url(request: BrowserTaskRequest) -> bool:
     return bool(_extract_urls(_command_text(request)))
 
 
+def normalized_public_task_slots(request: BrowserTaskRequest) -> dict[str, Any]:
+    slots = dict(request.public_task_slots)
+    text = _command_text(request)
+    mentions_docs = "doc" in text or "文档" in text
+    if "target_site_hint" not in slots:
+        if "python" in text and mentions_docs:
+            slots["target_site_hint"] = "python docs"
+        elif "openai" in text and mentions_docs:
+            slots["target_site_hint"] = "openai docs"
+        elif "mdn" in text:
+            slots["target_site_hint"] = "mdn"
+        elif "wikipedia" in text:
+            slots["target_site_hint"] = "wikipedia"
+    if "search_query" not in slots:
+        query = _extract_search_query(text)
+        if query:
+            slots["search_query"] = query
+    if "read_only_intent" not in slots and request.safety_flags == []:
+        slots["read_only_intent"] = True
+    return slots
+
+
 def public_readonly_readiness(config: RuntimeConfig) -> dict[str, object]:
     targets = parse_public_readonly_targets(config)
+    task_contract_count = sum(len(target.task_contracts) for target in targets)
     if not config.public_readonly_enabled:
         status = "disabled"
         detail = "Public-readonly execution is disabled by default."
     elif not targets:
         status = "missing_allowlist"
         detail = "Set VOICE_BROWSER_PUBLIC_READONLY_ALLOWLIST before live public execution."
+    elif task_contract_count == 0:
+        status = "missing_task_contracts"
+        detail = "Configured public-readonly targets need explicit public task contracts."
     else:
         status = "ready"
         detail = "Public-readonly execution is enabled for configured allowlist targets."
@@ -253,6 +423,7 @@ def public_readonly_readiness(config: RuntimeConfig) -> dict[str, object]:
         "status": status,
         "enabled": config.public_readonly_enabled,
         "allowlist_count": len(targets),
+        "task_contract_count": task_contract_count,
         "allowlist": [{"id": target.allowlist_id, "label": target.label} for target in targets],
         "max_steps": config.public_readonly_max_steps,
         "timeout_seconds": config.public_readonly_timeout_seconds,
@@ -285,6 +456,71 @@ def _command_text(request: BrowserTaskRequest) -> str:
 
 def _extract_urls(text: str) -> list[str]:
     return re.findall(r"(?:https?|file|data|javascript):[^\s，。；;]+", text)
+
+
+def _parse_task_contracts(
+    *,
+    raw_contracts: list[str],
+    allowlist_id: str,
+) -> list[PublicTaskContract]:
+    contracts: list[PublicTaskContract] = []
+    for raw in raw_contracts:
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            payload.setdefault("allowlist_id", allowlist_id)
+            contracts.append(PublicTaskContract.model_validate(payload))
+        elif isinstance(payload, list):
+            for item in payload:
+                if isinstance(item, dict):
+                    item.setdefault("allowlist_id", allowlist_id)
+                    contracts.append(PublicTaskContract.model_validate(item))
+    return contracts
+
+
+def _contract_matches_request(
+    contract: PublicTaskContract,
+    request: BrowserTaskRequest,
+    slots: dict[str, Any],
+) -> bool:
+    if any(slot not in slots for slot in contract.slots):
+        return False
+    if contract.task_kind == "documentation_search":
+        return bool(slots.get("search_query"))
+    if contract.task_kind in {"direct_reference_read", "visible_extraction"}:
+        return bool(
+            slots.get("read_target")
+            or slots.get("extraction_target")
+            or all(slot in slots for slot in contract.slots)
+        )
+    return request.intent_type.value in contract.task_kind or bool(slots)
+
+
+def _extract_search_query(text: str) -> str | None:
+    patterns = (
+        r"(?:search|look up|find)\s+(?:[^.\n]*?\s+)?(?:for\s+)?([a-z0-9_.\- ]+?)(?:,|\.|\n|$)",
+        r"(?:搜索|查找|查询)\s*([^，。；\n|]+)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            query = match.group(1).strip()
+            query = re.sub(r"\s+(?:do not log in|without login)$", "", query, flags=re.IGNORECASE)
+            words = query.split()
+            if len(words) > 1 and words[0] in {"python", "docs", "documentation"}:
+                query = words[-1]
+            return query[:80] if query else None
+    return None
+
+
+def _last_browser_state(actions: list[dict[str, Any]]) -> dict[str, Any]:
+    for action in reversed(actions):
+        state = action.get("browser_state")
+        if isinstance(state, dict):
+            return state
+    return {}
 
 
 def _default_keywords(allowlist_id: str, label: str, url: str) -> list[str]:

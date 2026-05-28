@@ -68,6 +68,14 @@ class ExecutionStatus(str, Enum):
     BLOCKED = "blocked"
 
 
+class PublicTaskCompletionState(str, Enum):
+    COMPLETED = "completed"
+    PARTIAL = "partial"
+    STOPPED = "stopped"
+    FAILED = "failed"
+    BLOCKED = "blocked"
+
+
 class VisualReference(BaseModel):
     kind: str
     text: str
@@ -110,6 +118,7 @@ class BrowserTaskRequest(BaseModel):
     stop_conditions: list[str]
     safety_flags: list[str] = Field(default_factory=list)
     controlled_target_ref: str | None = None
+    public_task_slots: dict[str, Any] = Field(default_factory=dict)
 
 
 class ClarificationRequest(BaseModel):
@@ -145,6 +154,13 @@ class RouteDecision(BaseModel):
     public_target_label: str | None = None
     public_origin: str | None = None
     public_allowlist_id: str | None = None
+    public_task_id: str | None = None
+    public_task_kind: str | None = None
+    public_task_slots: dict[str, Any] = Field(default_factory=dict)
+    public_completion_criteria_id: str | None = None
+    public_completion_state: PublicTaskCompletionState | None = None
+    public_observed_proof_summary: dict[str, Any] = Field(default_factory=dict)
+    public_unmet_criteria: list[str] = Field(default_factory=list)
     evidence_privacy_state: EvidencePrivacyState = EvidencePrivacyState.NOT_APPLICABLE
     sanitizer_status: SanitizerStatus = SanitizerStatus.NOT_REQUIRED
     execution_limits: dict[str, Any] = Field(default_factory=dict)
@@ -152,6 +168,36 @@ class RouteDecision(BaseModel):
     user_message: str
     live_evidence_eligible: bool = False
     public_readonly_enabled: bool = False
+
+
+class PublicTaskCompletionCriteria(BaseModel):
+    criteria_id: str
+    required_proof: list[str] = Field(default_factory=list)
+    visible_markers: list[str] = Field(default_factory=list)
+    url_path_contains: str | None = None
+    title_contains: str | None = None
+
+
+class PublicTaskContract(BaseModel):
+    task_id: str
+    task_kind: str
+    allowlist_id: str
+    target_url: str | None = None
+    target_url_template: str | None = None
+    allowed_actions: list[str] = Field(default_factory=list)
+    slots: list[str] = Field(default_factory=list)
+    completion_criteria: PublicTaskCompletionCriteria
+    max_steps: int = Field(default=3, ge=1, le=5)
+    timeout_seconds: int = Field(default=15, ge=1, le=60)
+    privacy_policy: str = "local_private"
+
+
+class PublicTaskCompletionResult(BaseModel):
+    completion_state: PublicTaskCompletionState
+    observed_proof: dict[str, Any] = Field(default_factory=dict)
+    unmet_criteria: list[str] = Field(default_factory=list)
+    stop_reason: str | None = None
+    failure_reason: str | None = None
 
 
 class BrowserActionEvent(BaseModel):

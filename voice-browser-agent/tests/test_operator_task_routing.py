@@ -5,10 +5,49 @@ from fastapi.testclient import TestClient
 
 from voice_browser_agent.app import create_app
 from voice_browser_agent.asr import FallbackASRAdapter
-from voice_browser_agent.models import RouteDecision, RouteType
+from voice_browser_agent.config import RuntimeConfig
+from voice_browser_agent.models import (
+    BrowserIntentType,
+    BrowserTaskRequest,
+    ConfirmationDecision,
+    ConfirmationState,
+    ExecutionMode,
+    RouteDecision,
+    RouteType,
+    ValidationResult,
+)
+from voice_browser_agent.public_readonly import PublicReadonlyRoutingConfig
+from voice_browser_agent.routing import select_execution_route
 
 
 WAV_BYTES = b"RIFF\x24\x00\x00\x00WAVEfmt "
+
+
+def _public_task_config() -> PublicReadonlyRoutingConfig:
+    contract = json.dumps(
+        {
+            "task_id": "python-docs-search",
+            "task_kind": "documentation_search",
+            "target_url_template": "https://docs.python.org/3/search.html?q={search_query}",
+            "allowed_actions": ["navigate", "search", "extract"],
+            "slots": ["target_site_hint", "search_query"],
+            "completion_criteria": {
+                "criteria_id": "python-docs-search-result",
+                "required_proof": ["searched_query", "result_heading", "url_path"],
+            },
+            "max_steps": 3,
+            "timeout_seconds": 12,
+            "privacy_policy": "local_private",
+        }
+    )
+    return PublicReadonlyRoutingConfig.from_runtime_config(
+        RuntimeConfig(
+            public_readonly_enabled=True,
+            public_readonly_allowlist=f"python-docs|Python Docs|https://docs.python.org/3/|python,docs|{contract}",
+            public_readonly_max_steps=5,
+            public_readonly_timeout_seconds=20,
+        )
+    )
 
 
 class IconSearchASRAdapter:
@@ -214,3 +253,40 @@ def test_controlled_showcase_page_is_local_and_inspectable():
     assert "Controlled GitHub Showcase" in html
     assert "aria-label=\"repository search\"" in html
     assert "github.com" not in html.lower()
+
+
+def test_public_task_route_preserves_contract_slots_limits_and_private_evidence_state():
+    request = BrowserTaskRequest(
+        task="Search Python docs for pathlib",
+        intent_type=BrowserIntentType.SEARCH_OPEN,
+        constraints=["bounded single browser task", "public_readonly"],
+        visual_references=[],
+        requires_confirmation=False,
+        stop_conditions=["login_required", "stop_if_login_required"],
+        public_task_slots={
+            "target_site_hint": "python docs",
+            "search_query": "pathlib",
+            "read_only_intent": True,
+        },
+    )
+
+    route = select_execution_route(
+        request,
+        ValidationResult(accepted=True, reason="accepted"),
+        ConfirmationDecision(state=ConfirmationState.CONFIRMED, reason="confirmed"),
+        public_readonly_config=_public_task_config(),
+        requested_execution_mode=ExecutionMode.LIVE_PUBLIC_READONLY,
+    )
+
+    payload = route.model_dump(mode="json")
+    assert payload["route_type"] == "public_readonly"
+    assert payload["execution_mode"] == "live_public_readonly"
+    assert payload["public_task_id"] == "python-docs-search"
+    assert payload["public_task_kind"] == "documentation_search"
+    assert payload["public_task_slots"]["search_query"] == "pathlib"
+    assert payload["public_completion_criteria_id"] == "python-docs-search-result"
+    assert payload["public_origin"] == "https://docs.python.org"
+    assert payload["public_allowlist_id"] == "python-docs"
+    assert payload["execution_limits"] == {"max_steps": 3, "timeout_seconds": 12}
+    assert payload["evidence_privacy_state"] == "local_private"
+    assert payload["sanitizer_status"] == "pending"

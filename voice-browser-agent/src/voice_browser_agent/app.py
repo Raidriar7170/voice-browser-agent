@@ -31,6 +31,7 @@ from .models import (
     ExecutionMode,
     ExecutionStatus,
     ExecutionTrace,
+    PublicTaskContract,
     RouteDecision,
     RouteType,
     SanitizerStatus,
@@ -549,27 +550,50 @@ class AppState:
         route_decision: RouteDecision | None = None,
     ) -> BrowserExecutorAdapter:
         public_target = self.public_readonly_target_for_route(route_decision)
+        public_contract = self.public_readonly_contract_for_route(route_decision)
         return BrowserExecutorAdapter(
             BrowserExecutorConfig(
                 remote_vision_backend_url=self.config.remote_vision_backend_url,
                 local_browser=True,
                 dry_run=mode is ExecutionMode.DEMO_PREVIEW,
                 execution_mode=mode,
-                max_steps=self.config.public_readonly_max_steps
+                max_steps=self.public_readonly_max_steps_for_route(route_decision)
                 if mode is ExecutionMode.LIVE_PUBLIC_READONLY
                 else 8,
                 agentic_execution=mode is ExecutionMode.LIVE_CONTROLLED,
                 controlled_fixture_id=controlled_task.fixture_id if controlled_task else None,
                 controlled_target_ref=controlled_task.target_ref if controlled_task else None,
                 controlled_target_url=controlled_task.target_url if controlled_task else None,
-                public_target_url=public_target.url if public_target else None,
+                public_target_url=self.public_readonly_target_url_for_route(
+                    route_decision,
+                    public_target,
+                    public_contract,
+                ),
                 public_target_label=route_decision.public_target_label if route_decision else None,
                 public_origin=route_decision.public_origin if route_decision else None,
                 public_allowlist_id=route_decision.public_allowlist_id if route_decision else None,
-                public_timeout_seconds=self.config.public_readonly_timeout_seconds,
+                public_task_contract=public_contract,
+                public_task_slots=route_decision.public_task_slots if route_decision else {},
+                public_timeout_seconds=self.public_readonly_timeout_seconds_for_route(route_decision),
                 public_sanitizer_required=self.config.public_readonly_sanitizer_required,
             ),
             agent_factory=self.agent_factory,
+        )
+
+    def public_readonly_max_steps_for_route(self, route_decision: RouteDecision | None) -> int:
+        if route_decision is None:
+            return self.config.public_readonly_max_steps
+        max_steps = route_decision.execution_limits.get("max_steps")
+        return int(max_steps) if max_steps is not None else self.config.public_readonly_max_steps
+
+    def public_readonly_timeout_seconds_for_route(self, route_decision: RouteDecision | None) -> int:
+        if route_decision is None:
+            return self.config.public_readonly_timeout_seconds
+        timeout_seconds = route_decision.execution_limits.get("timeout_seconds")
+        return (
+            int(timeout_seconds)
+            if timeout_seconds is not None
+            else self.config.public_readonly_timeout_seconds
         )
 
     def public_readonly_target_for_route(
@@ -583,6 +607,38 @@ class AppState:
             if target.allowlist_id == route_decision.public_allowlist_id:
                 return target
         return None
+
+    def public_readonly_contract_for_route(
+        self,
+        route_decision: RouteDecision | None,
+    ) -> PublicTaskContract | None:
+        target = self.public_readonly_target_for_route(route_decision)
+        if target is None or route_decision is None or not route_decision.public_task_id:
+            return None
+        for contract in target.task_contracts:
+            if contract.task_id == route_decision.public_task_id:
+                return contract
+        return None
+
+    def public_readonly_target_url_for_route(
+        self,
+        route_decision: RouteDecision | None,
+        public_target: PublicReadonlyTarget | None,
+        public_contract: PublicTaskContract | None,
+    ) -> str | None:
+        if public_contract is None:
+            return public_target.url if public_target else None
+        if public_contract.target_url_template:
+            try:
+                return public_contract.target_url_template.format(
+                    **{
+                        key: str(value)
+                        for key, value in (route_decision.public_task_slots if route_decision else {}).items()
+                    }
+                )
+            except KeyError:
+                return public_contract.target_url or (public_target.url if public_target else None)
+        return public_contract.target_url or (public_target.url if public_target else None)
 
     def get_trace(self, execution_id: str) -> ExecutionTrace:
         path = self.config.traces_dir / f"{execution_id}.json"

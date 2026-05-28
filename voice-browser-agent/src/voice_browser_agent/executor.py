@@ -16,9 +16,12 @@ from .models import (
     EvidencePrivacyState,
     ExecutionMode,
     ExecutionStatus,
+    PublicTaskCompletionState,
+    PublicTaskContract,
     SanitizerStatus,
 )
 from .public_readonly import (
+    PublicTaskCompletionVerifier,
     PublicReadonlyPolicy,
     PublicReadonlyPolicyDecision,
     PublicReadonlyRoutingConfig,
@@ -42,6 +45,8 @@ class BrowserExecutorConfig(BaseModel):
     public_target_label: str | None = None
     public_origin: str | None = None
     public_allowlist_id: str | None = None
+    public_task_contract: PublicTaskContract | dict[str, Any] | None = None
+    public_task_slots: dict[str, Any] = Field(default_factory=dict)
     public_timeout_seconds: int = 15
     public_sanitizer_required: bool = True
 
@@ -103,6 +108,7 @@ class BrowserExecutorAdapter:
                     "public_target_label": self.config.public_target_label,
                     "public_origin": self.config.public_origin,
                     "public_allowlist_id": self.config.public_allowlist_id,
+                    "public_task_slots": self.config.public_task_slots or request.public_task_slots,
                     "evidence_privacy_state": EvidencePrivacyState.LOCAL_PRIVATE.value,
                     "sanitizer_status": (
                         SanitizerStatus.PENDING.value
@@ -119,6 +125,39 @@ class BrowserExecutorAdapter:
                         "cookies_reused": False,
                         "storage_state_reused": False,
                     },
+                }
+            )
+            public_contract = self._public_task_contract(request)
+            if public_contract is None:
+                runtime.update(
+                    {
+                        "public_task_completion": {
+                            "completion_state": PublicTaskCompletionState.BLOCKED.value,
+                            "observed_proof": {},
+                            "unmet_criteria": [],
+                            "stop_reason": "public_task_contract_mismatch",
+                            "failure_reason": None,
+                        },
+                        "public_completion_state": PublicTaskCompletionState.BLOCKED.value,
+                        "public_observed_proof_summary": {},
+                        "public_unmet_criteria": [],
+                    }
+                )
+                return BrowserExecutionResult(
+                    execution_id=execution_id,
+                    execution_mode=execution_mode,
+                    final_status=ExecutionStatus.BLOCKED,
+                    actions=[],
+                    stop_reason="public_task_contract_mismatch",
+                    agent_task=agent_task,
+                    runtime=runtime,
+                )
+            runtime.update(
+                {
+                    "public_task_id": public_contract.task_id,
+                    "public_task_kind": public_contract.task_kind,
+                    "public_completion_criteria_id": public_contract.completion_criteria.criteria_id,
+                    "public_task_contract": public_contract.model_dump(mode="json"),
                 }
             )
             url_decision = public_policy.check_url(self.config.public_target_url)
@@ -205,11 +244,18 @@ class BrowserExecutorAdapter:
                 target_label=self.config.public_target_label or "public target",
                 public_origin=self.config.public_origin or "",
                 allowlist_id=self.config.public_allowlist_id or "public-target",
-                max_steps=self.config.max_steps,
+                max_steps=min(self.config.max_steps, 5),
                 timeout_seconds=self.config.public_timeout_seconds,
                 sanitizer_required=self.config.public_sanitizer_required,
             )
         )
+
+    def _public_task_contract(self, request: BrowserTaskRequest) -> PublicTaskContract | None:
+        if self.config.public_task_contract is None:
+            return None
+        if isinstance(self.config.public_task_contract, PublicTaskContract):
+            return self.config.public_task_contract
+        return PublicTaskContract.model_validate(self.config.public_task_contract)
 
     def _build_agent_task(self, request: BrowserTaskRequest) -> str:
         parts = [
@@ -273,18 +319,53 @@ class BrowserExecutorAdapter:
             grounding_refs.extend(action.grounding_evidence_refs)
         grounding_refs.extend(payload.get("grounding_evidence_refs", []))
         stop = budget_stop or _detect_stop(payload, actions, raw_action_items)
+        failure_reason = payload.get("failure_reason")
+        stop_reason = stop.reason if stop else payload.get("stop_reason")
         if public_policy is not None:
             public_stop = _detect_public_readonly_stop(
                 public_policy,
                 payload,
                 actions,
                 raw_action_items,
+                public_task_contract=_public_task_contract_from_runtime(runtime),
             )
             stop = public_stop or stop
+            stop_reason = stop.reason if stop else stop_reason
+            completion = _verify_public_task_completion(runtime, raw_action_items)
+            if completion is not None:
+                variance_completion = _public_task_completion_from_runtime_issue(
+                    runtime=runtime,
+                    payload=payload,
+                    observed_proof=completion.observed_proof,
+                    stop_reason=stop_reason,
+                    failure_reason=failure_reason,
+                )
+                if variance_completion is not None:
+                    completion = variance_completion
+                if stop is not None:
+                    completion.completion_state = PublicTaskCompletionState.STOPPED
+                    completion.stop_reason = stop.reason
+                runtime["public_task_completion"] = completion.model_dump(mode="json")
+                runtime["public_completion_state"] = completion.completion_state.value
+                runtime["public_observed_proof_summary"] = completion.observed_proof
+                runtime["public_unmet_criteria"] = completion.unmet_criteria
+                if stop is not None:
+                    status = ExecutionStatus.STOPPED
+                    stop_reason = stop.reason
+                elif completion.completion_state is PublicTaskCompletionState.PARTIAL:
+                    status = ExecutionStatus.STOPPED
+                    stop_reason = completion.stop_reason or "missing_public_task_completion"
+                elif completion.completion_state is PublicTaskCompletionState.STOPPED:
+                    status = ExecutionStatus.STOPPED
+                    stop_reason = completion.stop_reason
+                elif completion.completion_state is PublicTaskCompletionState.FAILED:
+                    status = ExecutionStatus.FAILED
+                    failure_reason = completion.failure_reason or "public_task_completion_failed"
+                elif completion.completion_state is PublicTaskCompletionState.BLOCKED:
+                    status = ExecutionStatus.BLOCKED
+                    stop_reason = completion.stop_reason
         if stop is not None:
             status = ExecutionStatus.STOPPED
-        failure_reason = payload.get("failure_reason")
-        stop_reason = stop.reason if stop else payload.get("stop_reason")
         if execution_mode is ExecutionMode.LIVE_CONTROLLED and not actions and not grounding_refs:
             status = ExecutionStatus.FAILED
             failure_reason = failure_reason or "live_controlled_missing_evidence"
@@ -307,6 +388,91 @@ class BrowserExecutorAdapter:
             agent_task=agent_task,
             runtime=runtime,
         )
+
+
+def _verify_public_task_completion(
+    runtime: dict[str, Any],
+    raw_action_items: list[dict[str, Any]],
+):
+    contract = _public_task_contract_from_runtime(runtime)
+    if contract is None:
+        return None
+    slots = runtime.get("public_task_slots")
+    slots = slots if isinstance(slots, dict) else {}
+    return PublicTaskCompletionVerifier(contract).verify(
+        requested_slots=slots,
+        actions=raw_action_items,
+    )
+
+
+def _public_task_contract_from_runtime(runtime: dict[str, Any]) -> PublicTaskContract | None:
+    contract_payload = runtime.get("public_task_contract")
+    if not isinstance(contract_payload, dict):
+        return None
+    return PublicTaskContract.model_validate(contract_payload)
+
+
+def _public_task_completion_from_runtime_issue(
+    *,
+    runtime: dict[str, Any],
+    payload: dict[str, Any],
+    observed_proof: dict[str, Any],
+    stop_reason: str | None,
+    failure_reason: str | None,
+):
+    contract = _public_task_contract_from_runtime(runtime)
+    if contract is None:
+        return None
+    verifier = PublicTaskCompletionVerifier(contract)
+    reason = (stop_reason or failure_reason or "").lower()
+    browser_state = payload.get("browser_state")
+    state_text = ""
+    if isinstance(browser_state, dict):
+        state_text = " ".join(str(value) for value in browser_state.values()).lower()
+    haystack = f"{reason} {state_text}"
+    variance_reason: str | None = None
+    if "timeout" in haystack or "timed out" in haystack:
+        variance_reason = "timeout"
+    elif any(
+        marker in haystack
+        for marker in (
+            "network",
+            "net::err_",
+            "name_not_resolved",
+            "connection_refused",
+            "connection_reset",
+            "connection_closed",
+            "dns",
+            "err_internet_disconnected",
+        )
+    ):
+        variance_reason = "network_error"
+    elif "selector" in haystack:
+        variance_reason = "missing_selector"
+    elif "target_not_allowlisted" in haystack or "redirect" in haystack:
+        variance_reason = "redirect_off_allowlist"
+    elif "captcha" in haystack:
+        variance_reason = "captcha"
+    elif "login_required" in haystack:
+        variance_reason = "login_required"
+    elif stop_reason == "public_task_action_not_allowed":
+        result = verifier.classify_variance("public_task_action_not_allowed")
+        result.completion_state = PublicTaskCompletionState.STOPPED
+        result.stop_reason = "public_task_action_not_allowed"
+        result.observed_proof = observed_proof
+        return result
+    if variance_reason is None:
+        return None
+    result = verifier.classify_variance(variance_reason)
+    result.observed_proof = observed_proof
+    return result
+
+
+def _contract_action_name(action_type: str, description: str = "") -> str:
+    action = action_type.lower()
+    if action == "click" and "expand" in description.lower():
+        return "expand"
+    return action
 
 
 def _detect_stop(
@@ -335,6 +501,7 @@ def _detect_public_readonly_stop(
     payload: dict[str, Any],
     actions: list[BrowserActionEvent],
     raw_action_items: list[dict[str, Any]] | None = None,
+    public_task_contract: PublicTaskContract | None = None,
 ) -> BrowserStateStop | None:
     top_level_state = _raw_browser_state(payload.get("browser_state", {}))
     if top_level_state:
@@ -342,12 +509,25 @@ def _detect_public_readonly_stop(
         if not decision.allowed:
             return BrowserStateStop(reason=decision.reason, detail=decision.detail or decision.reason)
     raw_action_items = raw_action_items or []
+    allowed_task_actions = {
+        action.lower()
+        for action in (public_task_contract.allowed_actions if public_task_contract else [])
+    }
     for index, action in enumerate(actions):
         action_decision = policy.check_action(action.action_type, action.description)
         if not action_decision.allowed:
             return BrowserStateStop(
                 reason=action_decision.reason,
                 detail=action_decision.detail or action_decision.reason,
+            )
+        task_action = _contract_action_name(action.action_type, action.description)
+        if allowed_task_actions and task_action not in allowed_task_actions:
+            return BrowserStateStop(
+                reason="public_task_action_not_allowed",
+                detail=(
+                    f"action '{task_action}' is outside public task contract "
+                    f"allowed actions: {', '.join(sorted(allowed_task_actions))}"
+                ),
             )
         raw_state = (
             _raw_browser_state(raw_action_items[index].get("browser_state", {}))
@@ -395,6 +575,7 @@ class PublicReadonlyBrowserAgent:
         self.target_url = target_url
         self.timeout_seconds = timeout_seconds
         self.policy = policy
+        self.public_task_contract = _public_task_contract_from_runtime(runtime)
 
     async def run(self) -> dict[str, Any]:
         if not self.target_url:
@@ -403,6 +584,13 @@ class PublicReadonlyBrowserAgent:
             decision = self.policy.check_url(self.target_url)
             if not decision.allowed:
                 return {"status": "stopped", "stop_reason": decision.reason, "actions": []}
+        action_decision = self._action_decision("navigate", "opened allowlisted public page")
+        if action_decision is not None:
+            return {
+                "status": "stopped",
+                "stop_reason": action_decision.reason,
+                "actions": [],
+            }
 
         from playwright.async_api import async_playwright
 
@@ -441,6 +629,11 @@ class PublicReadonlyBrowserAgent:
                     if query:
                         search_result = await self._try_public_search(page, query)
                         if search_result is not None:
+                            if search_result.get("type") == "policy_stop":
+                                return _public_readonly_stopped(
+                                    str(search_result.get("stop_reason") or "public_task_action_not_allowed"),
+                                    actions,
+                                )
                             actions.append(search_result)
                             completed_search = True
                             blocked = self._blocked_state(search_result["browser_state"])
@@ -450,6 +643,11 @@ class PublicReadonlyBrowserAgent:
                 if self._has_step_budget(actions) and _wants_public_expand(self.task):
                     expand_result = await self._try_public_expand(page)
                     if expand_result is not None:
+                        if expand_result.get("type") == "policy_stop":
+                            return _public_readonly_stopped(
+                                str(expand_result.get("stop_reason") or "public_task_action_not_allowed"),
+                                actions,
+                            )
                         actions.append(expand_result)
                         completed_expand = True
                         blocked = self._blocked_state(expand_result["browser_state"])
@@ -457,6 +655,12 @@ class PublicReadonlyBrowserAgent:
                             return _public_readonly_stopped(blocked.reason, actions)
 
                 if self._has_step_budget(actions):
+                    action_decision = self._action_decision(
+                        "extract",
+                        "read public page title",
+                    )
+                    if action_decision is not None:
+                        return _public_readonly_stopped(action_decision.reason, actions)
                     browser_state = await _public_page_state(
                         page,
                         origin=self.runtime.get("public_origin"),
@@ -501,6 +705,31 @@ class PublicReadonlyBrowserAgent:
         max_steps = self.policy.max_steps if self.policy is not None else 3
         return len(actions) < max_steps
 
+    def _action_decision(
+        self,
+        action_type: str,
+        description: str,
+    ) -> PublicReadonlyPolicyDecision | None:
+        if self.policy is not None:
+            decision = self.policy.check_action(action_type, description)
+            if not decision.allowed:
+                return decision
+        allowed_actions = {
+            action.lower()
+            for action in (self.public_task_contract.allowed_actions if self.public_task_contract else [])
+        }
+        task_action = _contract_action_name(action_type, description)
+        if allowed_actions and task_action not in allowed_actions:
+            return PublicReadonlyPolicyDecision(
+                allowed=False,
+                reason="public_task_action_not_allowed",
+                detail=(
+                    f"action '{task_action}' is outside public task contract allowed actions: "
+                    f"{', '.join(sorted(allowed_actions))}"
+                ),
+            )
+        return None
+
     def _blocked_state(self, state: dict[str, Any]) -> PublicReadonlyPolicyDecision | None:
         if self.policy is None:
             return None
@@ -508,14 +737,14 @@ class PublicReadonlyBrowserAgent:
         return None if decision.allowed else decision
 
     async def _try_public_search(self, page: Any, query: str) -> dict[str, Any] | None:
-        if self.policy is not None:
-            decision = self.policy.check_action("search", f"read-only public search for {query}")
-            if not decision.allowed:
-                return {
-                    "type": "inspect",
-                    "description": f"search policy rejected: {decision.reason}",
-                    "browser_state": await _public_page_state(page, self.runtime.get("public_origin")),
-                }
+        decision = self._action_decision("search", f"read-only public search for {query}")
+        if decision is not None:
+            return {
+                "type": "policy_stop",
+                "description": f"public search policy rejected: {decision.reason}",
+                "stop_reason": decision.reason,
+                "browser_state": await _public_page_state(page, self.runtime.get("public_origin")),
+            }
         locator = page.locator(
             "input[type='search'], input[name='q'], "
             "input[aria-label*='Search' i], input[placeholder*='Search' i]"
@@ -539,10 +768,14 @@ class PublicReadonlyBrowserAgent:
 
     async def _try_public_expand(self, page: Any) -> dict[str, Any] | None:
         description = "expand public read-only section"
-        if self.policy is not None:
-            decision = self.policy.check_action("click", description)
-            if not decision.allowed:
-                return None
+        decision = self._action_decision("click", description)
+        if decision is not None:
+            return {
+                "type": "policy_stop",
+                "description": f"public expand policy rejected: {decision.reason}",
+                "stop_reason": decision.reason,
+                "browser_state": await _public_page_state(page, self.runtime.get("public_origin")),
+            }
         locator = page.locator("summary, button[aria-expanded='false']").first
         try:
             if await locator.count() == 0:

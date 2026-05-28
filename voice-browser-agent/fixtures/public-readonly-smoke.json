@@ -4,21 +4,76 @@
       "id": "openai-docs-overview",
       "target_label": "OpenAI Docs",
       "allowlist_id": "openai-docs",
+      "browser_intent_type": "read_reference",
+      "task_kind": "direct_reference_read",
+      "allowed_actions": ["navigate", "extract"],
       "command": "打开 OpenAI 的公开文档页面并读取标题",
+      "requested_slots": {
+        "target_site_hint": "OpenAI Docs",
+        "read_target": "documentation overview"
+      },
+      "completion_criteria": {
+        "criteria_id": "openai-docs-title",
+        "required_proof": ["final_title", "visible_marker"]
+      },
+      "execution_mode": "live_public_readonly",
+      "limits": {
+        "max_steps": 2,
+        "timeout_seconds": 8
+      },
+      "safety_boundaries": ["read-only", "No login", "no upload/download"],
       "artifact_status": "local_private_until_sanitized"
     },
     {
       "id": "python-docs-search",
       "target_label": "Python Docs",
       "allowlist_id": "python-docs",
+      "browser_intent_type": "search_open",
+      "task_kind": "documentation_search",
+      "allowed_actions": ["navigate", "search", "extract"],
       "command": "打开 Python 文档搜索 pathlib",
+      "requested_slots": {
+        "target_site_hint": "Python Docs",
+        "search_query": "pathlib"
+      },
+      "completion_criteria": {
+        "criteria_id": "python-docs-search-result",
+        "required_proof": ["searched_query", "result_heading", "url_path"],
+        "visible_markers": ["Search Results", "pathlib"],
+        "url_path_contains": "/search.html"
+      },
+      "execution_mode": "live_public_readonly",
+      "limits": {
+        "max_steps": 3,
+        "timeout_seconds": 12
+      },
+      "safety_boundaries": ["read-only", "No login", "no upload/download"],
       "artifact_status": "local_private_until_sanitized"
     },
     {
       "id": "mdn-readonly-reference",
       "target_label": "MDN Web Docs",
       "allowlist_id": "mdn-docs",
+      "browser_intent_type": "read_reference",
+      "task_kind": "direct_reference_read",
+      "allowed_actions": ["navigate", "extract"],
       "command": "读取 MDN 的 fetch API 参考页面",
+      "requested_slots": {
+        "target_site_hint": "MDN Web Docs",
+        "read_target": "fetch API reference"
+      },
+      "completion_criteria": {
+        "criteria_id": "mdn-fetch-visible-reference",
+        "required_proof": ["final_title", "visible_marker", "url_path"],
+        "visible_markers": ["Fetch API"],
+        "url_path_contains": "/Web/API/Fetch_API"
+      },
+      "execution_mode": "live_public_readonly",
+      "limits": {
+        "max_steps": 2,
+        "timeout_seconds": 10
+      },
+      "safety_boundaries": ["read-only", "No login", "no upload/download"],
       "artifact_status": "local_private_until_sanitized"
     }
   ],

@@ -19,7 +19,9 @@ Public showcase tasks are limited to non-destructive browsing of public pages an
 
 The Operator Console v2 adds route-aware controlled showcase behavior for GitHub-shaped commands. A command such as "打开 GitHub" may execute `demo/pages/github_showcase.html` as controlled local live evidence, with the route decision recorded separately from the normalized command text. This does not claim that a real public website was operated.
 
-`live_public_readonly` is the first real public-web execution lane, but only for allowlisted public read-only pages such as docs or reference material. No login, upload, download, purchase, posting, private-data entry, or destructive submission is in scope. Traces are private-by-default and use `local_private_until_sanitized` artifact status unless a sanitizer pass marks them public-safe; this is not unrestricted public-web autonomy.
+`live_public_readonly` is the first real public-web execution lane, but only for allowlisted public read-only pages such as docs or reference material. A configured task-contract and completion verifier must match before execution can be reported as complete. No login, upload, download, purchase, posting, private-data entry, or destructive submission is in scope. Traces are private-by-default and use `local_private_until_sanitized` artifact status unless a sanitizer pass marks them public-safe; this is not unrestricted public-web autonomy.
+
+The initial public-readonly smoke fixture is `fixtures/public-readonly-smoke.json`. It records `openai-docs-overview`, `python-docs-search`, and `mdn-readonly-reference` with task kind, allowed slots, completion criteria, execution mode, safety boundaries, and private/public artifact status. OpenAI Docs remains a conservative direct-read docs target, while GitHub public search stays a later or controlled-showcase target because login, captcha, UI drift, and anti-bot boundaries make it less stable for a required smoke.
 
 The checked-in preview traces in `fixtures/traces/sanitized/` are generated in explicit demo-preview mode. A preview trace uses `demo_preview_not_executed` when the browser was not launched.
 

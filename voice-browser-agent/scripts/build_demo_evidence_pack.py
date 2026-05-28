@@ -115,6 +115,11 @@ def collect_local_private_exclusions(trace_root: Path) -> list[dict[str, Any]]:
                 "sanitizer_status": sanitizer_status or "unknown",
                 "target_label": route.get("public_target_label"),
                 "public_origin": route.get("public_origin"),
+                "public_task_id": route.get("public_task_id") or runtime.get("public_task_id"),
+                "public_task_kind": route.get("public_task_kind")
+                or runtime.get("public_task_kind"),
+                "completion_state": runtime.get("public_completion_state")
+                or route.get("public_completion_state"),
             }
         )
     return exclusions
