@@ -242,6 +242,14 @@ def test_github_search_prefers_real_public_readonly_when_enabled_and_contracted(
     assert payload["public_task_kind"] == "github-repo-search"
     assert payload["public_task_slots"]["search_query"] == "agent tooling"
     assert payload["public_completion_criteria_id"] == "github-repo-search-results"
+    assert payload["public_matrix_eligible"] is True
+    assert payload["public_target_class"] == "public_repository"
+    assert payload["public_completion_criteria_summary"] == [
+        "searched_query",
+        "search_page_state",
+        "repository_result_marker",
+    ]
+    assert payload["public_evidence_export_state"] == "local_private"
     assert payload["evidence_privacy_state"] == "local_private"
 
 
@@ -296,6 +304,46 @@ def test_github_public_readonly_rejects_manual_override_without_matching_contrac
 
     assert route.route_type is RouteType.BLOCKED
     assert route.route_reason == "public_readonly_unsafe_command"
+
+
+def test_public_readonly_route_rejects_unsafe_urls_with_stable_matrix_reasons():
+    config = _github_task_config(enabled=True)
+    cases = [
+        ("Open file:///Users/example/private.txt and search GitHub repositories for agent tooling", "unsafe_protocol"),
+        ("Open http://127.0.0.1/admin and search GitHub repositories for agent tooling", "private_network_target"),
+        ("Open https://user:secret@github.com/search?q=agent&type=repositories", "credentialed_url"),
+        ("Open https://evil.example/private and search GitHub repositories for agent tooling", "target_not_allowlisted"),
+    ]
+
+    for transcript, reason in cases:
+        request = BrowserTaskRequest(
+            task=transcript,
+            intent_type=BrowserIntentType.SEARCH_OPEN,
+            constraints=["bounded single browser task", "public_readonly"],
+            visual_references=[],
+            requires_confirmation=False,
+            stop_conditions=["login_required", "stop_if_login_required"],
+            public_task_slots={
+                "target_site_hint": "github",
+                "task_kind_hint": "github-repo-search",
+                "search_query": "agent tooling",
+                "read_only_intent": True,
+            },
+        )
+
+        route = select_execution_route(
+            request,
+            ValidationResult(accepted=True, reason="accepted"),
+            ConfirmationDecision(state=ConfirmationState.CONFIRMED, reason="confirmed"),
+            public_readonly_config=config,
+            requested_execution_mode=ExecutionMode.LIVE_PUBLIC_READONLY,
+        )
+
+        assert route.route_type is RouteType.BLOCKED
+        assert route.route_reason == reason
+        payload = route.model_dump(mode="json")
+        assert payload["public_matrix_eligible"] is False
+        assert payload["public_completion_state"] == "blocked"
 
 
 def test_unsafe_command_does_not_select_live_execution(tmp_path):

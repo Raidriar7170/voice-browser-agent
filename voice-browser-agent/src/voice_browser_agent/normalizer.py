@@ -198,6 +198,7 @@ def _extract_search_query(text: str) -> str | None:
     if not any(marker in lowered for marker in markers):
         return None
     patterns = (
+        r"(?:search|look up|find)\s+(?:(?:python|openai|mdn|wikipedia)\s+)?(?:docs?|documentation)?\s*for\s+([^,\n.]+)",
         r"(?:search|look up|find)\s+(?:[^,\n]*?\s+)?(?:for\s+)?([a-z0-9_.\- ]+?)(?:,|\.|\n|$)",
         r"(?:搜索|查找|查询)\s*([^，。；\n|]+)",
     )

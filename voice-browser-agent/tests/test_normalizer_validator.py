@@ -96,6 +96,38 @@ def test_public_reference_read_preserves_read_and_extraction_targets():
     assert output.public_task_slots["read_only_intent"] is True
 
 
+def test_expanded_public_reference_commands_preserve_safe_slots():
+    openai = RuleBasedNormalizer().normalize("Read the OpenAI docs responses API guide")
+    mdn = RuleBasedNormalizer().normalize("Search MDN docs for fetch API")
+    wikipedia = RuleBasedNormalizer().normalize("Read the Wikipedia page for Alan Turing")
+
+    assert isinstance(openai, BrowserTaskRequest)
+    assert openai.public_task_slots["target_site_hint"] == "openai docs"
+    assert openai.public_task_slots["read_target"] == "OpenAI docs responses API guide"
+    assert openai.public_task_slots["read_only_intent"] is True
+    assert isinstance(mdn, BrowserTaskRequest)
+    assert mdn.public_task_slots["target_site_hint"] == "mdn"
+    assert mdn.public_task_slots["search_query"] == "fetch API"
+    assert mdn.public_task_slots["read_only_intent"] is True
+    assert isinstance(wikipedia, BrowserTaskRequest)
+    assert wikipedia.public_task_slots["target_site_hint"] == "wikipedia"
+    assert wikipedia.public_task_slots["read_target"] == "Wikipedia page for Alan Turing"
+    assert wikipedia.public_task_slots["read_only_intent"] is True
+
+
+def test_public_commands_with_unsafe_urls_preserve_safety_concerns():
+    unsafe_protocol = RuleBasedNormalizer().normalize("Open file:///Users/example/private.txt and read it")
+    private_network = RuleBasedNormalizer().normalize("Open http://127.0.0.1/admin and read it")
+    credentialed = RuleBasedNormalizer().normalize("Open https://user:secret@github.com/search?q=agent")
+
+    assert isinstance(unsafe_protocol, BrowserTaskRequest)
+    assert "unsafe_protocol" in unsafe_protocol.safety_flags
+    assert isinstance(private_network, BrowserTaskRequest)
+    assert "private_network_target" in private_network.safety_flags
+    assert isinstance(credentialed, BrowserTaskRequest)
+    assert "credentialed_url" in credentialed.safety_flags
+
+
 def test_public_broad_or_mutation_commands_do_not_become_safe_public_tasks():
     broad = RuleBasedNormalizer().normalize("Browse all public docs websites until you find everything")
     mutation = RuleBasedNormalizer().normalize("Open Python docs and download the PDF")

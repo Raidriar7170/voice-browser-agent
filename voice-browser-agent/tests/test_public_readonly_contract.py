@@ -15,6 +15,7 @@ from voice_browser_agent.models import (
     ExecutionTrace,
     PublicTaskCompletionState,
     PublicTaskContract,
+    PublicReadonlyReliabilityMatrixRow,
     PublicReadonlyVisualArtifact,
     RouteDecision,
     RouteType,
@@ -24,7 +25,10 @@ from voice_browser_agent.public_readonly import (
     PublicTaskCompletionVerifier,
     PublicReadonlyPolicy,
     PublicReadonlyRoutingConfig,
+    ReliabilityMatrixError,
+    load_public_readonly_smoke_set,
     parse_public_readonly_targets,
+    summarize_reliability_matrix,
 )
 from voice_browser_agent.routing import select_execution_route
 from voice_browser_agent.trace_writer import TraceWriter, sanitize_trace_dict
@@ -146,6 +150,163 @@ def _runtime_with_github_task_contracts(enabled: bool = True) -> RuntimeConfig:
 
 def _github_routing_config(enabled: bool = True) -> PublicReadonlyRoutingConfig:
     return PublicReadonlyRoutingConfig.from_runtime_config(_runtime_with_github_task_contracts(enabled))
+
+
+def test_public_readonly_smoke_set_loads_reliability_contracts_with_matrix_coverage():
+    smoke_path = pytest.importorskip("pathlib").Path(__file__).resolve().parents[1] / "fixtures/public-readonly-smoke.json"
+
+    smoke_set = load_public_readonly_smoke_set(smoke_path)
+
+    assert 5 <= len(smoke_set.tasks) <= 8
+    assert {task.expected_matrix_coverage for task in smoke_set.tasks} == {
+        "completed",
+        "partial",
+        "stopped",
+        "failed",
+        "blocked",
+    }
+    assert {task.reliability_attempt_evidence.outcome for task in smoke_set.tasks} == {
+        "completed",
+        "partial",
+        "stopped",
+        "failed",
+        "blocked",
+    }
+    for task in smoke_set.tasks:
+        assert task.task_id
+        assert task.target_label
+        assert task.target_class in {"documentation", "reference", "public_repository"}
+        assert task.allowlist_id
+        assert task.task_kind
+        assert task.safe_slots
+        assert task.target_url or task.target_url_template
+        assert set(task.allowed_actions).issubset({"navigate", "search", "filter", "expand", "extract", "inspect", "observe", "read"})
+        assert task.completion_criteria.criteria_id
+        assert task.completion_criteria.required_proof
+        assert task.limits["max_steps"] <= 5
+        assert task.privacy_policy == "local_private"
+    assert (
+        next(task for task in smoke_set.tasks if task.task_id == "github-repo-search")
+        .visual_artifact_policy
+        == "local_private_visible_result"
+    )
+
+
+def test_public_readonly_smoke_set_rejects_missing_task_specific_criteria(tmp_path):
+    smoke_path = tmp_path / "public-readonly-smoke.json"
+    smoke_path.write_text(
+        json.dumps(
+            {
+                "tasks": [
+                    {
+                        "id": "page-open-only",
+                        "target_label": "Example Docs",
+                        "target_class": "documentation",
+                        "allowlist_id": "example-docs",
+                        "task_kind": "direct_reference_read",
+                        "safe_slots": ["target_site_hint"],
+                        "target_url": "https://example.com/docs",
+                        "allowed_actions": ["navigate"],
+                        "completion_criteria": {
+                            "criteria_id": "page-open-only",
+                            "required_proof": [],
+                        },
+                        "limits": {"max_steps": 1, "timeout_seconds": 5},
+                        "privacy_policy": "local_private",
+                        "expected_matrix_coverage": "completed",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ReliabilityMatrixError, match="completion criteria"):
+        load_public_readonly_smoke_set(smoke_path)
+
+
+def test_public_readonly_reliability_matrix_summary_covers_all_outcomes():
+    rows = [
+        PublicReadonlyReliabilityMatrixRow(
+            task_id=f"task-{outcome}",
+            target_label="Public Target",
+            target_class="documentation",
+            task_kind="documentation_search",
+            completion_criteria_id=f"criteria-{outcome}",
+            completion_criteria_summary=["searched_query"],
+            outcome=outcome,
+            final_status="succeeded" if outcome == "completed" else "stopped",
+            observed_proof_summary={"searched_query": "pathlib"} if outcome in {"completed", "partial"} else {},
+            unmet_criteria=[] if outcome == "completed" else ["visible_marker"],
+            stop_or_failure_reason=None if outcome == "completed" else f"public_task_{outcome}",
+            evidence_privacy_state="local_private",
+            sanitizer_status="pending",
+            visible_result_state="local_private",
+            export_state="local_private",
+            regression_coverage=[f"{outcome}_coverage"],
+        )
+        for outcome in ("completed", "partial", "stopped", "failed", "blocked")
+    ]
+
+    summary = summarize_reliability_matrix(rows)
+
+    assert summary.is_complete is True
+    assert summary.missing_outcomes == []
+    assert summary.outcome_counts == {
+        "completed": 1,
+        "partial": 1,
+        "stopped": 1,
+        "failed": 1,
+        "blocked": 1,
+    }
+    assert summary.public_ready is False
+
+
+def test_public_readonly_reliability_matrix_summary_rejects_missing_or_ambiguous_rows():
+    complete_row = PublicReadonlyReliabilityMatrixRow(
+        task_id="complete",
+        target_label="Python Docs",
+        target_class="documentation",
+        task_kind="documentation_search",
+        completion_criteria_id="python-docs-search-result",
+        completion_criteria_summary=["searched_query"],
+        outcome="completed",
+        final_status="succeeded",
+        observed_proof_summary={"searched_query": "pathlib"},
+        evidence_privacy_state="local_private",
+        sanitizer_status="pending",
+        visible_result_state="local_private",
+        export_state="local_private",
+        regression_coverage=["completed_coverage"],
+    )
+
+    with pytest.raises(ReliabilityMatrixError, match="missing outcome"):
+        summarize_reliability_matrix([complete_row])
+
+    ambiguous = complete_row.model_copy(update={"observed_proof_summary": {}, "unmet_criteria": []})
+    with pytest.raises(ReliabilityMatrixError, match="ambiguous"):
+        summarize_reliability_matrix([complete_row, ambiguous])
+
+
+def test_public_task_contract_rejects_page_open_only_completion_criteria():
+    with pytest.raises(Exception, match="required proof"):
+        PublicTaskContract.model_validate(
+            {
+                "task_id": "page-open-only",
+                "task_kind": "direct_reference_read",
+                "allowlist_id": "example-docs",
+                "target_url": "https://example.com/docs",
+                "allowed_actions": ["navigate"],
+                "slots": ["target_site_hint"],
+                "completion_criteria": {
+                    "criteria_id": "page-open-only",
+                    "required_proof": [],
+                },
+                "max_steps": 1,
+                "timeout_seconds": 5,
+                "privacy_policy": "local_private",
+            }
+        )
 
 
 def test_public_task_contract_parses_policy_slots_criteria_and_limits():
@@ -857,6 +1018,47 @@ async def test_public_readonly_executor_blocks_when_task_contract_is_missing():
     assert result.final_status is ExecutionStatus.BLOCKED
     assert result.stop_reason == "public_task_contract_mismatch"
     assert result.runtime["public_completion_state"] == "blocked"
+
+
+@pytest.mark.asyncio
+async def test_public_readonly_executor_records_blocked_matrix_row_for_unsafe_known_contract():
+    contract = _python_direct_read_contract()
+    contract["target_url"] = "file:///Users/example/private.txt"
+    adapter = BrowserExecutorAdapter(
+        config=BrowserExecutorConfig(
+            dry_run=False,
+            execution_mode=ExecutionMode.LIVE_PUBLIC_READONLY,
+            max_steps=3,
+            public_target_url="file:///Users/example/private.txt",
+            public_target_label="Python Docs",
+            public_origin="https://docs.python.org",
+            public_allowlist_id="python-docs",
+            public_task_contract=contract,
+            public_task_slots={"target_site_hint": "python docs"},
+        ),
+        agent_factory=PublicReadonlyEvidenceAgent,
+    )
+
+    result = await adapter.execute(
+        _public_request("Open Python docs public page"),
+        "exec-public-unsafe-known-contract",
+    )
+    runtime = result.runtime
+    row = runtime["public_reliability_matrix_row"]
+    serialized = json.dumps(result.model_dump(mode="json"), ensure_ascii=False)
+
+    assert result.final_status is ExecutionStatus.BLOCKED
+    assert result.stop_reason == "unsafe_protocol"
+    assert runtime["public_completion_state"] == "blocked"
+    assert runtime["public_task_completion"]["completion_state"] == "blocked"
+    assert runtime["public_task_completion"]["stop_reason"] == "unsafe_protocol"
+    assert runtime["public_unmet_criteria"] == ["final_title"]
+    assert row["task_id"] == "python-docs-direct-read"
+    assert row["outcome"] == "blocked"
+    assert row["final_status"] == "blocked"
+    assert row["unmet_criteria"] == ["final_title"]
+    assert row["stop_or_failure_reason"] == "unsafe_protocol"
+    assert "file:///Users/example/private.txt" not in serialized
 
 
 @pytest.mark.asyncio

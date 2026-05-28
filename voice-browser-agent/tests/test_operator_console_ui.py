@@ -156,6 +156,36 @@ def test_operator_console_javascript_renders_compact_summary_before_raw_trace():
     assert "Raw trace JSON" in app_js
 
 
+def test_operator_console_javascript_renders_reliability_matrix_before_raw_trace():
+    app_js = (
+        __import__("pathlib")
+        .Path(__file__)
+        .resolve()
+        .parents[1]
+        / "src/voice_browser_agent/static/app.js"
+    ).read_text(encoding="utf-8")
+    styles = (
+        __import__("pathlib")
+        .Path(__file__)
+        .resolve()
+        .parents[1]
+        / "src/voice_browser_agent/static/styles.css"
+    ).read_text(encoding="utf-8")
+
+    assert "Reliability matrix:" in app_js
+    assert "public_reliability_matrix_row" in app_js
+    assert "matrix-outcome-completed" in app_js
+    assert "matrix-outcome-partial" in app_js
+    assert "matrix-outcome-stopped" in app_js
+    assert "matrix-outcome-failed" in app_js
+    assert "matrix-outcome-blocked" in app_js
+    assert ".matrix-outcome-completed" in styles
+    assert ".matrix-outcome-partial" in styles
+    assert ".matrix-outcome-stopped" in styles
+    assert ".matrix-outcome-failed" in styles
+    assert ".matrix-outcome-blocked" in styles
+
+
 def test_operator_console_javascript_gates_status_voice_feedback():
     app_js = (
         __import__("pathlib")

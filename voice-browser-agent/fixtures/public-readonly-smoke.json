@@ -3,9 +3,12 @@
     {
       "id": "openai-docs-overview",
       "target_label": "OpenAI Docs",
+      "target_class": "documentation",
       "allowlist_id": "openai-docs",
       "browser_intent_type": "read_reference",
       "task_kind": "direct_reference_read",
+      "safe_slots": ["target_site_hint", "read_target"],
+      "target_url": "https://platform.openai.com/docs",
       "allowed_actions": ["navigate", "extract"],
       "command": "打开 OpenAI 的公开文档页面并读取标题",
       "requested_slots": {
@@ -21,15 +24,36 @@
         "max_steps": 2,
         "timeout_seconds": 8
       },
+      "privacy_policy": "local_private",
+      "expected_matrix_coverage": "completed",
+      "reliability_attempt_evidence": {
+        "outcome": "completed",
+        "final_status": "succeeded",
+        "observed_proof_summary": {
+          "final_title": "OpenAI Docs overview",
+          "visible_marker": "documentation overview"
+        },
+        "unmet_criteria": [],
+        "stop_or_failure_reason": null,
+        "evidence_privacy_state": "local_private",
+        "sanitizer_status": "pending",
+        "visible_result_state": "not_captured",
+        "export_state": "local_private",
+        "regression_coverage": ["completed_proof"]
+      },
+      "regression_coverage": ["completed_proof"],
       "safety_boundaries": ["read-only", "No login", "no upload/download"],
       "artifact_status": "local_private_until_sanitized"
     },
     {
       "id": "python-docs-search",
       "target_label": "Python Docs",
+      "target_class": "documentation",
       "allowlist_id": "python-docs",
       "browser_intent_type": "search_open",
       "task_kind": "documentation_search",
+      "safe_slots": ["target_site_hint", "search_query"],
+      "url_template": "https://docs.python.org/3/search.html?q={search_query}",
       "allowed_actions": ["navigate", "search", "extract"],
       "command": "打开 Python 文档搜索 pathlib",
       "requested_slots": {
@@ -47,15 +71,35 @@
         "max_steps": 3,
         "timeout_seconds": 12
       },
+      "privacy_policy": "local_private",
+      "expected_matrix_coverage": "partial",
+      "reliability_attempt_evidence": {
+        "outcome": "partial",
+        "final_status": "stopped",
+        "observed_proof_summary": {
+          "searched_query": "pathlib",
+          "url_path": "/3/search.html"
+        },
+        "unmet_criteria": ["result_heading"],
+        "stop_or_failure_reason": "missing_public_task_completion",
+        "evidence_privacy_state": "local_private",
+        "sanitizer_status": "pending",
+        "visible_result_state": "not_captured",
+        "export_state": "local_private",
+        "regression_coverage": ["missing_marker_non_success"]
+      },
+      "regression_coverage": ["missing_marker_non_success"],
       "safety_boundaries": ["read-only", "No login", "no upload/download"],
       "artifact_status": "local_private_until_sanitized"
     },
     {
       "id": "github-repo-search",
       "target_label": "GitHub",
+      "target_class": "public_repository",
       "allowlist_id": "github",
       "browser_intent_type": "search_open",
       "task_kind": "github-repo-search",
+      "safe_slots": ["target_site_hint", "search_query"],
       "allowed_actions": ["navigate", "search", "extract"],
       "command": "Search GitHub repositories for agent tooling",
       "requested_slots": {
@@ -74,6 +118,24 @@
         "max_steps": 3,
         "timeout_seconds": 15
       },
+      "privacy_policy": "local_private",
+      "expected_matrix_coverage": "stopped",
+      "reliability_attempt_evidence": {
+        "outcome": "stopped",
+        "final_status": "stopped",
+        "observed_proof_summary": {
+          "searched_query": "agent tooling",
+          "search_page_state": "search attempted"
+        },
+        "unmet_criteria": ["repository_result_marker"],
+        "stop_or_failure_reason": "public_task_captcha_or_verification",
+        "evidence_privacy_state": "local_private",
+        "sanitizer_status": "pending",
+        "visible_result_state": "local_private",
+        "export_state": "local_private",
+        "regression_coverage": ["captcha_or_login_boundary_stop"]
+      },
+      "regression_coverage": ["captcha_or_login_boundary_stop"],
       "safety_boundaries": [
         "read-only",
         "No login",
@@ -86,9 +148,11 @@
     {
       "id": "github-public-repo-read",
       "target_label": "GitHub",
+      "target_class": "public_repository",
       "allowlist_id": "github",
       "browser_intent_type": "read_reference",
       "task_kind": "github-public-repo-read",
+      "safe_slots": ["target_site_hint", "owner", "repo", "repo_slug", "read_target"],
       "allowed_actions": ["navigate", "extract"],
       "command": "Read the README for Raidriar7170/gui-agent-benchmark on GitHub",
       "requested_slots": {
@@ -109,6 +173,21 @@
         "max_steps": 2,
         "timeout_seconds": 15
       },
+      "privacy_policy": "local_private",
+      "expected_matrix_coverage": "failed",
+      "reliability_attempt_evidence": {
+        "outcome": "failed",
+        "final_status": "failed",
+        "observed_proof_summary": {},
+        "unmet_criteria": ["repo_slug", "repo_page_title", "readme_or_description_marker"],
+        "stop_or_failure_reason": "public_task_network_error",
+        "evidence_privacy_state": "local_private",
+        "sanitizer_status": "pending",
+        "visible_result_state": "local_private",
+        "export_state": "local_private",
+        "regression_coverage": ["network_or_selector_failure"]
+      },
+      "regression_coverage": ["network_or_selector_failure"],
       "safety_boundaries": [
         "read-only",
         "No login",
@@ -122,9 +201,12 @@
     {
       "id": "mdn-readonly-reference",
       "target_label": "MDN Web Docs",
+      "target_class": "reference",
       "allowlist_id": "mdn-docs",
       "browser_intent_type": "read_reference",
       "task_kind": "direct_reference_read",
+      "safe_slots": ["target_site_hint", "read_target"],
+      "target_url": "https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API",
       "allowed_actions": ["navigate", "extract"],
       "command": "读取 MDN 的 fetch API 参考页面",
       "requested_slots": {
@@ -142,6 +224,21 @@
         "max_steps": 2,
         "timeout_seconds": 10
       },
+      "privacy_policy": "local_private",
+      "expected_matrix_coverage": "blocked",
+      "reliability_attempt_evidence": {
+        "outcome": "blocked",
+        "final_status": "blocked",
+        "observed_proof_summary": {},
+        "unmet_criteria": ["final_title", "visible_marker", "url_path"],
+        "stop_or_failure_reason": "unsafe_protocol",
+        "evidence_privacy_state": "local_private",
+        "sanitizer_status": "pending",
+        "visible_result_state": "not_captured",
+        "export_state": "local_private",
+        "regression_coverage": ["policy_pre_navigation_block"]
+      },
+      "regression_coverage": ["policy_pre_navigation_block"],
       "safety_boundaries": ["read-only", "No login", "no upload/download"],
       "artifact_status": "local_private_until_sanitized"
     }

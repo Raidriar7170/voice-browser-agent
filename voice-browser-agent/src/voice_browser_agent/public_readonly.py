@@ -3,17 +3,24 @@ from __future__ import annotations
 import ipaddress
 import json
 import re
+from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, unquote_plus, urlparse
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from .config import RuntimeConfig
 from .models import (
     BrowserTaskRequest,
+    EvidencePrivacyState,
+    ExecutionStatus,
     PublicTaskCompletionResult,
     PublicTaskCompletionState,
     PublicTaskContract,
+    PublicReadonlyReliabilityMatrixRow,
+    PublicReadonlyReliabilityMatrixSummary,
+    PublicReadonlyReliabilitySmokeSet,
+    SanitizerStatus,
 )
 
 
@@ -35,6 +42,19 @@ PUBLIC_TARGET_MARKERS = (
     "文档",
     "网站",
 )
+
+READONLY_ACTIONS = {"navigate", "search", "filter", "expand", "extract", "inspect", "observe", "read"}
+RELIABILITY_OUTCOMES = (
+    PublicTaskCompletionState.COMPLETED,
+    PublicTaskCompletionState.PARTIAL,
+    PublicTaskCompletionState.STOPPED,
+    PublicTaskCompletionState.FAILED,
+    PublicTaskCompletionState.BLOCKED,
+)
+
+
+class ReliabilityMatrixError(RuntimeError):
+    pass
 
 
 class PublicReadonlyTarget(BaseModel):
@@ -98,6 +118,159 @@ class PublicReadonlyPolicyDecision(BaseModel):
     allowed: bool
     reason: str
     detail: str | None = None
+
+
+def load_public_readonly_smoke_set(path: str | Path) -> PublicReadonlyReliabilitySmokeSet:
+    smoke_path = Path(path)
+    try:
+        payload = json.loads(smoke_path.read_text(encoding="utf-8"))
+        _validate_completion_criteria_payload(payload)
+        _validate_attempt_evidence_payload(payload)
+        smoke_set = PublicReadonlyReliabilitySmokeSet.model_validate(payload)
+    except (OSError, json.JSONDecodeError, ValidationError, ValueError) as exc:
+        raise ReliabilityMatrixError(f"invalid public-readonly smoke set completion criteria: {exc}") from exc
+
+    for task in smoke_set.tasks:
+        if not set(task.allowed_actions).issubset(READONLY_ACTIONS):
+            raise ReliabilityMatrixError(f"task {task.task_id} includes non-read-only action")
+        if task.privacy_policy != "local_private":
+            raise ReliabilityMatrixError(f"task {task.task_id} must keep privacy_policy local_private")
+        if not task.completion_criteria.required_proof:
+            raise ReliabilityMatrixError(f"task {task.task_id} missing task-specific completion criteria")
+        evidence = task.reliability_attempt_evidence
+        if evidence.outcome is not task.expected_matrix_coverage:
+            raise ReliabilityMatrixError(
+                f"ambiguous attempt evidence for task {task.task_id}: "
+                "outcome does not match expected matrix coverage"
+            )
+        if evidence.outcome is PublicTaskCompletionState.COMPLETED:
+            missing_proof = [
+                proof
+                for proof in task.completion_criteria.required_proof
+                if proof not in evidence.observed_proof_summary
+            ]
+            if missing_proof:
+                raise ReliabilityMatrixError(
+                    f"task {task.task_id} missing observed proof: {', '.join(missing_proof)}"
+                )
+
+    outcomes = {task.reliability_attempt_evidence.outcome for task in smoke_set.tasks}
+    missing = [outcome.value for outcome in RELIABILITY_OUTCOMES if outcome not in outcomes]
+    if missing:
+        raise ReliabilityMatrixError(f"missing outcome coverage: {', '.join(missing)}")
+    return smoke_set
+
+
+def _validate_completion_criteria_payload(payload: Any) -> None:
+    if not isinstance(payload, dict):
+        raise ReliabilityMatrixError("invalid public-readonly smoke set payload")
+    tasks = payload.get("tasks")
+    if not isinstance(tasks, list):
+        raise ReliabilityMatrixError("invalid public-readonly smoke set tasks")
+    for index, task in enumerate(tasks):
+        if not isinstance(task, dict):
+            raise ReliabilityMatrixError(f"task {index + 1} malformed completion criteria")
+        task_id = task.get("id") or task.get("task_id") or f"task {index + 1}"
+        criteria = task.get("completion_criteria")
+        required_proof = criteria.get("required_proof") if isinstance(criteria, dict) else None
+        if not required_proof:
+            raise ReliabilityMatrixError(
+                f"task {task_id} missing task-specific completion criteria"
+            )
+
+
+def _validate_attempt_evidence_payload(payload: Any) -> None:
+    if not isinstance(payload, dict):
+        raise ReliabilityMatrixError("invalid public-readonly smoke set payload")
+    tasks = payload.get("tasks")
+    if not isinstance(tasks, list):
+        raise ReliabilityMatrixError("invalid public-readonly smoke set tasks")
+    for index, task in enumerate(tasks):
+        if not isinstance(task, dict):
+            raise ReliabilityMatrixError(f"task {index + 1} malformed attempt evidence")
+        task_id = task.get("id") or task.get("task_id") or f"task {index + 1}"
+        evidence = task.get("reliability_attempt_evidence")
+        if evidence is None:
+            raise ReliabilityMatrixError(f"task {task_id} missing attempt evidence")
+        if not isinstance(evidence, dict):
+            raise ReliabilityMatrixError(f"task {task_id} malformed attempt evidence")
+
+
+def summarize_reliability_matrix(
+    rows: list[PublicReadonlyReliabilityMatrixRow],
+) -> PublicReadonlyReliabilityMatrixSummary:
+    if not rows:
+        raise ReliabilityMatrixError("missing outcome coverage: no reliability matrix rows")
+    seen_task_ids: set[str] = set()
+    outcome_counts = {outcome.value: 0 for outcome in RELIABILITY_OUTCOMES}
+    for row in rows:
+        if row.task_id in seen_task_ids:
+            raise ReliabilityMatrixError(f"ambiguous reliability matrix row for task {row.task_id}")
+        seen_task_ids.add(row.task_id)
+        outcome_counts[row.outcome.value] += 1
+        if row.outcome is PublicTaskCompletionState.COMPLETED:
+            if not row.observed_proof_summary or row.unmet_criteria:
+                raise ReliabilityMatrixError(f"ambiguous completed reliability row for {row.task_id}")
+        else:
+            if not row.unmet_criteria and not row.stop_or_failure_reason:
+                raise ReliabilityMatrixError(f"ambiguous incomplete reliability row for {row.task_id}")
+
+    missing = [outcome for outcome, count in outcome_counts.items() if count == 0]
+    if missing:
+        raise ReliabilityMatrixError(f"missing outcome coverage: {', '.join(missing)}")
+    public_ready = all(
+        row.evidence_privacy_state is EvidencePrivacyState.PUBLIC_SAFE
+        and row.sanitizer_status is SanitizerStatus.PASSED
+        and row.export_state == "public_safe"
+        for row in rows
+    )
+    return PublicReadonlyReliabilityMatrixSummary(
+        task_count=len(rows),
+        outcome_counts=outcome_counts,
+        missing_outcomes=[],
+        is_complete=True,
+        public_ready=public_ready,
+        rows=rows,
+    )
+
+
+def build_public_readonly_reliability_row(
+    *,
+    task_id: str,
+    target_label: str,
+    target_class: str,
+    task_kind: str,
+    completion_criteria_id: str,
+    completion_criteria_summary: list[str],
+    outcome: PublicTaskCompletionState | str,
+    final_status: ExecutionStatus | str,
+    observed_proof_summary: dict[str, Any] | None = None,
+    unmet_criteria: list[str] | None = None,
+    stop_or_failure_reason: str | None = None,
+    evidence_privacy_state: EvidencePrivacyState | str = EvidencePrivacyState.LOCAL_PRIVATE,
+    sanitizer_status: SanitizerStatus | str = SanitizerStatus.PENDING,
+    visible_result_state: str = "not_captured",
+    export_state: str = "local_private",
+    regression_coverage: list[str] | None = None,
+) -> PublicReadonlyReliabilityMatrixRow:
+    return PublicReadonlyReliabilityMatrixRow(
+        task_id=task_id,
+        target_label=target_label,
+        target_class=target_class,
+        task_kind=task_kind,
+        completion_criteria_id=completion_criteria_id,
+        completion_criteria_summary=completion_criteria_summary,
+        outcome=PublicTaskCompletionState(outcome),
+        final_status=final_status.value if isinstance(final_status, ExecutionStatus) else str(final_status),
+        observed_proof_summary=observed_proof_summary or {},
+        unmet_criteria=unmet_criteria or [],
+        stop_or_failure_reason=stop_or_failure_reason,
+        evidence_privacy_state=EvidencePrivacyState(evidence_privacy_state),
+        sanitizer_status=SanitizerStatus(sanitizer_status),
+        visible_result_state=visible_result_state,
+        export_state=export_state,
+        regression_coverage=regression_coverage or [],
+    )
 
 
 class PublicReadonlyPolicy:
@@ -451,6 +624,21 @@ def has_transcript_url(request: BrowserTaskRequest) -> bool:
     return bool(_extract_urls(_command_text(request)))
 
 
+def rejected_public_url_reason(
+    request: BrowserTaskRequest,
+    config: PublicReadonlyRoutingConfig,
+) -> str | None:
+    urls = _extract_urls(_command_text(request))
+    if not urls:
+        return None
+    policy = PublicReadonlyPolicy(config)
+    for url in urls:
+        decision = policy.check_url(url)
+        if not decision.allowed:
+            return decision.reason
+    return None
+
+
 def normalized_public_task_slots(request: BrowserTaskRequest) -> dict[str, Any]:
     slots = dict(request.public_task_slots)
     text = _command_text(request)
@@ -520,6 +708,41 @@ def public_readonly_readiness(config: RuntimeConfig) -> dict[str, object]:
         },
         "detail": detail,
     }
+
+
+def public_target_class_for_contract(
+    target: PublicReadonlyTarget | None,
+    contract: PublicTaskContract | None,
+) -> str:
+    if contract is not None and contract.target_class:
+        return contract.target_class
+    allowlist_id = (target.allowlist_id if target else "").lower()
+    label = (target.label if target else "").lower()
+    task_kind = (contract.task_kind if contract else "").lower()
+    if "github" in allowlist_id or "github" in label or "repo" in task_kind:
+        return "public_repository"
+    if "mdn" in allowlist_id or "wikipedia" in allowlist_id or "reference" in task_kind:
+        return "reference"
+    return "documentation"
+
+
+def public_completion_criteria_summary(contract: PublicTaskContract | None) -> list[str]:
+    if contract is None:
+        return []
+    return list(contract.completion_criteria.required_proof)
+
+
+def public_evidence_export_state(
+    privacy_state: EvidencePrivacyState,
+    sanitizer_status: SanitizerStatus,
+) -> str:
+    if privacy_state is EvidencePrivacyState.PUBLIC_SAFE and sanitizer_status is SanitizerStatus.PASSED:
+        return "public_safe"
+    if sanitizer_status is SanitizerStatus.FAILED:
+        return "sanitizer_failed"
+    if sanitizer_status is SanitizerStatus.PENDING:
+        return "sanitizer_pending" if privacy_state is EvidencePrivacyState.PUBLIC_SAFE else "local_private"
+    return "local_private" if privacy_state is EvidencePrivacyState.LOCAL_PRIVATE else "not_applicable"
 
 
 def _request_text(request: BrowserTaskRequest) -> str:
@@ -595,6 +818,7 @@ def _contract_matches_request(
 
 def _extract_search_query(text: str) -> str | None:
     patterns = (
+        r"(?:search|look up|find)\s+(?:(?:python|openai|mdn|wikipedia)\s+)?(?:docs?|documentation)?\s*for\s+([^,\n.]+)",
         r"(?:search|look up|find)\s+(?:[^.\n]*?\s+)?(?:for\s+)?([a-z0-9_.\- ]+?)(?:,|\.|\n|$)",
         r"(?:搜索|查找|查询)\s*([^，。；\n|]+)",
     )

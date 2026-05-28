@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 def utc_now() -> datetime:
@@ -152,15 +152,19 @@ class RouteDecision(BaseModel):
     controlled_fixture_id: str | None = None
     controlled_target_ref: str | None = None
     public_target_label: str | None = None
+    public_target_class: str | None = None
     public_origin: str | None = None
     public_allowlist_id: str | None = None
     public_task_id: str | None = None
     public_task_kind: str | None = None
     public_task_slots: dict[str, Any] = Field(default_factory=dict)
     public_completion_criteria_id: str | None = None
+    public_completion_criteria_summary: list[str] = Field(default_factory=list)
     public_completion_state: PublicTaskCompletionState | None = None
     public_observed_proof_summary: dict[str, Any] = Field(default_factory=dict)
     public_unmet_criteria: list[str] = Field(default_factory=list)
+    public_matrix_eligible: bool = False
+    public_evidence_export_state: str = "not_applicable"
     evidence_privacy_state: EvidencePrivacyState = EvidencePrivacyState.NOT_APPLICABLE
     sanitizer_status: SanitizerStatus = SanitizerStatus.NOT_REQUIRED
     execution_limits: dict[str, Any] = Field(default_factory=dict)
@@ -177,11 +181,19 @@ class PublicTaskCompletionCriteria(BaseModel):
     url_path_contains: str | None = None
     title_contains: str | None = None
 
+    @field_validator("required_proof")
+    @classmethod
+    def _require_task_specific_proof(cls, value: list[str]) -> list[str]:
+        if not value:
+            raise ValueError("required proof must include task-specific completion criteria")
+        return value
+
 
 class PublicTaskContract(BaseModel):
     task_id: str
     task_kind: str
     allowlist_id: str
+    target_class: str | None = None
     target_url: str | None = None
     target_url_template: str | None = None
     allowed_actions: list[str] = Field(default_factory=list)
@@ -190,6 +202,100 @@ class PublicTaskContract(BaseModel):
     max_steps: int = Field(default=3, ge=1, le=5)
     timeout_seconds: int = Field(default=15, ge=1, le=60)
     privacy_policy: str = "local_private"
+
+
+class PublicReadonlyReliabilityAttemptEvidence(BaseModel):
+    outcome: PublicTaskCompletionState
+    final_status: ExecutionStatus
+    observed_proof_summary: dict[str, Any] = Field(default_factory=dict)
+    unmet_criteria: list[str] = Field(default_factory=list)
+    stop_or_failure_reason: str | None = None
+    evidence_privacy_state: EvidencePrivacyState = EvidencePrivacyState.LOCAL_PRIVATE
+    sanitizer_status: SanitizerStatus = SanitizerStatus.PENDING
+    visible_result_state: str = "not_captured"
+    export_state: str = "local_private"
+    regression_coverage: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _validate_attempt_shape(self) -> "PublicReadonlyReliabilityAttemptEvidence":
+        if self.outcome is PublicTaskCompletionState.COMPLETED:
+            if not self.observed_proof_summary:
+                raise ValueError("completed attempt evidence requires observed proof")
+            if self.unmet_criteria:
+                raise ValueError("completed attempt evidence cannot include unmet criteria")
+            return self
+        if not self.unmet_criteria and not self.stop_or_failure_reason:
+            raise ValueError(
+                "incomplete attempt evidence requires unmet criteria or stop/failure reason"
+            )
+        return self
+
+
+class PublicReadonlyReliabilitySmokeTask(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    task_id: str = Field(alias="id")
+    target_label: str
+    target_class: str
+    allowlist_id: str
+    task_kind: str
+    safe_slots: list[str] = Field(min_length=1)
+    target_url: str | None = None
+    target_url_template: str | None = Field(default=None, alias="url_template")
+    allowed_actions: list[str] = Field(min_length=1)
+    requested_slots: dict[str, Any] = Field(default_factory=dict)
+    visual_artifact_policy: str | None = None
+    completion_criteria: PublicTaskCompletionCriteria
+    limits: dict[str, int]
+    privacy_policy: str = "local_private"
+    expected_matrix_coverage: PublicTaskCompletionState
+    reliability_attempt_evidence: PublicReadonlyReliabilityAttemptEvidence
+    regression_coverage: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _validate_target_and_limits(self) -> "PublicReadonlyReliabilitySmokeTask":
+        if not self.target_url and not self.target_url_template:
+            raise ValueError("target URL or template is required")
+        max_steps = self.limits.get("max_steps")
+        timeout_seconds = self.limits.get("timeout_seconds")
+        if max_steps is None or max_steps < 1 or max_steps > 5:
+            raise ValueError("limits.max_steps must be between 1 and 5")
+        if timeout_seconds is None or timeout_seconds < 1 or timeout_seconds > 60:
+            raise ValueError("limits.timeout_seconds must be between 1 and 60")
+        return self
+
+
+class PublicReadonlyReliabilitySmokeSet(BaseModel):
+    tasks: list[PublicReadonlyReliabilitySmokeTask] = Field(min_length=5, max_length=8)
+    boundaries: list[str] = Field(default_factory=list)
+
+
+class PublicReadonlyReliabilityMatrixRow(BaseModel):
+    task_id: str
+    target_label: str
+    target_class: str
+    task_kind: str
+    completion_criteria_id: str
+    completion_criteria_summary: list[str] = Field(default_factory=list)
+    outcome: PublicTaskCompletionState
+    final_status: str
+    observed_proof_summary: dict[str, Any] = Field(default_factory=dict)
+    unmet_criteria: list[str] = Field(default_factory=list)
+    stop_or_failure_reason: str | None = None
+    evidence_privacy_state: EvidencePrivacyState
+    sanitizer_status: SanitizerStatus
+    visible_result_state: str
+    export_state: str
+    regression_coverage: list[str] = Field(default_factory=list)
+
+
+class PublicReadonlyReliabilityMatrixSummary(BaseModel):
+    task_count: int
+    outcome_counts: dict[str, int]
+    missing_outcomes: list[str] = Field(default_factory=list)
+    is_complete: bool
+    public_ready: bool
+    rows: list[PublicReadonlyReliabilityMatrixRow] = Field(default_factory=list)
 
 
 class PublicTaskCompletionResult(BaseModel):

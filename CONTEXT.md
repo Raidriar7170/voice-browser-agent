@@ -100,6 +100,10 @@ _Avoid_: page opened equals success, action count equals completion
 Local/private evidence from a small set of allowlisted documentation or reference tasks that records completed, partial, stopped, failed, or blocked outcomes without publishing raw page content.
 _Avoid_: production automation, public benchmark, unrestricted browsing trace
 
+**Public-Readonly Reliability Matrix**:
+A reviewer-readable summary of the 5-task public-readonly smoke set showing task id, target class, completion criteria, observed proof summary, unmet criteria, outcome, stop/failure reason, privacy state, sanitizer status, and export state.
+_Avoid_: production automation, unrestricted public-web autonomy, captcha bypass, account automation, benchmark ranking, model-quality claim, public raw-dataset evidence
+
 **Reproducible Audio Fixture**:
 A saved audio sample paired with an expected spoken command and demo task.
 _Avoid_: live-only microphone input, non-repeatable demo speech

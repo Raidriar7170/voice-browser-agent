@@ -25,6 +25,52 @@ def copy_trace_sources(tmp_path: Path) -> Path:
     return target_root
 
 
+def copy_project_inputs(tmp_path: Path) -> None:
+    shutil.copytree(PROJECT_ROOT / "fixtures/audio", tmp_path / "fixtures/audio")
+    smoke_path = tmp_path / "fixtures/public-readonly-smoke.json"
+    smoke_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(PROJECT_ROOT / "fixtures/public-readonly-smoke.json", smoke_path)
+
+
+def add_attempt_evidence(smoke: dict) -> dict:
+    for task in smoke["tasks"]:
+        outcome = task["expected_matrix_coverage"]
+        proof = task["completion_criteria"]["required_proof"]
+        observed = {}
+        unmet = list(proof)
+        reason = f"planned_{outcome}_coverage"
+        final_status = "stopped"
+        if outcome == "completed":
+            observed = {
+                "final_title": "OpenAI Docs overview",
+                "visible_marker": "documentation overview",
+            }
+            unmet = []
+            reason = None
+            final_status = "succeeded"
+        elif outcome == "partial":
+            observed = {"searched_query": "pathlib", "url_path": "/3/search.html"}
+        elif outcome == "failed":
+            final_status = "failed"
+        elif outcome == "blocked":
+            final_status = "blocked"
+        task["reliability_attempt_evidence"] = {
+            "outcome": outcome,
+            "final_status": final_status,
+            "observed_proof_summary": observed,
+            "unmet_criteria": unmet,
+            "stop_or_failure_reason": reason,
+            "evidence_privacy_state": "local_private",
+            "sanitizer_status": "pending",
+            "visible_result_state": "local_private"
+            if task.get("visual_artifact_policy")
+            else "not_captured",
+            "export_state": "local_private",
+            "regression_coverage": task.get("regression_coverage", []),
+        }
+    return smoke
+
+
 def test_release_pack_manifest_covers_preview_live_agentic_real_vision_and_real_voice_evidence(tmp_path):
     builder = load_builder()
     trace_root = copy_trace_sources(tmp_path)
@@ -74,6 +120,24 @@ def test_release_pack_manifest_covers_preview_live_agentic_real_vision_and_real_
     assert real_voice[0]["transcript_review"]["status"] == "edited"
     assert all(item["privacy_scan"] == "passed" for item in manifest["artifacts"])
     assert all(item["packaged_path"].startswith("traces/") for item in manifest["artifacts"])
+    matrix = manifest["public_readonly_reliability_matrix"]
+    assert matrix["is_complete"] is True
+    assert matrix["task_count"] == 5
+    assert matrix["outcome_counts"] == {
+        "completed": 1,
+        "partial": 1,
+        "stopped": 1,
+        "failed": 1,
+        "blocked": 1,
+    }
+    assert matrix["public_ready"] is False
+    assert all(row["export_state"] == "local_private" for row in matrix["rows"])
+    openai_row = next(row for row in matrix["rows"] if row["task_id"] == "openai-docs-overview")
+    assert openai_row["observed_proof_summary"] == {
+        "final_title": "OpenAI Docs overview",
+        "visible_marker": "documentation overview",
+    }
+    assert "raw_page_text" not in json.dumps(matrix, ensure_ascii=False)
 
 
 def test_release_pack_preserves_route_metadata_for_controlled_showcase(tmp_path):
@@ -206,6 +270,114 @@ def test_release_pack_fails_when_private_marker_is_present(tmp_path):
         )
 
 
+@pytest.mark.parametrize(
+    ("field_name", "field_value"),
+    [
+        ("raw_page_text", "full public page text"),
+        ("visible_text", "raw visible public page text"),
+        ("unsanitized_runtime", {"page_text": "raw browser state"}),
+        ("local_file_uri", "file:///Users/private/Profile/trace.json"),
+    ],
+)
+def test_release_pack_fails_when_forbidden_raw_trace_field_is_present(
+    tmp_path,
+    field_name,
+    field_value,
+):
+    builder = load_builder()
+    trace_root = copy_trace_sources(tmp_path)
+    trace_path = trace_root / "sanitized/demo-github-search.json"
+    payload = json.loads(trace_path.read_text(encoding="utf-8"))
+    payload["execution_runtime"] = {field_name: field_value}
+    trace_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    with pytest.raises(builder.EvidencePackError, match=field_name):
+        builder.build_release_pack(
+            project_root=PROJECT_ROOT,
+            trace_root=trace_root,
+            output_dir=tmp_path / "release-pack",
+        )
+
+
+def test_release_pack_reliability_matrix_requires_attempt_evidence(tmp_path):
+    builder = load_builder()
+    trace_root = copy_trace_sources(tmp_path)
+    copy_project_inputs(tmp_path)
+    smoke_path = tmp_path / "fixtures/public-readonly-smoke.json"
+    smoke = json.loads(smoke_path.read_text(encoding="utf-8"))
+    smoke = add_attempt_evidence(smoke)
+    smoke["tasks"][0].pop("reliability_attempt_evidence", None)
+    smoke_path.write_text(json.dumps(smoke), encoding="utf-8")
+
+    with pytest.raises(builder.EvidencePackError, match="attempt evidence"):
+        builder.build_release_pack(
+            project_root=tmp_path,
+            trace_root=trace_root,
+            output_dir=tmp_path / "release-pack",
+        )
+
+
+def test_release_pack_reliability_matrix_requires_completed_attempt_proof(tmp_path):
+    builder = load_builder()
+    trace_root = copy_trace_sources(tmp_path)
+    copy_project_inputs(tmp_path)
+    smoke_path = tmp_path / "fixtures/public-readonly-smoke.json"
+    smoke = json.loads(smoke_path.read_text(encoding="utf-8"))
+    smoke = add_attempt_evidence(smoke)
+    smoke["tasks"][0]["reliability_attempt_evidence"]["observed_proof_summary"] = {}
+    smoke_path.write_text(json.dumps(smoke), encoding="utf-8")
+
+    with pytest.raises(builder.EvidencePackError, match="observed proof"):
+        builder.build_release_pack(
+            project_root=tmp_path,
+            trace_root=trace_root,
+            output_dir=tmp_path / "release-pack",
+        )
+
+
+def test_release_pack_reliability_matrix_rejects_private_attempt_evidence(tmp_path):
+    builder = load_builder()
+    trace_root = copy_trace_sources(tmp_path)
+    copy_project_inputs(tmp_path)
+    smoke_path = tmp_path / "fixtures/public-readonly-smoke.json"
+    smoke = json.loads(smoke_path.read_text(encoding="utf-8"))
+    smoke = add_attempt_evidence(smoke)
+    smoke["tasks"][0]["reliability_attempt_evidence"]["observed_proof_summary"][
+        "raw_page_text"
+    ] = "raw public page text"
+    smoke_path.write_text(json.dumps(smoke), encoding="utf-8")
+
+    with pytest.raises(builder.EvidencePackError, match="raw_page_text"):
+        builder.build_release_pack(
+            project_root=tmp_path,
+            trace_root=trace_root,
+            output_dir=tmp_path / "release-pack",
+        )
+
+
+def test_release_pack_fails_when_reliability_matrix_outcome_is_missing(tmp_path):
+    builder = load_builder()
+    trace_root = copy_trace_sources(tmp_path)
+    copy_project_inputs(tmp_path)
+    smoke_path = tmp_path / "fixtures/public-readonly-smoke.json"
+    smoke = json.loads(smoke_path.read_text(encoding="utf-8"))
+    smoke = add_attempt_evidence(smoke)
+    for task in smoke["tasks"]:
+        evidence = task.get("reliability_attempt_evidence") or {}
+        if evidence.get("outcome") == "blocked":
+            evidence["outcome"] = "failed"
+            evidence["final_status"] = "failed"
+            task["expected_matrix_coverage"] = "failed"
+    smoke_path.write_text(json.dumps(smoke), encoding="utf-8")
+
+    with pytest.raises(builder.EvidencePackError, match="missing outcome"):
+        builder.build_release_pack(
+            project_root=tmp_path,
+            trace_root=trace_root,
+            output_dir=tmp_path / "release-pack",
+        )
+
+
 def test_release_pack_html_uses_bounded_non_benchmark_positioning(tmp_path):
     builder = load_builder()
     trace_root = copy_trace_sources(tmp_path)
@@ -219,6 +391,7 @@ def test_release_pack_html_uses_bounded_non_benchmark_positioning(tmp_path):
 
     html = (output_dir / "index.html").read_text(encoding="utf-8").lower()
     assert "bounded demo evidence pack" in html
+    assert "public-readonly reliability matrix" in html
     assert "real_vision_controlled" in html
     assert "browser-use-vision" in html
     assert "benchmark" not in html

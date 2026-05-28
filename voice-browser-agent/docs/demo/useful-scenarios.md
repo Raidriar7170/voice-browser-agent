@@ -17,3 +17,5 @@ These scenarios are not broad public-web automation. They are local controlled p
 The pack is intentionally small. It proves the app shape that matters for real use: preflight readiness, ASR review, bounded normalization, safety gates, local visual execution, and sanitized failure or usage traces.
 
 The public-readonly lane is intentionally narrower than unrestricted public-web autonomy: it starts with allowlisted documentation/reference targets plus explicit GitHub public repository search/read contracts, and rejects arbitrary transcript URLs, mutation actions, private-network targets, missing task contracts, and sensitive browser states. Incomplete public tasks are recorded as partial, stopped, failed, or blocked instead of successful live public automation.
+
+The public-readonly reliability matrix is the reviewer summary for those outcomes. It is local, read-only, task-contract evidence and explicitly excludes production-use claims, verification-barrier bypassing, account workflows, ranking claims, model-quality claims, and raw public evidence releases.

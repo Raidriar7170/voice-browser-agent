@@ -132,6 +132,34 @@ def _enable_public_task_contract(monkeypatch):
     monkeypatch.setenv("VOICE_BROWSER_PUBLIC_READONLY_SANITIZER_REQUIRED", "true")
 
 
+def _enable_public_task_contract_with_unsafe_target(monkeypatch):
+    contract = json.dumps(
+        {
+            "task_id": "python-docs-direct-read",
+            "task_kind": "direct_reference_read",
+            "target_url": "file:///Users/example/private.txt",
+            "allowed_actions": ["navigate", "extract"],
+            "slots": ["target_site_hint"],
+            "completion_criteria": {
+                "criteria_id": "python-docs-title",
+                "required_proof": ["final_title"],
+            },
+            "max_steps": 2,
+            "timeout_seconds": 8,
+            "privacy_policy": "local_private",
+        }
+    )
+    monkeypatch.setenv("VOICE_BROWSER_PUBLIC_READONLY_ENABLED", "true")
+    monkeypatch.setenv(
+        "VOICE_BROWSER_PUBLIC_READONLY_ALLOWLIST",
+        f"python-docs|Python Docs|https://docs.python.org/3/|python,docs,documentation|{contract}",
+    )
+    monkeypatch.setenv("VOICE_BROWSER_PUBLIC_READONLY_MAX_STEPS", "2")
+    monkeypatch.setenv("VOICE_BROWSER_PUBLIC_READONLY_TIMEOUT_SECONDS", "8")
+    monkeypatch.setenv("VOICE_BROWSER_PUBLIC_READONLY_PRIVATE_TRACES", "true")
+    monkeypatch.setenv("VOICE_BROWSER_PUBLIC_READONLY_SANITIZER_REQUIRED", "true")
+
+
 def _enable_github_public_task_contract(monkeypatch):
     contracts = json.dumps(
         [
@@ -383,12 +411,25 @@ def test_execution_api_returns_public_task_completion_evidence(monkeypatch, tmp_
     assert route["public_task_kind"] == "documentation_search"
     assert route["public_task_slots"]["search_query"] == "pathlib"
     assert route["public_completion_criteria_id"] == "python-docs-search-result"
+    assert route["public_matrix_eligible"] is True
+    assert route["public_target_class"] == "documentation"
+    assert route["public_completion_criteria_summary"] == [
+        "searched_query",
+        "result_heading",
+        "url_path",
+    ]
+    assert route["public_evidence_export_state"] == "local_private"
     assert runtime["public_task_id"] == "python-docs-search"
     assert runtime["public_task_kind"] == "documentation_search"
     assert runtime["public_completion_criteria_id"] == "python-docs-search-result"
     assert runtime["public_completion_state"] == "completed"
     assert runtime["public_observed_proof_summary"]["searched_query"] == "pathlib"
     assert runtime["public_unmet_criteria"] == []
+    assert runtime["public_reliability_matrix_row"]["task_id"] == "python-docs-search"
+    assert runtime["public_reliability_matrix_row"]["target_class"] == "documentation"
+    assert runtime["public_reliability_matrix_row"]["outcome"] == "completed"
+    assert runtime["public_reliability_matrix_row"]["visible_result_state"] == "not_captured"
+    assert runtime["public_reliability_matrix_row"]["export_state"] == "local_private"
     assert PublicTaskSearchEvidenceAgent.last_kwargs["target_url"] == (
         "https://docs.python.org/3/search.html?q=pathlib"
     )
@@ -398,6 +439,40 @@ def test_execution_api_returns_public_task_completion_evidence(monkeypatch, tmp_
     assert "visible_text" not in serialized
     assert "cookies" not in serialized
     assert "https://docs.python.org/3/search.html" not in serialized
+
+
+def test_execution_api_returns_blocked_matrix_row_for_known_contract_unsafe_target(
+    monkeypatch,
+    tmp_path,
+):
+    _enable_public_task_contract_with_unsafe_target(monkeypatch)
+    app = create_app(runtime_dir=tmp_path)
+    app.state.voice_browser.agent_factory = PublicReadonlyEvidenceAgent
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/executions",
+        json={"transcript_text": "Open Python docs public page, do not log in"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    runtime = body["execution_runtime"]
+    row = runtime["public_reliability_matrix_row"]
+    serialized = json.dumps(body, ensure_ascii=False)
+
+    assert body["route_decision"]["route_type"] == "public_readonly"
+    assert body["final_status"] == "blocked"
+    assert body["stop_reason"] == "unsafe_protocol"
+    assert runtime["public_completion_state"] == "blocked"
+    assert runtime["public_task_completion"]["stop_reason"] == "unsafe_protocol"
+    assert runtime["public_unmet_criteria"] == ["final_title"]
+    assert row["task_id"] == "python-docs-direct-read"
+    assert row["outcome"] == "blocked"
+    assert row["final_status"] == "blocked"
+    assert row["stop_or_failure_reason"] == "unsafe_protocol"
+    assert "file:///Users/example/private.txt" not in serialized
+    assert "/Users/example" not in serialized
 
 
 def test_execution_api_returns_guarded_github_visual_artifact_refs(monkeypatch, tmp_path):
@@ -481,6 +556,16 @@ def test_operator_console_static_assets_render_public_readonly_readiness_and_rou
     assert "public_completion_state" in app_js
     assert "public_observed_proof_summary" in app_js
     assert "public_unmet_criteria" in app_js
+    assert "public_reliability_matrix_row" in app_js
+    assert "public_matrix_eligible" in app_js
+    assert "public_target_class" in app_js
+    assert "public_completion_criteria_summary" in app_js
+    assert "public_evidence_export_state" in app_js
+    assert "matrix-outcome-completed" in app_js
+    assert "matrix-outcome-partial" in app_js
+    assert "matrix-outcome-stopped" in app_js
+    assert "matrix-outcome-failed" in app_js
+    assert "matrix-outcome-blocked" in app_js
     assert "evidence_privacy_state" in app_js
     assert "sanitizer_status" in app_js
     assert "execution_limits" in app_js
@@ -558,6 +643,7 @@ def test_release_pack_excludes_local_private_public_readonly_traces(tmp_path):
 
 
 def test_docs_define_public_readonly_smoke_boundaries_and_non_goals():
+    context = (PROJECT_ROOT.parent / "CONTEXT.md").read_text(encoding="utf-8")
     readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
     suite = (PROJECT_ROOT / "docs/demo/demo-task-suite.md").read_text(encoding="utf-8")
     scenarios = (PROJECT_ROOT / "docs/demo/useful-scenarios.md").read_text(encoding="utf-8")
@@ -565,14 +651,20 @@ def test_docs_define_public_readonly_smoke_boundaries_and_non_goals():
         encoding="utf-8"
     )
     video_plan = (PROJECT_ROOT / "docs/demo/video-plan.md").read_text(encoding="utf-8")
+    closeout = (PROJECT_ROOT / "docs/demo/closeout-checklist.md").read_text(encoding="utf-8")
+    interview = (PROJECT_ROOT / "docs/interview-project-overview.html").read_text(encoding="utf-8")
     smoke = json.loads((PROJECT_ROOT / "fixtures/public-readonly-smoke.json").read_text())
 
-    combined = "\n".join([readme, suite, scenarios, public_evidence, video_plan])
+    combined = "\n".join([context, readme, suite, scenarios, public_evidence, video_plan, closeout, interview])
     assert "live_public_readonly" in combined
+    assert "public-readonly reliability matrix" in combined
     assert "private-by-default" in combined
     assert "read-only" in combined
     assert "No login" in combined or "no login" in combined
     assert "unrestricted public-web autonomy" in combined
+    assert "production automation" in combined
+    assert "captcha bypass" in combined
+    assert "benchmark ranking" in combined
     assert [task["id"] for task in smoke["tasks"]] == [
         "openai-docs-overview",
         "python-docs-search",
@@ -583,5 +675,13 @@ def test_docs_define_public_readonly_smoke_boundaries_and_non_goals():
     assert all(task["artifact_status"] == "local_private_until_sanitized" for task in smoke["tasks"])
     assert all(task["task_kind"] for task in smoke["tasks"])
     assert all(task["completion_criteria"] for task in smoke["tasks"])
+    assert all(task["target_class"] for task in smoke["tasks"])
+    assert {task["expected_matrix_coverage"] for task in smoke["tasks"]} == {
+        "completed",
+        "partial",
+        "stopped",
+        "failed",
+        "blocked",
+    }
     assert "completion verifier" in combined
     assert "task-contract" in combined

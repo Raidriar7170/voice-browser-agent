@@ -26,6 +26,10 @@ from .public_readonly import (
     PublicReadonlyPolicy,
     PublicReadonlyPolicyDecision,
     PublicReadonlyRoutingConfig,
+    build_public_readonly_reliability_row,
+    public_completion_criteria_summary,
+    public_evidence_export_state,
+    public_target_class_for_contract,
 )
 from .safety import detect_browser_state_stop
 
@@ -44,6 +48,7 @@ class BrowserExecutorConfig(BaseModel):
     controlled_target_url: str | None = None
     public_target_url: str | None = None
     public_target_label: str | None = None
+    public_target_class: str | None = None
     public_origin: str | None = None
     public_allowlist_id: str | None = None
     public_task_contract: PublicTaskContract | dict[str, Any] | None = None
@@ -109,6 +114,7 @@ class BrowserExecutorAdapter:
             runtime.update(
                 {
                     "public_target_label": self.config.public_target_label,
+                    "public_target_class": self.config.public_target_class,
                     "public_origin": self.config.public_origin,
                     "public_allowlist_id": self.config.public_allowlist_id,
                     "public_task_slots": self.config.public_task_slots or request.public_task_slots,
@@ -161,15 +167,32 @@ class BrowserExecutorAdapter:
                     "public_task_id": public_contract.task_id,
                     "public_task_kind": public_contract.task_kind,
                     "public_completion_criteria_id": public_contract.completion_criteria.criteria_id,
+                    "public_completion_criteria_summary": public_completion_criteria_summary(public_contract),
+                    "public_matrix_eligible": True,
+                    "public_evidence_export_state": public_evidence_export_state(
+                        EvidencePrivacyState.LOCAL_PRIVATE,
+                        SanitizerStatus.PENDING
+                        if self.config.public_sanitizer_required
+                        else SanitizerStatus.NOT_REQUIRED,
+                    ),
+                    "public_target_class": self.config.public_target_class
+                    or _public_target_class_for_runtime(public_contract, self.config.public_allowlist_id),
                     "public_task_contract": public_contract.model_dump(mode="json"),
                 }
             )
             url_decision = public_policy.check_url(self.config.public_target_url)
             if not url_decision.allowed:
+                _record_public_blocked_completion(runtime, public_contract, url_decision.reason)
+                _attach_public_reliability_matrix_row(
+                    runtime=runtime,
+                    final_status=ExecutionStatus.BLOCKED,
+                    stop_reason=url_decision.reason,
+                    failure_reason=None,
+                )
                 return BrowserExecutionResult(
                     execution_id=execution_id,
                     execution_mode=execution_mode,
-                    final_status=ExecutionStatus.STOPPED,
+                    final_status=ExecutionStatus.BLOCKED,
                     actions=[],
                     failure_reason=None,
                     stop_reason=url_decision.reason,
@@ -397,6 +420,13 @@ class BrowserExecutorAdapter:
         ):
             status = ExecutionStatus.FAILED
             failure_reason = failure_reason or "public_readonly_missing_evidence"
+        if execution_mode is ExecutionMode.LIVE_PUBLIC_READONLY:
+            _attach_public_reliability_matrix_row(
+                runtime=runtime,
+                final_status=status,
+                stop_reason=stop_reason,
+                failure_reason=failure_reason,
+            )
         return BrowserExecutionResult(
             execution_id=execution_id,
             execution_mode=execution_mode,
@@ -468,6 +498,91 @@ def _public_task_contract_from_runtime(runtime: dict[str, Any]) -> PublicTaskCon
     if not isinstance(contract_payload, dict):
         return None
     return PublicTaskContract.model_validate(contract_payload)
+
+
+def _public_target_class_for_runtime(
+    contract: PublicTaskContract,
+    allowlist_id: str | None,
+) -> str:
+    if contract.target_class:
+        return contract.target_class
+    allowlist = (allowlist_id or contract.allowlist_id).lower()
+    task_kind = contract.task_kind.lower()
+    if "github" in allowlist or "repo" in task_kind:
+        return "public_repository"
+    if "mdn" in allowlist or "wikipedia" in allowlist or "reference" in task_kind:
+        return "reference"
+    return "documentation"
+
+
+def _attach_public_reliability_matrix_row(
+    *,
+    runtime: dict[str, Any],
+    final_status: ExecutionStatus,
+    stop_reason: str | None,
+    failure_reason: str | None,
+) -> None:
+    completion_payload = runtime.get("public_task_completion")
+    if not isinstance(completion_payload, dict):
+        return
+    task_id = runtime.get("public_task_id")
+    task_kind = runtime.get("public_task_kind")
+    criteria_id = runtime.get("public_completion_criteria_id")
+    if not task_id or not task_kind or not criteria_id:
+        return
+    privacy_state = EvidencePrivacyState(runtime.get("evidence_privacy_state", EvidencePrivacyState.LOCAL_PRIVATE))
+    sanitizer_status = SanitizerStatus(runtime.get("sanitizer_status", SanitizerStatus.PENDING))
+    visible_result_state = _public_visible_result_state(runtime)
+    export_state = public_evidence_export_state(privacy_state, sanitizer_status)
+    runtime["public_evidence_export_state"] = export_state
+    row = build_public_readonly_reliability_row(
+        task_id=str(task_id),
+        target_label=str(runtime.get("public_target_label") or "public target"),
+        target_class=str(runtime.get("public_target_class") or "documentation"),
+        task_kind=str(task_kind),
+        completion_criteria_id=str(criteria_id),
+        completion_criteria_summary=list(runtime.get("public_completion_criteria_summary") or []),
+        outcome=completion_payload.get("completion_state", PublicTaskCompletionState.FAILED.value),
+        final_status=final_status,
+        observed_proof_summary=completion_payload.get("observed_proof") or {},
+        unmet_criteria=completion_payload.get("unmet_criteria") or [],
+        stop_or_failure_reason=(
+            completion_payload.get("stop_reason")
+            or completion_payload.get("failure_reason")
+            or stop_reason
+            or failure_reason
+        ),
+        evidence_privacy_state=privacy_state,
+        sanitizer_status=sanitizer_status,
+        visible_result_state=visible_result_state,
+        export_state=export_state,
+        regression_coverage=[f"{completion_payload.get('completion_state', 'unknown')}_coverage"],
+    )
+    runtime["public_reliability_matrix_row"] = row.model_dump(mode="json")
+
+
+def _record_public_blocked_completion(
+    runtime: dict[str, Any],
+    contract: PublicTaskContract,
+    reason: str,
+) -> None:
+    completion = PublicTaskCompletionVerifier(contract).classify_blocked(reason)
+    runtime["public_task_completion"] = completion.model_dump(mode="json")
+    runtime["public_completion_state"] = completion.completion_state.value
+    runtime["public_observed_proof_summary"] = completion.observed_proof
+    runtime["public_unmet_criteria"] = completion.unmet_criteria
+    _apply_visual_artifact_completion(runtime, completion.completion_state)
+
+
+def _public_visible_result_state(runtime: dict[str, Any]) -> str:
+    final = runtime.get("public_final_visual_result")
+    if not isinstance(final, dict):
+        return "not_captured"
+    if final.get("privacy_state") == EvidencePrivacyState.PUBLIC_SAFE.value:
+        return "public_safe"
+    if final.get("sanitizer_status") == SanitizerStatus.FAILED.value:
+        return "sanitizer_failed"
+    return "local_private"
 
 
 def _public_task_completion_from_runtime_issue(

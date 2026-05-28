@@ -32,6 +32,21 @@ function setCards(id, cards) {
     .join("");
 }
 
+function matrixRowForTrace(trace) {
+  return trace.execution_runtime?.public_reliability_matrix_row || {};
+}
+
+function matrixOutcomeClass(outcome) {
+  const classes = {
+    completed: "matrix-outcome-completed",
+    partial: "matrix-outcome-partial",
+    stopped: "matrix-outcome-stopped",
+    failed: "matrix-outcome-failed",
+    blocked: "matrix-outcome-blocked",
+  };
+  return classes[outcome] || "warn";
+}
+
 function artifactImageSrc(trace, artifact) {
   if (!trace.execution_id || !artifact?.artifact_id) return "";
   return `/api/executions/${encodeURIComponent(trace.execution_id)}/visual-artifacts/${encodeURIComponent(
@@ -71,11 +86,8 @@ function renderVisualResult(trace) {
     return;
   }
 
-  const statusClass = ["succeeded", "completed"].includes(
-    trace.final_status || finalArtifact.completion_state,
-  )
-    ? "good"
-    : "warn";
+  const outcome = runtime.public_completion_state || finalArtifact.completion_state;
+  const statusClass = outcome === "completed" ? "good" : matrixOutcomeClass(outcome);
   preview.className = `visual-preview ${statusClass}`;
   preview.innerHTML = `<img alt="Public-readonly final visual result" src="${artifactImageSrc(
     trace,
@@ -115,6 +127,7 @@ function inputSourceForTrace(trace) {
 function renderSummary(trace) {
   const mode = trace.execution_mode || trace.execution_runtime?.execution_mode || "unknown";
   const route = trace.route_decision || trace.execution_runtime?.route_decision || {};
+  const matrix = matrixRowForTrace(trace);
   const lines = [
     `Input source: ${inputSourceForTrace(trace)}`,
     `Route: ${route.route_type || "unknown"}`,
@@ -125,12 +138,19 @@ function renderSummary(trace) {
   if (route.route_type === "public_readonly") {
     lines.push(`Public-readonly target: ${route.public_target_label || "unknown"}`);
     lines.push(`Public task: ${route.public_task_id || "unknown"} (${route.public_task_kind || "unknown"})`);
+    lines.push(`Target class: ${route.public_target_class || matrix.target_class || "unknown"}`);
     lines.push(`Completion criteria: ${route.public_completion_criteria_id || "unknown"}`);
+    lines.push(
+      `Completion proof: ${(route.public_completion_criteria_summary || matrix.completion_criteria_summary || []).join(", ") || "unknown"}`,
+    );
     lines.push(
       `Completion state: ${
         trace.execution_runtime?.public_completion_state || route.public_completion_state || "pending"
       }`,
     );
+    lines.push(`Reliability matrix: ${matrix.outcome || "pending"}`);
+    lines.push(`Visible result: ${matrix.visible_result_state || "not_captured"}`);
+    lines.push(`Export state: ${matrix.export_state || route.public_evidence_export_state || "unknown"}`);
     lines.push(`Private trace state: ${route.evidence_privacy_state || trace.evidence_privacy_state || "unknown"}`);
     lines.push(`Sanitizer status: ${route.sanitizer_status || trace.sanitizer_status || "unknown"}`);
   }
@@ -148,23 +168,31 @@ function renderSummary(trace) {
 
 function renderRoute(trace) {
   const route = trace.route_decision || trace.execution_runtime?.route_decision || {};
+  const matrix = matrixRowForTrace(trace);
   const live = route.live_evidence_eligible ? "live evidence" : "not live evidence";
   const tone = route.live_evidence_eligible ? "good" : "warn";
   const limits = route.execution_limits || {};
+  const outcome = matrix.outcome || trace.execution_runtime?.public_completion_state || route.public_completion_state;
+  const criteriaSummary = route.public_completion_criteria_summary || matrix.completion_criteria_summary || [];
   setCards("routeCards", [
     ["Route", route.route_type || "unknown", tone],
     ["Target", route.public_target_label || route.controlled_fixture_id || "none"],
+    ["Target class", route.public_target_class || matrix.target_class || "n/a"],
     ["Task", route.public_task_id || "n/a"],
     ["Task kind", route.public_task_kind || "n/a"],
     ["Mode", route.execution_mode || trace.execution_mode || "unknown"],
     ["Evidence", route.evidence_mode || trace.execution_runtime?.evidence_mode || "unknown"],
     ["Eligibility", live, tone],
+    ["Matrix eligible", route.public_matrix_eligible ? "yes" : "no"],
     ["Allowlist", route.public_allowlist_id || "n/a"],
     ["Origin", route.public_origin || "n/a"],
     ["Criteria", route.public_completion_criteria_id || "n/a"],
-    ["Completion", trace.execution_runtime?.public_completion_state || route.public_completion_state || "n/a"],
+    ["Criteria proof", criteriaSummary.length ? criteriaSummary.join(", ") : "n/a"],
+    ["Outcome", outcome || "n/a", matrixOutcomeClass(outcome)],
+    ["Completion", trace.execution_runtime?.public_completion_state || route.public_completion_state || "n/a", matrixOutcomeClass(outcome)],
     ["Privacy", route.evidence_privacy_state || trace.evidence_privacy_state || "n/a"],
     ["Sanitizer", route.sanitizer_status || trace.sanitizer_status || "n/a"],
+    ["Export", matrix.export_state || route.public_evidence_export_state || "n/a"],
     ["Limits", limits.max_steps ? `${limits.max_steps} steps / ${limits.timeout_seconds}s` : "n/a"],
   ]);
   $("routeMessage").textContent = route.user_message || route.route_reason || "No route decision recorded.";
@@ -172,21 +200,26 @@ function renderRoute(trace) {
 
 function renderEvidence(trace) {
   const route = trace.route_decision || {};
+  const matrix = matrixRowForTrace(trace);
   const lastAction = (trace.browser_actions || []).at(-1) || {};
   const lastStep = (trace.agentic_steps || []).at(-1) || {};
   const browserState = lastAction.browser_state || lastStep.action_result?.browser_state || {};
   const refs = trace.grounding_evidence_refs || lastAction.grounding_evidence_refs || [];
   const completionState = trace.execution_runtime?.public_completion_state;
+  const outcome = matrix.outcome || completionState;
   const observedProof = trace.execution_runtime?.public_observed_proof_summary || {};
   const unmetCriteria = trace.execution_runtime?.public_unmet_criteria || [];
   setCards("evidenceCards", [
-    ["Status", trace.final_status || "unknown", trace.final_status === "succeeded" ? "good" : "warn"],
+    ["Status", trace.final_status || "unknown", outcome === "completed" ? "good" : matrixOutcomeClass(outcome)],
     ["Page", browserState.page_title || route.public_target_label || route.controlled_target_ref || "none"],
     ["Action", lastAction.action_type || lastStep.selected_action || "none"],
     ["Grounding", refs.length ? `${refs.length} refs` : "none"],
-    ["Public completion", completionState || "n/a", completionState === "completed" ? "good" : "warn"],
+    ["Matrix outcome", outcome || "n/a", matrixOutcomeClass(outcome)],
+    ["Public completion", completionState || "n/a", completionState === "completed" ? "good" : matrixOutcomeClass(outcome)],
     ["Observed proof", Object.keys(observedProof).length ? Object.keys(observedProof).join(", ") : "none"],
     ["Unmet criteria", unmetCriteria.length ? unmetCriteria.join(", ") : "none"],
+    ["Visible result", matrix.visible_result_state || "n/a"],
+    ["Export state", matrix.export_state || route.public_evidence_export_state || "n/a"],
     ["Trace privacy", trace.evidence_privacy_state || route.evidence_privacy_state || "n/a"],
     ["Sanitizer", trace.sanitizer_status || route.sanitizer_status || "n/a"],
   ]);

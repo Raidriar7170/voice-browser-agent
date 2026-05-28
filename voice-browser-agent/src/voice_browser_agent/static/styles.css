@@ -157,6 +157,36 @@ label {
   background: #fff8ec;
 }
 
+.metric-card.matrix-outcome-completed,
+.visual-preview.matrix-outcome-completed {
+  border-color: #4f9462;
+  background: #edf8f0;
+}
+
+.metric-card.matrix-outcome-partial,
+.visual-preview.matrix-outcome-partial {
+  border-color: #b9993d;
+  background: #fff8df;
+}
+
+.metric-card.matrix-outcome-stopped,
+.visual-preview.matrix-outcome-stopped {
+  border-color: #c77c3a;
+  background: #fff2e7;
+}
+
+.metric-card.matrix-outcome-failed,
+.visual-preview.matrix-outcome-failed {
+  border-color: #b65b5b;
+  background: #fff0f0;
+}
+
+.metric-card.matrix-outcome-blocked,
+.visual-preview.matrix-outcome-blocked {
+  border-color: #6f7c86;
+  background: #f0f3f5;
+}
+
 .visual-result-panel {
   display: grid;
   gap: 10px;

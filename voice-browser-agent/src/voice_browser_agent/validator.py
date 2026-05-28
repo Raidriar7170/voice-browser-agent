@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import ipaddress
+import re
+from urllib.parse import urlparse
+
 from .models import BrowserTaskRequest, ClarificationRequest, ValidationResult
 
 
@@ -109,6 +113,7 @@ def detect_safety_flags(text: str) -> list[str]:
         for flag, keywords in SAFETY_KEYWORDS.items()
         if any(_keyword_is_active(lowered, keyword.lower()) for keyword in keywords)
     ]
+    flags.extend(_detect_url_safety_flags(text))
     return sorted(set(flags), key=flags.index)
 
 
@@ -136,3 +141,30 @@ def _keyword_is_active(text: str, keyword: str) -> bool:
         if any(marker in text for marker in negated):
             return False
     return keyword in text
+
+
+def _detect_url_safety_flags(text: str) -> list[str]:
+    flags: list[str] = []
+    for raw_url in re.findall(r"(?:https?|file|data|javascript):[^\s，。；;]+", text, flags=re.IGNORECASE):
+        parsed = urlparse(raw_url)
+        if parsed.scheme not in {"http", "https"}:
+            flags.append("unsafe_protocol")
+            continue
+        if parsed.username or parsed.password:
+            flags.append("credentialed_url")
+        host = (parsed.hostname or "").lower()
+        if _is_private_host(host):
+            flags.append("private_network_target")
+    return flags
+
+
+def _is_private_host(host: str) -> bool:
+    if not host:
+        return False
+    if host in {"localhost", "localhost.localdomain"} or host.endswith(".localhost"):
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved

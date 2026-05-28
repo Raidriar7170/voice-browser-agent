@@ -23,6 +23,8 @@ The Operator Console v3 keeps route-aware controlled showcase behavior for GitHu
 
 The public-readonly smoke fixture is `fixtures/public-readonly-smoke.json`. It records `openai-docs-overview`, `python-docs-search`, `github-repo-search`, `github-public-repo-read`, and `mdn-readonly-reference` with task kind, allowed slots, completion criteria, execution mode, safety boundaries, visual artifact policy, and private/public artifact status. GitHub outcomes may complete, stop, fail, or block because captcha, login, rate-limit, network, permission, and UI drift boundaries are treated as honest reliability evidence.
 
+The public-readonly reliability matrix is generated from those task contracts. It reports target class, completion criteria, observed proof summary, unmet criteria, outcome, stop/failure reason, privacy state, sanitizer status, and export state without publishing raw public traces, screenshots, page text, cookies, credentials, browser profiles, local paths, private data, or remote host details.
+
 The checked-in preview traces in `fixtures/traces/sanitized/` are generated in explicit demo-preview mode. A preview trace uses `demo_preview_not_executed` when the browser was not launched.
 
 Live controlled traces belong in `fixtures/traces/live-sanitized/`. These artifacts are separate from preview traces, must be marked with `execution_mode: live_controlled`, and may report `succeeded`, `failed`, or `stopped` as long as the trace includes action evidence or grounding evidence plus an explicit failure or stop reason. The first required live controlled targets are `icon-search` and `color-swatch`; `svg-dashboard` is the optional third controlled visual task.

@@ -10,6 +10,7 @@ from .models import (
     EvidencePrivacyState,
     ExecutionMode,
     NormalizedOutput,
+    PublicTaskCompletionState,
     RouteDecision,
     RouteType,
     SanitizerStatus,
@@ -20,6 +21,10 @@ from .public_readonly import (
     has_transcript_url,
     match_public_readonly_task,
     match_public_readonly_target,
+    public_completion_criteria_summary,
+    public_evidence_export_state,
+    public_target_class_for_contract,
+    rejected_public_url_reason,
     request_looks_public,
 )
 
@@ -136,9 +141,35 @@ def _public_readonly_route(
             )
         return None
 
+    looks_public = request_looks_public(request)
+    unsafe_url_reason = rejected_public_url_reason(request, config)
+    if unsafe_url_reason and (
+        config.enabled
+        or requested_execution_mode is ExecutionMode.LIVE_PUBLIC_READONLY
+        or looks_public
+        or has_transcript_url(request)
+    ):
+        explicit_reliability_attempt = bool(request.public_task_slots) or "public_readonly" in {
+            constraint.lower() for constraint in request.constraints
+        }
+        route_reason = (
+            unsafe_url_reason
+            if requested_execution_mode is ExecutionMode.LIVE_PUBLIC_READONLY
+            and explicit_reliability_attempt
+            else "public_readonly_target_not_allowlisted"
+        )
+        if (
+            requested_execution_mode is ExecutionMode.LIVE_PUBLIC_READONLY
+            and not explicit_reliability_attempt
+        ):
+            route_reason = "public_readonly_override_not_allowed"
+        return _blocked_public_route(
+            reason=route_reason,
+            message="Public-readonly execution was blocked before browser action because the target URL is unsafe.",
+        )
+
     target = match_public_readonly_target(request, config)
     task_match = match_public_readonly_task(request, config) if target is not None else None
-    looks_public = request_looks_public(request)
     if request.safety_flags:
         if target or looks_public or requested_execution_mode is ExecutionMode.LIVE_PUBLIC_READONLY:
             return _blocked_public_route(
@@ -155,6 +186,10 @@ def _public_readonly_route(
 
     if target is not None and config.enabled and task_match is not None:
         task_target, contract, slots = task_match
+        privacy_state = EvidencePrivacyState.LOCAL_PRIVATE
+        sanitizer_status = (
+            SanitizerStatus.PENDING if config.sanitizer_required else SanitizerStatus.NOT_REQUIRED
+        )
         return RouteDecision(
             route_type=RouteType.PUBLIC_READONLY,
             execution_mode=ExecutionMode.LIVE_PUBLIC_READONLY,
@@ -167,16 +202,21 @@ def _public_readonly_route(
             live_evidence_eligible=False,
             public_readonly_enabled=True,
             public_target_label=task_target.label,
+            public_target_class=public_target_class_for_contract(task_target, contract),
             public_origin=task_target.origin,
             public_allowlist_id=task_target.allowlist_id,
             public_task_id=contract.task_id,
             public_task_kind=contract.task_kind,
             public_task_slots=slots,
             public_completion_criteria_id=contract.completion_criteria.criteria_id,
-            evidence_privacy_state=EvidencePrivacyState.LOCAL_PRIVATE,
-            sanitizer_status=SanitizerStatus.PENDING
-            if config.sanitizer_required
-            else SanitizerStatus.NOT_REQUIRED,
+            public_completion_criteria_summary=public_completion_criteria_summary(contract),
+            public_matrix_eligible=True,
+            public_evidence_export_state=public_evidence_export_state(
+                privacy_state,
+                sanitizer_status,
+            ),
+            evidence_privacy_state=privacy_state,
+            sanitizer_status=sanitizer_status,
             execution_limits={
                 "max_steps": contract.max_steps,
                 "timeout_seconds": contract.timeout_seconds,
@@ -239,6 +279,9 @@ def _blocked_public_route(reason: str, message: str) -> RouteDecision:
         user_message=message,
         live_evidence_eligible=False,
         public_readonly_enabled=False,
+        public_matrix_eligible=False,
+        public_completion_state=PublicTaskCompletionState.BLOCKED,
+        public_evidence_export_state="not_applicable",
     )
 
 

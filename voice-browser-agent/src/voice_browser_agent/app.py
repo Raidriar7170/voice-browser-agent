@@ -583,6 +583,7 @@ class AppState:
                     public_contract,
                 ),
                 public_target_label=route_decision.public_target_label if route_decision else None,
+                public_target_class=route_decision.public_target_class if route_decision else None,
                 public_origin=route_decision.public_origin if route_decision else None,
                 public_allowlist_id=route_decision.public_allowlist_id if route_decision else None,
                 public_task_contract=public_contract,

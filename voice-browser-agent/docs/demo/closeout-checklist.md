@@ -49,6 +49,8 @@ For the command-first console flow, also inspect one route-aware command run and
 
 For the public-readonly flow, inspect one completed, partial, stopped, failed, and blocked state. Confirm the console shows task id, task kind, completion criteria, completion state, stop/failure reason, local/private sanitizer state, visible result artifact state when available, and never marks opened-but-incomplete public tasks as successful. For GitHub, confirm controlled showcase and real `github.com` public-readonly evidence are labeled separately.
 
+Confirm the public-readonly reliability matrix appears in the release-pack manifest and index as a bounded local read-only summary. It must not expose raw public runtime traces, screenshots, page text, cookies, credentials, browser profiles, local paths, private data, or remote host details.
+
 ## Archive Order
 
 Confirm `speech-to-task-adaptation-dataset` has already been archived before archiving `project-closeout-interview-pack`.
@@ -70,4 +72,4 @@ Recommended final sequence:
 
 ## Boundaries
 
-The closeout MVP is a bounded spoken-command browser execution project. Model fine-tuning, expanded dataset collection, public hosting, captcha bypass, account workflows, production deployment, leaderboard claims, state-of-the-art claims, and broad public-web automation remain out of scope for this handoff.
+The closeout MVP is a bounded spoken-command browser execution project. Model fine-tuning, expanded dataset collection, public hosting, verification-barrier bypassing, account workflows, production deployment, ranking tables, leaderboard claims, state-of-the-art claims, and broad public-web automation remain out of scope for this handoff.

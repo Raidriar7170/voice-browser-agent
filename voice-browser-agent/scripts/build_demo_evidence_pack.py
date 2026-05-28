@@ -9,16 +9,32 @@ from pathlib import Path
 from typing import Any
 
 from voice_browser_agent.demo_tasks import selected_live_fixture_ids
+from voice_browser_agent.public_readonly import (
+    ReliabilityMatrixError,
+    build_public_readonly_reliability_row,
+    load_public_readonly_smoke_set,
+    summarize_reliability_matrix,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TRACE_ROOT = PROJECT_ROOT / "fixtures/traces"
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "runtime/demo-evidence-release-pack"
 FORBIDDEN_MARKERS = (
+    "raw_page_text",
+    "raw_page_html",
+    "raw_visible_text",
+    "visible_text",
+    "unsanitized_runtime",
+    "raw_runtime",
+    "local_file_uri",
     "raw_audio_path",
     "raw_screenshot",
     "browser_profile",
     "browser_profile_path",
+    "profile_path",
+    "storage_state",
+    "storage_state_path",
     "cookie",
     "cookies",
     "credential",
@@ -30,6 +46,9 @@ FORBIDDEN_MARKERS = (
     "remote_vision_backend_url",
     "controlled_target_url",
     "file:///Users/",
+    "file:///users/",
+    "/Users/",
+    "/users/",
 )
 TRACE_GROUPS = (
     ("sanitized", "demo_preview", "demo-*.json"),
@@ -56,6 +75,7 @@ def build_release_pack(
     artifacts = collect_artifacts(project_root=project_root, trace_root=trace_root)
     local_private_exclusions = collect_local_private_exclusions(trace_root=trace_root)
     check_completeness(project_root=project_root, artifacts=artifacts)
+    reliability_matrix = build_public_readonly_reliability_matrix(project_root)
 
     if output_dir.exists():
         shutil.rmtree(output_dir)
@@ -74,6 +94,7 @@ def build_release_pack(
         "privacy_scan": {"status": "passed"},
         "artifacts": artifacts,
         "local_private_exclusions": local_private_exclusions,
+        "public_readonly_reliability_matrix": reliability_matrix,
     }
     manifest_path = output_dir / "manifest.json"
     manifest_path.write_text(
@@ -86,6 +107,41 @@ def build_release_pack(
     scan_text_for_private_markers(html_path.read_text(encoding="utf-8"), path=html_path)
     scan_text_for_private_markers(manifest_path.read_text(encoding="utf-8"), path=manifest_path)
     return manifest
+
+
+def build_public_readonly_reliability_matrix(project_root: Path) -> dict[str, Any]:
+    smoke_path = project_root / "fixtures/public-readonly-smoke.json"
+    try:
+        smoke_set = load_public_readonly_smoke_set(smoke_path)
+        rows = []
+        for task in smoke_set.tasks:
+            evidence = task.reliability_attempt_evidence
+            scan_payload_for_private_markers(evidence.model_dump(mode="json"), path=smoke_path)
+            rows.append(
+                build_public_readonly_reliability_row(
+                    task_id=task.task_id,
+                    target_label=task.target_label,
+                    target_class=task.target_class,
+                    task_kind=task.task_kind,
+                    completion_criteria_id=task.completion_criteria.criteria_id,
+                    completion_criteria_summary=task.completion_criteria.required_proof,
+                    outcome=evidence.outcome,
+                    final_status=evidence.final_status,
+                    observed_proof_summary=evidence.observed_proof_summary,
+                    unmet_criteria=evidence.unmet_criteria,
+                    stop_or_failure_reason=evidence.stop_or_failure_reason,
+                    evidence_privacy_state=evidence.evidence_privacy_state,
+                    sanitizer_status=evidence.sanitizer_status,
+                    visible_result_state=evidence.visible_result_state,
+                    export_state=evidence.export_state,
+                    regression_coverage=evidence.regression_coverage
+                    or task.regression_coverage
+                    or [f"{evidence.outcome.value}_coverage"],
+                )
+            )
+        return summarize_reliability_matrix(rows).model_dump(mode="json")
+    except ReliabilityMatrixError as exc:
+        raise EvidencePackError(str(exc)) from exc
 
 
 def collect_local_private_exclusions(trace_root: Path) -> list[dict[str, Any]]:
@@ -330,6 +386,10 @@ def scan_text_for_private_markers(text: str, path: Path) -> None:
 
 def render_html(manifest: dict[str, Any]) -> str:
     rows = "\n".join(render_row(item) for item in manifest["artifacts"])
+    matrix_rows = "\n".join(
+        render_matrix_row(item)
+        for item in manifest.get("public_readonly_reliability_matrix", {}).get("rows", [])
+    )
     generated_at = html.escape(manifest["generated_at"])
     return f"""<!doctype html>
 <html lang="en">
@@ -349,6 +409,26 @@ def render_html(manifest: dict[str, Any]) -> str:
     <h1>Voice-to-Browser Agent Evidence Pack</h1>
     <p>Bounded demo evidence pack for reproducible reviewer handoff.</p>
     <p>Generated at <code>{generated_at}</code>. Privacy scan: <strong>passed</strong>.</p>
+    <h2>Public-readonly reliability matrix</h2>
+    <p>Bounded local read-only matrix; raw public runtime traces, screenshots, and page text remain local/private.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Task</th>
+          <th>Target</th>
+          <th>Class</th>
+          <th>Kind</th>
+          <th>Outcome</th>
+          <th>Criteria</th>
+          <th>Reason</th>
+          <th>Export</th>
+        </tr>
+      </thead>
+      <tbody>
+{matrix_rows}
+      </tbody>
+    </table>
+    <h2>Packaged evidence</h2>
     <table>
       <thead>
         <tr>
@@ -390,6 +470,23 @@ def render_row(item: dict[str, Any]) -> str:
         f"<td>{html.escape(provider_label)}</td>"
         f"<td>{html.escape(asr.get('adapter_name') or '')}</td>"
         f"<td>{html.escape(review.get('status') or '')}</td>"
+        "</tr>"
+    )
+
+
+def render_matrix_row(item: dict[str, Any]) -> str:
+    reason = item.get("stop_or_failure_reason") or ""
+    criteria = ", ".join(item.get("completion_criteria_summary") or [])
+    return (
+        "        <tr>"
+        f"<td>{html.escape(item.get('task_id') or '')}</td>"
+        f"<td>{html.escape(item.get('target_label') or '')}</td>"
+        f"<td>{html.escape(item.get('target_class') or '')}</td>"
+        f"<td>{html.escape(item.get('task_kind') or '')}</td>"
+        f"<td>{html.escape(item.get('outcome') or '')}</td>"
+        f"<td>{html.escape(criteria)}</td>"
+        f"<td>{html.escape(reason)}</td>"
+        f"<td>{html.escape(item.get('export_state') or '')}</td>"
         "</tr>"
     )
 
