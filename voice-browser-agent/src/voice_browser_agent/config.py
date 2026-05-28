@@ -21,6 +21,12 @@ class RuntimeConfig(BaseSettings):
     enable_status_voice_feedback: bool = False
     public_trace_exports: bool = True
     demo_dry_run: bool = True
+    public_readonly_enabled: bool = False
+    public_readonly_allowlist: str = ""
+    public_readonly_max_steps: int = Field(default=3, ge=1, le=5)
+    public_readonly_timeout_seconds: int = Field(default=15, ge=1, le=60)
+    public_readonly_private_traces: bool = True
+    public_readonly_sanitizer_required: bool = True
 
     @property
     def uploads_dir(self) -> Path:

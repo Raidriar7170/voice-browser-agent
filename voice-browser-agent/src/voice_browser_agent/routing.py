@@ -7,11 +7,19 @@ from .models import (
     ClarificationRequest,
     ConfirmationDecision,
     ConfirmationState,
+    EvidencePrivacyState,
     ExecutionMode,
     NormalizedOutput,
     RouteDecision,
     RouteType,
+    SanitizerStatus,
     ValidationResult,
+)
+from .public_readonly import (
+    PublicReadonlyRoutingConfig,
+    has_transcript_url,
+    match_public_readonly_target,
+    request_looks_public,
 )
 
 
@@ -19,6 +27,8 @@ def select_execution_route(
     normalized: NormalizedOutput,
     validation: ValidationResult | None,
     confirmation: ConfirmationDecision | None = None,
+    public_readonly_config: PublicReadonlyRoutingConfig | None = None,
+    requested_execution_mode: ExecutionMode | None = None,
 ) -> RouteDecision:
     if isinstance(normalized, ClarificationRequest):
         return RouteDecision(
@@ -50,6 +60,15 @@ def select_execution_route(
             live_evidence_eligible=False,
         )
 
+    if requested_execution_mode is ExecutionMode.LIVE_PUBLIC_READONLY:
+        public_route = _public_readonly_route(
+            normalized,
+            public_readonly_config,
+            requested_execution_mode=requested_execution_mode,
+        )
+        if public_route is not None:
+            return public_route
+
     fixture_id = _fixture_for_request(normalized)
     if fixture_id is not None:
         controlled_task = get_live_controlled_task(fixture_id)
@@ -60,6 +79,14 @@ def select_execution_route(
                 evidence_mode=_evidence_mode_for_controlled_task(controlled_task.fixture_id),
                 reason=_route_reason_for_fixture(controlled_task.fixture_id),
             )
+
+    public_route = _public_readonly_route(
+        normalized,
+        public_readonly_config,
+        requested_execution_mode=requested_execution_mode,
+    )
+    if public_route is not None:
+        return public_route
 
     text = _request_text(normalized)
     if "openai" in text:
@@ -83,6 +110,113 @@ def select_execution_route(
         route_reason="no_supported_controlled_target",
         user_message="No supported controlled live target matched; using demo-preview mode.",
         live_evidence_eligible=False,
+    )
+
+
+def _public_readonly_route(
+    request: BrowserTaskRequest,
+    config: PublicReadonlyRoutingConfig | None,
+    requested_execution_mode: ExecutionMode | None,
+) -> RouteDecision | None:
+    if config is None:
+        if requested_execution_mode is ExecutionMode.LIVE_PUBLIC_READONLY:
+            return _blocked_public_route(
+                reason="public_readonly_override_not_allowed",
+                message="Public-readonly execution cannot be selected without backend policy approval.",
+            )
+        return None
+
+    target = match_public_readonly_target(request, config)
+    looks_public = request_looks_public(request)
+    if request.safety_flags:
+        if target or looks_public or requested_execution_mode is ExecutionMode.LIVE_PUBLIC_READONLY:
+            return _blocked_public_route(
+                reason="public_readonly_unsafe_command",
+                message="Public-readonly execution stopped before browser action because the command is not read-only.",
+            )
+        return None
+
+    if target is not None and config.enabled:
+        return RouteDecision(
+            route_type=RouteType.PUBLIC_READONLY,
+            execution_mode=ExecutionMode.LIVE_PUBLIC_READONLY,
+            evidence_mode="live_public_readonly",
+            route_reason="matched_allowlisted_public_target",
+            user_message=(
+                f"Running local isolated public-readonly execution for {target.label}; "
+                "trace evidence stays local/private until sanitizer approval."
+            ),
+            live_evidence_eligible=False,
+            public_readonly_enabled=True,
+            public_target_label=target.label,
+            public_origin=target.origin,
+            public_allowlist_id=target.allowlist_id,
+            evidence_privacy_state=EvidencePrivacyState.LOCAL_PRIVATE,
+            sanitizer_status=SanitizerStatus.PENDING
+            if config.sanitizer_required
+            else SanitizerStatus.NOT_REQUIRED,
+            execution_limits={
+                "max_steps": config.max_steps,
+                "timeout_seconds": config.timeout_seconds,
+            },
+        )
+
+    if target is not None and not config.enabled:
+        return RouteDecision(
+            route_type=RouteType.DEMO_PREVIEW,
+            execution_mode=ExecutionMode.DEMO_PREVIEW,
+            evidence_mode="demo_preview",
+            route_reason="public_readonly_disabled",
+            user_message=(
+                "Public-readonly execution is disabled by default; this command will be "
+                "shown as demo-preview evidence only."
+            ),
+            live_evidence_eligible=False,
+            public_readonly_enabled=False,
+            public_target_label=target.label,
+            public_origin=target.origin,
+            public_allowlist_id=target.allowlist_id,
+            evidence_privacy_state=EvidencePrivacyState.NOT_APPLICABLE,
+            sanitizer_status=SanitizerStatus.NOT_REQUIRED,
+        )
+
+    if requested_execution_mode is ExecutionMode.LIVE_PUBLIC_READONLY:
+        return _blocked_public_route(
+            reason="public_readonly_override_not_allowed",
+            message="Manual public-readonly execution was blocked because no allowlisted target matched.",
+        )
+
+    if config.enabled and (looks_public or has_transcript_url(request)):
+        return _blocked_public_route(
+            reason="public_readonly_target_not_allowlisted",
+            message="Public-readonly execution is enabled, but this command does not match an allowlisted target.",
+        )
+
+    if not config.enabled and looks_public:
+        return RouteDecision(
+            route_type=RouteType.DEMO_PREVIEW,
+            execution_mode=ExecutionMode.DEMO_PREVIEW,
+            evidence_mode="demo_preview",
+            route_reason="public_readonly_disabled",
+            user_message=(
+                "Public-readonly execution is disabled by default; this command will be "
+                "shown as demo-preview evidence only."
+            ),
+            live_evidence_eligible=False,
+            public_readonly_enabled=False,
+        )
+    return None
+
+
+def _blocked_public_route(reason: str, message: str) -> RouteDecision:
+    return RouteDecision(
+        route_type=RouteType.BLOCKED,
+        execution_mode=ExecutionMode.DEMO_PREVIEW,
+        evidence_mode="blocked",
+        route_reason=reason,
+        user_message=message,
+        live_evidence_eligible=False,
+        public_readonly_enabled=False,
     )
 
 

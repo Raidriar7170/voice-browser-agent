@@ -1,0 +1,31 @@
+{
+  "tasks": [
+    {
+      "id": "openai-docs-overview",
+      "target_label": "OpenAI Docs",
+      "allowlist_id": "openai-docs",
+      "command": "打开 OpenAI 的公开文档页面并读取标题",
+      "artifact_status": "local_private_until_sanitized"
+    },
+    {
+      "id": "python-docs-search",
+      "target_label": "Python Docs",
+      "allowlist_id": "python-docs",
+      "command": "打开 Python 文档搜索 pathlib",
+      "artifact_status": "local_private_until_sanitized"
+    },
+    {
+      "id": "mdn-readonly-reference",
+      "target_label": "MDN Web Docs",
+      "allowlist_id": "mdn-docs",
+      "command": "读取 MDN 的 fetch API 参考页面",
+      "artifact_status": "local_private_until_sanitized"
+    }
+  ],
+  "boundaries": [
+    "read-only public pages",
+    "No login",
+    "private-by-default traces",
+    "not unrestricted public-web autonomy"
+  ]
+}

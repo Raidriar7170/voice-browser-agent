@@ -43,6 +43,11 @@ function renderSummary(trace) {
     `Evidence mode: ${route.evidence_mode || trace.execution_runtime?.evidence_mode || "unknown"}`,
     `Final status: ${trace.final_status || "unknown"}`,
   ];
+  if (route.route_type === "public_readonly") {
+    lines.push(`Public-readonly target: ${route.public_target_label || "unknown"}`);
+    lines.push(`Private trace state: ${route.evidence_privacy_state || trace.evidence_privacy_state || "unknown"}`);
+    lines.push(`Sanitizer status: ${route.sanitizer_status || trace.sanitizer_status || "unknown"}`);
+  }
   if (trace.stop_reason) lines.push(`Stop reason: ${trace.stop_reason}`);
   if (trace.failure_reason) lines.push(`Failure reason: ${trace.failure_reason}`);
   if (trace.normalized_output?.kind === "clarification_request") {
@@ -59,12 +64,18 @@ function renderRoute(trace) {
   const route = trace.route_decision || trace.execution_runtime?.route_decision || {};
   const live = route.live_evidence_eligible ? "live evidence" : "not live evidence";
   const tone = route.live_evidence_eligible ? "good" : "warn";
+  const limits = route.execution_limits || {};
   setCards("routeCards", [
     ["Route", route.route_type || "unknown", tone],
-    ["Target", route.controlled_fixture_id || "none"],
+    ["Target", route.public_target_label || route.controlled_fixture_id || "none"],
     ["Mode", route.execution_mode || trace.execution_mode || "unknown"],
     ["Evidence", route.evidence_mode || trace.execution_runtime?.evidence_mode || "unknown"],
     ["Eligibility", live, tone],
+    ["Allowlist", route.public_allowlist_id || "n/a"],
+    ["Origin", route.public_origin || "n/a"],
+    ["Privacy", route.evidence_privacy_state || trace.evidence_privacy_state || "n/a"],
+    ["Sanitizer", route.sanitizer_status || trace.sanitizer_status || "n/a"],
+    ["Limits", limits.max_steps ? `${limits.max_steps} steps / ${limits.timeout_seconds}s` : "n/a"],
   ]);
   $("routeMessage").textContent = route.user_message || route.route_reason || "No route decision recorded.";
 }
@@ -77,9 +88,11 @@ function renderEvidence(trace) {
   const refs = trace.grounding_evidence_refs || lastAction.grounding_evidence_refs || [];
   setCards("evidenceCards", [
     ["Status", trace.final_status || "unknown", trace.final_status === "succeeded" ? "good" : "warn"],
-    ["Page", browserState.page_title || route.controlled_target_ref || "none"],
+    ["Page", browserState.page_title || route.public_target_label || route.controlled_target_ref || "none"],
     ["Action", lastAction.action_type || lastStep.selected_action || "none"],
     ["Grounding", refs.length ? `${refs.length} refs` : "none"],
+    ["Trace privacy", trace.evidence_privacy_state || route.evidence_privacy_state || "n/a"],
+    ["Sanitizer", trace.sanitizer_status || route.sanitizer_status || "n/a"],
   ]);
 }
 
@@ -176,6 +189,7 @@ function renderReadiness(report) {
     ["browser_automation", checks.browser_automation || {}],
     ["real_vision_grounding", checks.real_vision_grounding || {}],
     ["runtime_privacy", checks.runtime_privacy || {}],
+    ["public_readonly", checks.public_readonly || {}],
   ];
   const actions = report.recommended_actions || [];
   const unavailable =
@@ -192,6 +206,9 @@ function renderReadiness(report) {
         )
         .join("")}
     </div>
+    <p class="hint">Public-readonly: ${
+      checks.public_readonly?.enabled ? "enabled for allowlisted read-only targets" : "disabled by default"
+    }.</p>
     ${unavailable}
     <p class="hint">${actions.join(" ")}</p>
   `;
@@ -425,7 +442,19 @@ $("exportButton").addEventListener("click", async () => {
   if (!state.executionId) return;
   try {
     const response = await fetch(`/api/traces/${state.executionId}/export`);
-    showJson("tracePanel", await response.json());
+    const exported = await response.json();
+    showJson("tracePanel", exported);
+    if (exported.route_decision?.route_type === "public_readonly") {
+      const publicSafe =
+        exported.evidence_privacy_state === "public_safe" && exported.sanitizer_status === "passed";
+      if (publicSafe) {
+        $("uploadStatus").textContent = "Exported public-readonly trace is public-safe.";
+      } else if (exported.sanitizer_status === "failed") {
+        $("uploadStatus").textContent = "Exported public-readonly trace failed sanitizer checks.";
+      } else {
+        $("uploadStatus").textContent = "Exported public-readonly trace remains local/private.";
+      }
+    }
   } catch (error) {
     renderError(error);
   }

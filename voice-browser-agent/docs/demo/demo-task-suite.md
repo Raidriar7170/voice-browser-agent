@@ -19,6 +19,8 @@ Public showcase tasks are limited to non-destructive browsing of public pages an
 
 The Operator Console v2 adds route-aware controlled showcase behavior for GitHub-shaped commands. A command such as "打开 GitHub" may execute `demo/pages/github_showcase.html` as controlled local live evidence, with the route decision recorded separately from the normalized command text. This does not claim that a real public website was operated.
 
+`live_public_readonly` is the first real public-web execution lane, but only for allowlisted public read-only pages such as docs or reference material. No login, upload, download, purchase, posting, private-data entry, or destructive submission is in scope. Traces are private-by-default and use `local_private_until_sanitized` artifact status unless a sanitizer pass marks them public-safe; this is not unrestricted public-web autonomy.
+
 The checked-in preview traces in `fixtures/traces/sanitized/` are generated in explicit demo-preview mode. A preview trace uses `demo_preview_not_executed` when the browser was not launched.
 
 Live controlled traces belong in `fixtures/traces/live-sanitized/`. These artifacts are separate from preview traces, must be marked with `execution_mode: live_controlled`, and may report `succeeded`, `failed`, or `stopped` as long as the trace includes action evidence or grounding evidence plus an explicit failure or stop reason. The first required live controlled targets are `icon-search` and `color-swatch`; `svg-dashboard` is the optional third controlled visual task.

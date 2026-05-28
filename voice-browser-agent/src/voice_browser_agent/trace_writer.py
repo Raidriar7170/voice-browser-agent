@@ -18,13 +18,22 @@ PRIVATE_KEYS = {
     "password",
     "remote_host",
     "private_url",
+    "url",
     "remote_vision_backend_url",
     "controlled_target_url",
     "browser_profile",
     "browser_profile_path",
+    "profile_path",
     "cookie",
     "cookies",
+    "public_target_url",
+    "public_url",
+    "raw_page_text",
+    "raw_page_html",
+    "visible_text",
     "raw_screenshot",
+    "local_file_uri",
+    "third_party_private_markers",
 }
 
 

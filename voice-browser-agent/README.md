@@ -31,6 +31,7 @@ The preflight reports primary ASR, fallback ASR, Playwright browser automation, 
 - Raw recordings, private traces, live browser screenshots, credentials, checkpoints, and remote host details stay out of version control.
 - JSON fixture manifests are replayed through `/api/fixtures/{fixture_id}/executions`; they are not raw audio uploads.
 - `VOICE_BROWSER_DEMO_DRY_RUN=true` records an explicit stopped preview trace. Disable it only when a real browser-use/browser-use-vision executor backend is configured.
+- `VOICE_BROWSER_PUBLIC_READONLY_ENABLED=false` keeps `live_public_readonly` disabled by default. When enabled, it only runs allowlisted public read-only targets in a fresh local browser context, with short step/time budgets, No login, no file transfer, and private-by-default traces until sanitizer approval.
 - Trace-derived training examples can be created from sanitized Execution Traces for later Speech-to-Task Adaptation. This is not a fine-tuning pipeline or model result claim.
 
 ## Demo Evidence
@@ -88,4 +89,4 @@ Use the console as a command-first operator workflow:
 - Controlled showcase: GitHub-shaped commands can route to a local controlled code-search page so reviewers see a visible browser action without depending on a real public website.
 - Advanced replay: fixture selection, execution-mode override, raw trace JSON, and sanitized export remain available for reproducibility and debugging.
 
-Use `demo_preview` for public showcase tasks unless they have an explicit controlled local route. Use `live_controlled` only for configured controlled pages, such as icon search, color swatch, SVG dashboard, and the controlled GitHub-like showcase. Public-readonly execution is disabled by default and remains local/private unless a future change adds allowlists, isolated browser contexts, short step budgets, and explicit sanitization. Clarification examples should stop before browser execution, confirmation examples should show the operator prompt before continuing, and exported traces must remain sanitized.
+Use `demo_preview` for public showcase tasks unless they have an explicit controlled local route. Use `live_controlled` only for configured controlled pages, such as icon search, color swatch, SVG dashboard, and the controlled GitHub-like showcase. Use `live_public_readonly` only for allowlisted public documentation or reference pages where every action is read-only and local/private evidence remains private-by-default until sanitizer approval. This is a bounded public-readonly lane, not a broad public-web autonomy claim. Clarification examples should stop before browser execution, confirmation examples should show the operator prompt before continuing, and exported traces must remain sanitized.

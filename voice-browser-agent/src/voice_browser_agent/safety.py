@@ -54,6 +54,7 @@ class ConfirmationGate:
 def detect_browser_state_stop(state: dict[str, Any]) -> BrowserStateStop | None:
     haystack = " ".join(str(state.get(key, "")) for key in ("url", "title", "visible_text")).lower()
     checks = [
+        ("file_transfer", ("upload", "download", "上传", "下载", "file")),
         ("login_required", ("login", "log in", "sign in", "登录", "账号", "密码")),
         ("payment_or_checkout", ("checkout", "payment", "pay", "结账", "付款", "支付")),
         ("deletion", ("delete", "删除", "remove account")),
@@ -65,4 +66,3 @@ def detect_browser_state_stop(state: dict[str, Any]) -> BrowserStateStop | None:
         if any(keyword in haystack for keyword in keywords):
             return BrowserStateStop(reason=reason, detail=f"browser state matched {reason}", evidence=state)
     return None
-

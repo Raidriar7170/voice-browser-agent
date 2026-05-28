@@ -110,6 +110,11 @@
               <td><code>fixtures/traces/real-use-sanitized/</code></td>
               <td>ASR unavailable, clarification, confirmation, cancellation, and ambiguous-target traces as reliability evidence.</td>
             </tr>
+            <tr>
+              <td><code>live_public_readonly</code></td>
+              <td>local private runtime traces until sanitized</td>
+              <td>Allowlisted public read-only pages only; No login, no mutation, private-by-default evidence.</td>
+            </tr>
           </tbody>
         </table>
       </section>
@@ -119,7 +124,8 @@
         <p>
           Operator Console v2 records a <code>route_decision</code> for command-first runs.
           GitHub-shaped commands can route to <code>demo/pages/github_showcase.html</code>
-          as controlled local evidence. Public-readonly execution remains disabled by default.
+          as controlled local evidence. Public-readonly execution remains disabled by default unless
+          an allowlist is configured for <code>live_public_readonly</code>.
         </p>
       </section>
 
@@ -159,7 +165,7 @@
         <p>
           The artifacts are small, local, privacy-gated project evidence. They do not include model
           training, model checkpoints, raw recordings, raw screenshots, browser profiles, credentials,
-          private URLs, remote host details, or unrestricted autonomy claims.
+          private URLs, remote host details, broad public-web autonomy claims, or write-capable public-site actions.
         </p>
       </section>
     </main>

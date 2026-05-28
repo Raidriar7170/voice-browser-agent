@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import RuntimeConfig, load_config
+from .public_readonly import public_readonly_readiness
 
 
 def build_readiness_report(
@@ -20,6 +21,7 @@ def build_readiness_report(
         "browser_automation": check_browser_automation(),
         "real_vision_grounding": check_real_vision_grounding(),
         "runtime_privacy": check_runtime_privacy(project_root=project_root, config=config),
+        "public_readonly": check_public_readonly(config),
     }
     return {
         "project": "Voice-to-Browser Agent",
@@ -96,6 +98,10 @@ def check_runtime_privacy(project_root: Path, config: RuntimeConfig) -> dict[str
     }
 
 
+def check_public_readonly(config: RuntimeConfig) -> dict[str, Any]:
+    return public_readonly_readiness(config)
+
+
 def recommended_actions(checks: dict[str, dict[str, Any]]) -> list[str]:
     actions: list[str] = []
     if (
@@ -107,6 +113,8 @@ def recommended_actions(checks: dict[str, dict[str, Any]]) -> list[str]:
         actions.append("Install Playwright dependencies before live-controlled execution.")
     if checks["real_vision_grounding"]["status"] != "ready":
         actions.append("Install or link browser-use-vision for real visual evidence.")
+    if checks["public_readonly"]["status"] == "missing_allowlist":
+        actions.append("Configure VOICE_BROWSER_PUBLIC_READONLY_ALLOWLIST before public-readonly execution.")
     if not actions:
         actions.append("Run the Operator Console and use one uploaded or recorded command.")
     return actions

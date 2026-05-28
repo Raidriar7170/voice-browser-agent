@@ -54,6 +54,7 @@ def build_release_pack(
     trace_root = Path(trace_root)
     output_dir = Path(output_dir)
     artifacts = collect_artifacts(project_root=project_root, trace_root=trace_root)
+    local_private_exclusions = collect_local_private_exclusions(trace_root=trace_root)
     check_completeness(project_root=project_root, artifacts=artifacts)
 
     if output_dir.exists():
@@ -72,6 +73,7 @@ def build_release_pack(
         "description": "Bounded demo evidence pack for reproducible reviewer handoff.",
         "privacy_scan": {"status": "passed"},
         "artifacts": artifacts,
+        "local_private_exclusions": local_private_exclusions,
     }
     manifest_path = output_dir / "manifest.json"
     manifest_path.write_text(
@@ -84,6 +86,38 @@ def build_release_pack(
     scan_text_for_private_markers(html_path.read_text(encoding="utf-8"), path=html_path)
     scan_text_for_private_markers(manifest_path.read_text(encoding="utf-8"), path=manifest_path)
     return manifest
+
+
+def collect_local_private_exclusions(trace_root: Path) -> list[dict[str, Any]]:
+    exclusions: list[dict[str, Any]] = []
+    for trace_path in sorted(trace_root.rglob("*.json")):
+        payload = read_trace(trace_path)
+        runtime = payload.get("execution_runtime") or {}
+        route = payload.get("route_decision") or runtime.get("route_decision") or {}
+        evidence_mode = (
+            payload.get("evidence_mode")
+            or runtime.get("evidence_mode")
+            or route.get("evidence_mode")
+            or payload.get("execution_mode")
+        )
+        route_type = route.get("route_type")
+        if evidence_mode != "live_public_readonly" and route_type != "public_readonly":
+            continue
+        sanitizer_status = payload.get("sanitizer_status") or route.get("sanitizer_status")
+        privacy_state = payload.get("evidence_privacy_state") or route.get("evidence_privacy_state")
+        if privacy_state == "public_safe" and sanitizer_status == "passed":
+            continue
+        exclusions.append(
+            {
+                "execution_id": payload.get("execution_id"),
+                "evidence_mode": "live_public_readonly",
+                "reason": "public_readonly_trace_not_public_safe",
+                "sanitizer_status": sanitizer_status or "unknown",
+                "target_label": route.get("public_target_label"),
+                "public_origin": route.get("public_origin"),
+            }
+        )
+    return exclusions
 
 
 def collect_artifacts(project_root: Path, trace_root: Path) -> list[dict[str, Any]]:

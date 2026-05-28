@@ -9,6 +9,7 @@ credentials, private URLs, remote host details, or unsanitized runtime folders.
 3. Run a transcript command from the primary command control and show the route decision before the trace JSON.
 4. Run `打开 GitHub` and show that it routes to the controlled local code-search showcase instead of a real public website.
 5. Open Advanced Replay and run `icon-search` or `color-swatch` in `live_controlled` mode to show reproducible fixture replay.
+5. Optional: enable an allowlisted docs target locally and run one `live_public_readonly` smoke command, emphasizing No login, read-only actions, private-by-default traces, and the bounded public-docs scope.
 6. Point to `fixtures/traces/real-vision-sanitized/real-vision-icon-search.json` and show the `real_vision_controlled` provider/adapter metadata from `browser_use_vision.som.annotate_screenshot`.
 7. Upload or record one supported audio command, review and edit the ASR transcript, then run the reviewed audio through the same route-aware command path.
 8. Point to `fixtures/traces/real-voice-sanitized/real-voice-icon-search.json` and show audio input source, ASR adapter metadata, transcript review status, and sanitized grounding refs.

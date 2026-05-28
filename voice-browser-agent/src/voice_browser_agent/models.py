@@ -28,13 +28,28 @@ class ConfirmationState(str, Enum):
     BLOCKED = "blocked"
 
 
+class EvidencePrivacyState(str, Enum):
+    NOT_APPLICABLE = "not_applicable"
+    LOCAL_PRIVATE = "local_private"
+    PUBLIC_SAFE = "public_safe"
+
+
+class SanitizerStatus(str, Enum):
+    NOT_REQUIRED = "not_required"
+    PENDING = "pending"
+    PASSED = "passed"
+    FAILED = "failed"
+
+
 class ExecutionMode(str, Enum):
     DEMO_PREVIEW = "demo_preview"
     LIVE_CONTROLLED = "live_controlled"
+    LIVE_PUBLIC_READONLY = "live_public_readonly"
 
 
 class RouteType(str, Enum):
     CONTROLLED_LIVE = "controlled_live"
+    PUBLIC_READONLY = "public_readonly"
     DEMO_PREVIEW = "demo_preview"
     CLARIFICATION = "clarification"
     BLOCKED = "blocked"
@@ -127,6 +142,12 @@ class RouteDecision(BaseModel):
     evidence_mode: str
     controlled_fixture_id: str | None = None
     controlled_target_ref: str | None = None
+    public_target_label: str | None = None
+    public_origin: str | None = None
+    public_allowlist_id: str | None = None
+    evidence_privacy_state: EvidencePrivacyState = EvidencePrivacyState.NOT_APPLICABLE
+    sanitizer_status: SanitizerStatus = SanitizerStatus.NOT_REQUIRED
+    execution_limits: dict[str, Any] = Field(default_factory=dict)
     route_reason: str
     user_message: str
     live_evidence_eligible: bool = False
@@ -201,6 +222,8 @@ class ExecutionTrace(BaseModel):
     agentic_steps: list[AgenticVisionStep] = Field(default_factory=list)
     grounding_evidence_refs: list[str] = Field(default_factory=list)
     execution_runtime: dict[str, Any] = Field(default_factory=dict)
+    evidence_privacy_state: EvidencePrivacyState = EvidencePrivacyState.NOT_APPLICABLE
+    sanitizer_status: SanitizerStatus = SanitizerStatus.NOT_REQUIRED
     final_status: ExecutionStatus = ExecutionStatus.CREATED
     failure_reason: str | None = None
     stop_reason: str | None = None

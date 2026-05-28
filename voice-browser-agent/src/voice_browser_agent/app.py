@@ -27,15 +27,18 @@ from .models import (
     BrowserTaskRequest,
     ClarificationRequest,
     ConfirmationState,
+    EvidencePrivacyState,
     ExecutionMode,
     ExecutionStatus,
     ExecutionTrace,
     RouteDecision,
     RouteType,
+    SanitizerStatus,
     SpokenCommandInput,
 )
 from .normalizer import StructuredOutputNormalizer
 from .preflight import build_readiness_report
+from .public_readonly import PublicReadonlyRoutingConfig, PublicReadonlyTarget, parse_public_readonly_targets
 from .routing import select_execution_route
 from .safety import ConfirmationGate
 from .trace_writer import TraceWriter, sanitize_trace_dict
@@ -140,6 +143,13 @@ def create_app(runtime_dir: str | Path | None = None) -> FastAPI:
             return state.trace_response(trace)
 
         assert isinstance(trace.normalized_output, BrowserTaskRequest)
+        if trace.route_decision and trace.route_decision.route_type is RouteType.BLOCKED:
+            trace.final_status = ExecutionStatus.BLOCKED
+            trace.stop_reason = trace.route_decision.route_reason
+            state.apply_route_metadata(trace)
+            state.writer.write(trace)
+            return state.trace_response(trace)
+
         controlled_task = state.controlled_task_for_route(trace.route_decision)
         if controlled_task is not None:
             request = state.with_controlled_target(trace.normalized_output, controlled_task)
@@ -147,12 +157,14 @@ def create_app(runtime_dir: str | Path | None = None) -> FastAPI:
             executor = state.executor_for_mode(
                 trace.route_decision.execution_mode if trace.route_decision else state.execution_mode_for_payload(payload),
                 controlled_task,
+                trace.route_decision,
             )
         else:
             request = trace.normalized_output
             executor = state.executor_for_mode(
                 trace.route_decision.execution_mode if trace.route_decision else state.execution_mode_for_payload(payload),
                 None,
+                trace.route_decision,
             )
         result = await executor.execute(request, trace.execution_id)
         state.apply_execution_result(trace, result)
@@ -218,6 +230,7 @@ def create_app(runtime_dir: str | Path | None = None) -> FastAPI:
                     if trace.route_decision
                     else ExecutionMode.DEMO_PREVIEW,
                     controlled_task,
+                    trace.route_decision,
                 )
                 result = await executor.execute(trace.normalized_output, trace.execution_id)
                 state.apply_execution_result(trace, result)
@@ -300,6 +313,8 @@ class AppState:
             trace.normalized_output,
             trace.validator_decision,
             trace.confirmation_decision,
+            public_readonly_config=PublicReadonlyRoutingConfig.from_runtime_config(self.config),
+            requested_execution_mode=payload.execution_mode,
         )
 
     async def transcript_for_payload(self, payload: CommandPayload) -> ASRTranscript:
@@ -405,6 +420,10 @@ class AppState:
         trace.final_status = result.final_status
         trace.failure_reason = result.failure_reason
         trace.stop_reason = result.stop_reason
+        if result.runtime.get("evidence_privacy_state"):
+            trace.evidence_privacy_state = EvidencePrivacyState(result.runtime["evidence_privacy_state"])
+        if result.runtime.get("sanitizer_status"):
+            trace.sanitizer_status = SanitizerStatus(result.runtime["sanitizer_status"])
 
     def apply_route_metadata(self, trace: ExecutionTrace) -> None:
         if trace.route_decision is None:
@@ -414,6 +433,8 @@ class AppState:
         trace.execution_runtime["route_decision"] = route_payload
         trace.execution_runtime.setdefault("evidence_mode", trace.route_decision.evidence_mode)
         trace.execution_runtime.setdefault("route_type", trace.route_decision.route_type.value)
+        trace.evidence_privacy_state = trace.route_decision.evidence_privacy_state
+        trace.sanitizer_status = trace.route_decision.sanitizer_status
         if trace.route_decision.controlled_fixture_id:
             trace.execution_runtime.setdefault(
                 "controlled_fixture_id",
@@ -525,20 +546,43 @@ class AppState:
         self,
         mode: ExecutionMode,
         controlled_task: ControlledDemoTask | None,
+        route_decision: RouteDecision | None = None,
     ) -> BrowserExecutorAdapter:
+        public_target = self.public_readonly_target_for_route(route_decision)
         return BrowserExecutorAdapter(
             BrowserExecutorConfig(
                 remote_vision_backend_url=self.config.remote_vision_backend_url,
                 local_browser=True,
                 dry_run=mode is ExecutionMode.DEMO_PREVIEW,
                 execution_mode=mode,
+                max_steps=self.config.public_readonly_max_steps
+                if mode is ExecutionMode.LIVE_PUBLIC_READONLY
+                else 8,
                 agentic_execution=mode is ExecutionMode.LIVE_CONTROLLED,
                 controlled_fixture_id=controlled_task.fixture_id if controlled_task else None,
                 controlled_target_ref=controlled_task.target_ref if controlled_task else None,
                 controlled_target_url=controlled_task.target_url if controlled_task else None,
+                public_target_url=public_target.url if public_target else None,
+                public_target_label=route_decision.public_target_label if route_decision else None,
+                public_origin=route_decision.public_origin if route_decision else None,
+                public_allowlist_id=route_decision.public_allowlist_id if route_decision else None,
+                public_timeout_seconds=self.config.public_readonly_timeout_seconds,
+                public_sanitizer_required=self.config.public_readonly_sanitizer_required,
             ),
             agent_factory=self.agent_factory,
         )
+
+    def public_readonly_target_for_route(
+        self,
+        route_decision: RouteDecision | None,
+    ) -> PublicReadonlyTarget | None:
+        if route_decision is None or route_decision.route_type is not RouteType.PUBLIC_READONLY:
+            return None
+        targets = parse_public_readonly_targets(self.config)
+        for target in targets:
+            if target.allowlist_id == route_decision.public_allowlist_id:
+                return target
+        return None
 
     def get_trace(self, execution_id: str) -> ExecutionTrace:
         path = self.config.traces_dir / f"{execution_id}.json"
