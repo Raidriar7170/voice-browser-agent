@@ -14,6 +14,7 @@ from voice_browser_agent.public_readonly import (
     build_public_readonly_reliability_row,
     build_public_readonly_useful_task_pack_summary,
     load_public_readonly_smoke_set,
+    read_latest_public_readonly_task_pack_run,
     summarize_reliability_matrix,
 )
 
@@ -69,6 +70,7 @@ def build_release_pack(
     project_root: Path = PROJECT_ROOT,
     trace_root: Path = DEFAULT_TRACE_ROOT,
     output_dir: Path = DEFAULT_OUTPUT_DIR,
+    task_pack_run_root: Path | None = None,
 ) -> dict[str, Any]:
     project_root = Path(project_root)
     trace_root = Path(trace_root)
@@ -81,6 +83,10 @@ def build_release_pack(
         project_root / "fixtures/public-readonly-useful-task-pack.json"
     )
     scan_payload_for_private_markers(useful_task_pack, path=project_root / "fixtures/public-readonly-useful-task-pack.json")
+    live_task_pack_runner = build_public_readonly_live_task_pack_runner_summary(
+        task_pack_run_root
+        or project_root / "runtime/public-readonly-task-pack/runs"
+    )
 
     if output_dir.exists():
         shutil.rmtree(output_dir)
@@ -101,6 +107,7 @@ def build_release_pack(
         "local_private_exclusions": local_private_exclusions,
         "public_readonly_reliability_matrix": reliability_matrix,
         "public_readonly_useful_task_pack": useful_task_pack,
+        "public_readonly_live_task_pack_runner": live_task_pack_runner,
     }
     manifest_path = output_dir / "manifest.json"
     manifest_path.write_text(
@@ -148,6 +155,15 @@ def build_public_readonly_reliability_matrix(project_root: Path) -> dict[str, An
         return summarize_reliability_matrix(rows).model_dump(mode="json")
     except ReliabilityMatrixError as exc:
         raise EvidencePackError(str(exc)) from exc
+
+
+def build_public_readonly_live_task_pack_runner_summary(run_root: Path) -> dict[str, Any]:
+    try:
+        summary = read_latest_public_readonly_task_pack_run(run_root)
+    except ReliabilityMatrixError as exc:
+        raise EvidencePackError(str(exc)) from exc
+    scan_payload_for_private_markers(summary, path=Path(run_root) / "manifest.json")
+    return summary
 
 
 def collect_local_private_exclusions(trace_root: Path) -> list[dict[str, Any]]:
@@ -400,6 +416,8 @@ def render_html(manifest: dict[str, Any]) -> str:
         render_useful_task_pack_row(item)
         for item in manifest.get("public_readonly_useful_task_pack", {}).get("rows", [])
     )
+    runner = manifest.get("public_readonly_live_task_pack_runner", {})
+    runner_rows = "\n".join(render_task_pack_runner_row(item) for item in runner.get("rows", []))
     generated_at = html.escape(manifest["generated_at"])
     return f"""<!doctype html>
 <html lang="en">
@@ -455,6 +473,25 @@ def render_html(manifest: dict[str, Any]) -> str:
       </thead>
       <tbody>
 {useful_rows}
+      </tbody>
+    </table>
+    <h2>Public-readonly live task-pack runner</h2>
+    <p>Latest local/private runner summary: <code>{html.escape(runner.get("run_id") or "not available")}</code>; mode <code>{html.escape(runner.get("runner_mode") or "n/a")}</code>; sanitizer <code>{html.escape(runner.get("sanitizer_status") or "n/a")}</code>.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Task</th>
+          <th>Class</th>
+          <th>Kind</th>
+          <th>Outcome</th>
+          <th>Proof</th>
+          <th>Unmet</th>
+          <th>Reason</th>
+          <th>Export</th>
+        </tr>
+      </thead>
+      <tbody>
+{runner_rows}
       </tbody>
     </table>
     <h2>Packaged evidence</h2>
@@ -538,6 +575,24 @@ def render_useful_task_pack_row(item: dict[str, Any]) -> str:
     )
 
 
+def render_task_pack_runner_row(item: dict[str, Any]) -> str:
+    reason = item.get("stop_or_failure_reason") or item.get("route_or_execution_reason") or ""
+    proof = format_observed_proof(item.get("observed_proof_summary") or {})
+    unmet = ", ".join(item.get("unmet_criteria") or [])
+    return (
+        "        <tr>"
+        f"<td>{html.escape(item.get('task_id') or '')}</td>"
+        f"<td>{html.escape(item.get('target_class') or '')}</td>"
+        f"<td>{html.escape(item.get('task_kind') or '')}</td>"
+        f"<td>{html.escape(item.get('outcome') or '')}</td>"
+        f"<td>{html.escape(proof)}</td>"
+        f"<td>{html.escape(unmet)}</td>"
+        f"<td>{html.escape(reason)}</td>"
+        f"<td>{html.escape(item.get('export_state') or '')}</td>"
+        "</tr>"
+    )
+
+
 def format_observed_proof(observed_proof: dict[str, Any]) -> str:
     return ", ".join(
         f"{key}: {value}"
@@ -550,6 +605,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--project-root", type=Path, default=PROJECT_ROOT)
     parser.add_argument("--trace-root", type=Path, default=DEFAULT_TRACE_ROOT)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--task-pack-run-root", type=Path)
     return parser.parse_args()
 
 
@@ -560,6 +616,7 @@ def main() -> int:
             project_root=args.project_root,
             trace_root=args.trace_root,
             output_dir=args.output_dir,
+            task_pack_run_root=args.task_pack_run_root,
         )
     except EvidencePackError as exc:
         print(f"error: {exc}")

@@ -34,6 +34,7 @@ The preflight reports primary ASR, fallback ASR, Playwright browser automation, 
 - `VOICE_BROWSER_PUBLIC_READONLY_ENABLED=false` keeps `live_public_readonly` disabled by default. When enabled, it only runs allowlisted public read-only targets in a fresh local browser context, with short step/time budgets, No login, no file transfer, and private-by-default traces until sanitizer approval. A task-contract and completion verifier must match before a public task is reported as complete.
 - The public-readonly reliability matrix summarizes the 5-task smoke set across completed, partial, stopped, failed, and blocked outcomes. It is bounded local read-only evidence with private-by-default artifacts, not a production-use, broad-autonomy, barrier-bypass, account-workflow, ranking, model-quality, or raw-public-data claim.
 - The public-readonly useful task pack expands that summary into 8-12 stable read-only task contracts for documentation, reference, package metadata, release notes, and public repository search/read. It remains a local/private summary, not deployed web operation, leaderboard-style ranking, broad autonomy, captcha bypass, account automation, or a raw public artifact release.
+- The public-readonly live task-pack runner can write a local/private run manifest for selected useful tasks or the full pack. Deterministic mode validates the same contract without touching the network; live mode remains opt-in and records completed, partial, stopped, failed, or blocked outcomes honestly.
 - Trace-derived training examples can be created from sanitized Execution Traces for later Speech-to-Task Adaptation. This is not a fine-tuning pipeline or model result claim.
 
 ### Visible Real GitHub Public-Readonly Smoke
@@ -47,6 +48,16 @@ uv run uvicorn voice_browser_agent.app:app --reload
 ```
 
 The console's Visible Result panel shows the final real-page screenshot and step screenshots from `runtime/artifacts/public-readonly/`. These screenshots, raw page traces, cookies, browser profiles, and local paths are not public release-pack evidence unless a sanitizer pass explicitly approves them. If GitHub shows captcha, verification, login, rate-limit, permission, or network boundaries, the run is reported as stopped, failed, blocked, or incomplete rather than successful.
+
+### Public-Readonly Task-Pack Runner
+
+Build a deterministic local/private run manifest for the useful task pack without opening public network pages:
+
+```bash
+uv run python scripts/run_public_readonly_task_pack.py --all --mode deterministic
+```
+
+The command writes `runtime/public-readonly-task-pack/runs/<run_id>/manifest.json`. Use `--task-id <id>` to run a selected subset. Live mode uses the same explicit task contracts and public-readonly safety boundary, remains disabled unless public-readonly configuration is enabled, and keeps raw traces, screenshots, browser state, and local paths out of public evidence unless sanitizer approval is explicit.
 
 ## Demo Evidence
 
@@ -102,6 +113,7 @@ Use the console as a command-first operator workflow:
 - Reviewed audio: upload or record one command, review the ASR transcript, edit it if needed, then run the same route-aware execution path while preserving ASR provenance.
 - Controlled showcase: GitHub-shaped commands route to a local controlled code-search page unless real GitHub public-readonly is explicitly enabled with a matching task contract.
 - Real public-readonly: when enabled, supported docs, reference, package metadata, release notes, and GitHub search/read commands show the real-page visual result or block state in the console while artifacts remain local/private.
+- Latest task-pack run: readiness and the console can show the most recent local/private task-pack runner manifest, including runner mode, selected task count, outcome counts, sanitizer state, and row-level proof without exposing raw public runtime artifacts.
 - Advanced replay: fixture selection, execution-mode override, raw trace JSON, and sanitized export remain available for reproducibility and debugging.
 
 Use `demo_preview` for public showcase tasks unless they have an explicit controlled local route. Use `live_controlled` only for configured controlled pages, such as icon search, color swatch, SVG dashboard, and the controlled GitHub-like showcase. Use `live_public_readonly` only for allowlisted public documentation, reference, package metadata, release notes, or GitHub public repository search/read tasks where every action is read-only and local/private evidence remains private-by-default until sanitizer approval. This is a bounded public-readonly lane, not a broad public-web autonomy claim. Clarification examples should stop before browser execution, confirmation examples should show the operator prompt before continuing, and exported traces must remain sanitized.

@@ -30,6 +30,10 @@ def copy_project_inputs(tmp_path: Path) -> None:
     smoke_path = tmp_path / "fixtures/public-readonly-smoke.json"
     smoke_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(PROJECT_ROOT / "fixtures/public-readonly-smoke.json", smoke_path)
+    shutil.copy2(
+        PROJECT_ROOT / "fixtures/public-readonly-useful-task-pack.json",
+        tmp_path / "fixtures/public-readonly-useful-task-pack.json",
+    )
 
 
 def add_attempt_evidence(smoke: dict) -> dict:
@@ -155,6 +159,148 @@ def test_release_pack_manifest_covers_preview_live_agentic_real_vision_and_real_
     assert "final_title: OpenAI Docs" in index_html
     assert "visible_marker: Docs" in index_html
     assert "raw_page_text" not in json.dumps(useful, ensure_ascii=False)
+
+
+def test_release_pack_includes_latest_live_task_pack_runner_summary(tmp_path):
+    builder = load_builder()
+    runner_spec = importlib.util.spec_from_file_location(
+        "run_public_readonly_task_pack",
+        PROJECT_ROOT / "scripts/run_public_readonly_task_pack.py",
+    )
+    runner = importlib.util.module_from_spec(runner_spec)
+    assert runner_spec and runner_spec.loader
+    runner_spec.loader.exec_module(runner)
+    trace_root = copy_trace_sources(tmp_path)
+    run_root = tmp_path / "runtime/public-readonly-task-pack/runs"
+    runner.run_task_pack(
+        project_root=PROJECT_ROOT,
+        output_dir=tmp_path / "runtime/public-readonly-task-pack",
+        task_ids=["openai-docs-overview", "github-public-repo-read"],
+        mode="deterministic",
+        run_id="run-release-pack",
+    )
+
+    manifest = builder.build_release_pack(
+        project_root=PROJECT_ROOT,
+        trace_root=trace_root,
+        output_dir=tmp_path / "release-pack",
+        task_pack_run_root=run_root,
+    )
+
+    runner_summary = manifest["public_readonly_live_task_pack_runner"]
+    assert runner_summary["status"] == "available"
+    assert runner_summary["run_id"] == "run-release-pack"
+    assert runner_summary["runner_mode"] == "deterministic"
+    assert runner_summary["selected_task_count"] == 2
+    assert runner_summary["privacy_state"] == "local_private"
+    assert runner_summary["sanitizer_status"] == "pending"
+    assert runner_summary["export_state"] == "local_private"
+    assert [row["task_id"] for row in runner_summary["rows"]] == [
+        "openai-docs-overview",
+        "github-public-repo-read",
+    ]
+    index_html = (tmp_path / "release-pack/index.html").read_text(encoding="utf-8")
+    assert "Public-readonly live task-pack runner" in index_html
+    assert "run-release-pack" in index_html
+    serialized = json.dumps(runner_summary, ensure_ascii=False)
+    assert "raw_page_text" not in serialized
+    assert "raw_screenshot" not in serialized
+    assert "/Users/" not in serialized
+
+
+def test_release_pack_rejects_malformed_task_pack_runner_manifest(tmp_path):
+    builder = load_builder()
+    trace_root = copy_trace_sources(tmp_path)
+    run_root = tmp_path / "runtime/public-readonly-task-pack/runs/run-bad"
+    run_root.mkdir(parents=True)
+    (run_root / "manifest.json").write_text(
+        json.dumps(
+            {
+                "manifest_version": "public_readonly_task_pack_run.v1",
+                "run_id": "run-bad",
+                "rows": [{"task_id": "openai-docs-overview"}],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(builder.EvidencePackError, match="runner manifest missing"):
+        builder.build_release_pack(
+            project_root=PROJECT_ROOT,
+            trace_root=trace_root,
+            output_dir=tmp_path / "release-pack",
+            task_pack_run_root=run_root.parent,
+        )
+
+
+def test_release_pack_rejects_public_safe_task_pack_runner_manifest(tmp_path):
+    builder = load_builder()
+    runner_spec = importlib.util.spec_from_file_location(
+        "run_public_readonly_task_pack",
+        PROJECT_ROOT / "scripts/run_public_readonly_task_pack.py",
+    )
+    runner = importlib.util.module_from_spec(runner_spec)
+    assert runner_spec and runner_spec.loader
+    runner_spec.loader.exec_module(runner)
+    trace_root = copy_trace_sources(tmp_path)
+    output_dir = tmp_path / "runtime/public-readonly-task-pack"
+    manifest = runner.run_task_pack(
+        project_root=PROJECT_ROOT,
+        output_dir=output_dir,
+        task_ids=["openai-docs-overview"],
+        mode="deterministic",
+        run_id="run-public-safe",
+    )
+    manifest["privacy_state"] = "public_safe"
+    manifest["export_state"] = "public_safe"
+    manifest["rows"][0]["evidence_privacy_state"] = "public_safe"
+    manifest["rows"][0]["export_state"] = "public_safe"
+    (output_dir / "runs/run-public-safe/manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(builder.EvidencePackError, match="local/private"):
+        builder.build_release_pack(
+            project_root=PROJECT_ROOT,
+            trace_root=trace_root,
+            output_dir=tmp_path / "release-pack",
+            task_pack_run_root=output_dir / "runs",
+        )
+
+
+def test_release_pack_rejects_completed_runner_row_without_proof(tmp_path):
+    builder = load_builder()
+    runner_spec = importlib.util.spec_from_file_location(
+        "run_public_readonly_task_pack",
+        PROJECT_ROOT / "scripts/run_public_readonly_task_pack.py",
+    )
+    runner = importlib.util.module_from_spec(runner_spec)
+    assert runner_spec and runner_spec.loader
+    runner_spec.loader.exec_module(runner)
+    trace_root = copy_trace_sources(tmp_path)
+    output_dir = tmp_path / "runtime/public-readonly-task-pack"
+    manifest = runner.run_task_pack(
+        project_root=PROJECT_ROOT,
+        output_dir=output_dir,
+        task_ids=["openai-docs-overview"],
+        mode="deterministic",
+        run_id="run-missing-proof",
+    )
+    manifest["rows"][0]["observed_proof_summary"] = {}
+    (output_dir / "runs/run-missing-proof/manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(builder.EvidencePackError, match="completed runner row"):
+        builder.build_release_pack(
+            project_root=PROJECT_ROOT,
+            trace_root=trace_root,
+            output_dir=tmp_path / "release-pack",
+            task_pack_run_root=output_dir / "runs",
+        )
 
 
 def test_release_pack_preserves_route_metadata_for_controlled_showcase(tmp_path):

@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from voice_browser_agent.app import create_app
+from voice_browser_agent.preflight import build_readiness_report
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -560,6 +561,12 @@ def test_operator_console_static_assets_render_public_readonly_readiness_and_rou
     assert "Public-readonly" in app_js
     assert "Useful task pack" in app_js
     assert "useful_task_pack" in app_js
+    assert "Latest task-pack run" in app_js
+    assert "latest_task_pack_run" in app_js
+    assert "renderTaskPackRun" in app_js
+    assert "runner_mode" in app_js
+    assert "selected_task_count" in app_js
+    assert "outcome_counts" in app_js
     assert "renderUsefulTaskPack" in app_js
     assert "usefulTaskPackRows" in app_js
     assert "task_category" in app_js
@@ -603,6 +610,39 @@ def test_operator_console_static_assets_render_public_readonly_readiness_and_rou
     assert "Exported public-readonly trace remains local/private" in app_js
     assert "Exported public-readonly trace failed sanitizer checks" in app_js
     assert 'id="readinessPanel"' in index_html
+
+
+def test_readiness_reports_latest_task_pack_runner_manifest(tmp_path):
+    import importlib.util
+
+    script_path = PROJECT_ROOT / "scripts/run_public_readonly_task_pack.py"
+    spec = importlib.util.spec_from_file_location("run_public_readonly_task_pack", script_path)
+    runner = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(runner)
+    runner.run_task_pack(
+        project_root=PROJECT_ROOT,
+        output_dir=tmp_path / "public-readonly-task-pack",
+        task_ids=["openai-docs-overview"],
+        mode="deterministic",
+        run_id="readiness-run",
+    )
+
+    report = build_readiness_report(project_root=PROJECT_ROOT, runtime_dir=tmp_path)
+
+    latest = report["checks"]["public_readonly"]["latest_task_pack_run"]
+    assert latest["status"] == "available"
+    assert latest["run_id"] == "readiness-run"
+    assert latest["runner_mode"] == "deterministic"
+    assert latest["selected_task_count"] == 1
+    assert latest["outcome_counts"]["completed"] == 1
+    assert latest["privacy_state"] == "local_private"
+    assert latest["sanitizer_status"] == "pending"
+    assert latest["rows"][0]["task_id"] == "openai-docs-overview"
+    serialized = json.dumps(latest, ensure_ascii=False)
+    assert "raw_page_text" not in serialized
+    assert "raw_screenshot" not in serialized
+    assert str(tmp_path) not in serialized
 
 
 def test_release_pack_excludes_local_private_public_readonly_traces(tmp_path):

@@ -9,6 +9,7 @@ from .public_readonly import (
     ReliabilityMatrixError,
     build_public_readonly_useful_task_pack_summary,
     public_readonly_readiness,
+    read_latest_public_readonly_task_pack_run,
 )
 
 
@@ -122,6 +123,18 @@ def check_public_readonly(config: RuntimeConfig, project_root: Path) -> dict[str
             "rows": [],
             "public_ready": False,
             "privacy": "local_private",
+            "detail": str(exc),
+        }
+    try:
+        readiness["latest_task_pack_run"] = read_latest_public_readonly_task_pack_run(
+            Path(config.runtime_dir) / "public-readonly-task-pack" / "runs"
+        )
+    except ReliabilityMatrixError as exc:
+        readiness["latest_task_pack_run"] = {
+            "status": "unavailable",
+            "rows": [],
+            "privacy_state": "local_private",
+            "export_state": "local_private",
             "detail": str(exc),
         }
     return readiness

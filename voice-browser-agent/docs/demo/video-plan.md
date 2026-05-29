@@ -12,18 +12,19 @@ credentials, private URLs, remote host details, or unsanitized runtime folders.
 6. Optional: enable an allowlisted docs or GitHub public-readonly target locally and run one `live_public_readonly` smoke command, emphasizing the task-contract, completion verifier, visible result panel, No login, read-only actions, private-by-default screenshots, and bounded public scope.
 7. Show the public-readonly reliability matrix summary: one completed, partial, stopped, failed, and blocked row, with target class, criteria proof, reason, privacy state, sanitizer status, and local/private export state.
 8. Show the public-readonly useful task pack summary for documentation, reference, package metadata, release notes, and public repository search/read tasks. Emphasize local/private export state and that this is not deployed web operation, leaderboard-style ranking, broad autonomy, captcha bypass, or account automation.
-9. Point to `fixtures/traces/real-vision-sanitized/real-vision-icon-search.json` and show the `real_vision_controlled` provider/adapter metadata from `browser_use_vision.som.annotate_screenshot`.
-10. Upload or record one supported audio command, review and edit the ASR transcript, then run the reviewed audio through the same route-aware command path.
-11. Point to `fixtures/traces/real-voice-sanitized/real-voice-icon-search.json` and show audio input source, ASR adapter metadata, transcript review status, and sanitized grounding refs.
-12. Run `ambiguous` and show the Clarification Request without browser execution.
-13. Run `checkout-stop` and show the Confirmation Gate prompt before any sensitive action.
-14. Cancel the confirmation and show the final sanitized trace export.
-15. Point to `fixtures/traces/live-sanitized/live-github-showcase.json` and `fixtures/traces/real-use-sanitized/` as controlled-showcase, failure, and operator-decision evidence.
-16. Note that real GitHub public search/read now exists only behind explicit public-readonly configuration; controlled showcase evidence remains the stable default, while raw GitHub runtime screenshots remain local/private unless sanitizer-approved.
-17. State non-goals plainly: no production-use claim, broad public-web autonomy, verification-barrier bypassing, account automation, ranking claim, model score claim, or raw public evidence release.
-18. Run `uv run python scripts/build_demo_evidence_pack.py`.
-19. Open `runtime/demo-evidence-release-pack/index.html` and show the generated evidence index.
-20. Inspect `runtime/demo-evidence-release-pack/manifest.json` and point back to the committed sanitized trace folders.
-21. Run `uv run python scripts/build_speech_to_task_dataset.py --seed-set`.
-22. Inspect `runtime/speech-to-task-adaptation-dataset/manifest.json` and `runtime/speech-to-task-adaptation-dataset/examples.jsonl` as local Speech-to-Task adaptation preparation evidence.
-23. Close with the sanitized trace artifact and quick reminder that raw recordings and private traces stay local.
+9. Run `uv run python scripts/run_public_readonly_task_pack.py --all --mode deterministic` and show the latest local/private task-pack run manifest in readiness or the release-pack summary. Note that deterministic mode does not touch the public network.
+10. Point to `fixtures/traces/real-vision-sanitized/real-vision-icon-search.json` and show the `real_vision_controlled` provider/adapter metadata from `browser_use_vision.som.annotate_screenshot`.
+11. Upload or record one supported audio command, review and edit the ASR transcript, then run the reviewed audio through the same route-aware command path.
+12. Point to `fixtures/traces/real-voice-sanitized/real-voice-icon-search.json` and show audio input source, ASR adapter metadata, transcript review status, and sanitized grounding refs.
+13. Run `ambiguous` and show the Clarification Request without browser execution.
+14. Run `checkout-stop` and show the Confirmation Gate prompt before any sensitive action.
+15. Cancel the confirmation and show the final sanitized trace export.
+16. Point to `fixtures/traces/live-sanitized/live-github-showcase.json` and `fixtures/traces/real-use-sanitized/` as controlled-showcase, failure, and operator-decision evidence.
+17. Note that real GitHub public search/read now exists only behind explicit public-readonly configuration; controlled showcase evidence remains the stable default, while raw GitHub runtime screenshots remain local/private unless sanitizer-approved.
+18. State non-goals plainly: no production-use claim, broad public-web autonomy, verification-barrier bypassing, account automation, ranking claim, model score claim, or raw public evidence release.
+19. Run `uv run python scripts/build_demo_evidence_pack.py`.
+20. Open `runtime/demo-evidence-release-pack/index.html` and show the generated evidence index.
+21. Inspect `runtime/demo-evidence-release-pack/manifest.json` and point back to the committed sanitized trace folders.
+22. Run `uv run python scripts/build_speech_to_task_dataset.py --seed-set`.
+23. Inspect `runtime/speech-to-task-adaptation-dataset/manifest.json` and `runtime/speech-to-task-adaptation-dataset/examples.jsonl` as local Speech-to-Task adaptation preparation evidence.
+24. Close with the sanitized trace artifact and quick reminder that raw recordings and private traces stay local.

@@ -59,6 +59,55 @@ RELIABILITY_OUTCOMES = (
     PublicTaskCompletionState.BLOCKED,
 )
 PAGE_OPEN_ONLY_PROOF_KEYS = {"final_title", "url_path"}
+TASK_PACK_RUN_MANIFEST_VERSION = "public_readonly_task_pack_run.v1"
+TASK_PACK_RUN_REQUIRED_TOP_LEVEL_FIELDS = {
+    "manifest_version",
+    "run_id",
+    "finished_at",
+    "runner_mode",
+    "selected_task_count",
+    "outcome_counts",
+    "privacy_state",
+    "sanitizer_status",
+    "export_state",
+    "rows",
+}
+TASK_PACK_RUN_REQUIRED_ROW_FIELDS = {
+    "task_id",
+    "task_category",
+    "task_kind",
+    "target_class",
+    "target_label",
+    "sanitized_origin",
+    "completion_criteria_id",
+    "completion_criteria_summary",
+    "outcome",
+    "final_status",
+    "observed_proof_summary",
+    "unmet_criteria",
+    "stop_or_failure_reason",
+    "route_or_execution_reason",
+    "visible_result_state",
+    "evidence_privacy_state",
+    "sanitizer_status",
+    "export_state",
+}
+TASK_PACK_RUN_PRIVATE_MARKERS = (
+    "raw_page_text",
+    "raw_screenshot",
+    "browser_profile",
+    "storage_state",
+    "cookies",
+    "credential",
+    "password",
+    "token",
+    "private_url",
+    "remote_host",
+    "file:///Users/",
+    "file:///users/",
+    "/Users/",
+    "/users/",
+)
 
 
 class ReliabilityMatrixError(RuntimeError):
@@ -478,6 +527,143 @@ def summarize_useful_task_pack(task_pack: PublicReadonlyUsefulTaskPack) -> dict[
 
 def build_public_readonly_useful_task_pack_summary(path: str | Path) -> dict[str, Any]:
     return summarize_useful_task_pack(load_public_readonly_useful_task_pack(path))
+
+
+def read_latest_public_readonly_task_pack_run(run_root: str | Path) -> dict[str, Any]:
+    run_root = Path(run_root)
+    if not run_root.exists():
+        return {
+            "status": "unavailable",
+            "rows": [],
+            "detail": "No public-readonly task-pack runner manifest is available.",
+            "privacy_state": "local_private",
+            "export_state": "local_private",
+        }
+    manifest_paths = sorted(
+        run_root.glob("*/manifest.json"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    if not manifest_paths:
+        return {
+            "status": "unavailable",
+            "rows": [],
+            "detail": "No public-readonly task-pack runner manifest is available.",
+            "privacy_state": "local_private",
+            "export_state": "local_private",
+        }
+    latest_path = manifest_paths[0]
+    try:
+        payload = json.loads(latest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ReliabilityMatrixError(f"runner manifest malformed JSON: {latest_path.name}") from exc
+    _validate_task_pack_run_manifest(payload)
+    return _summarize_task_pack_run_manifest(payload)
+
+
+def _validate_task_pack_run_manifest(payload: Any) -> None:
+    if not isinstance(payload, dict):
+        raise ReliabilityMatrixError("runner manifest missing object")
+    missing = sorted(TASK_PACK_RUN_REQUIRED_TOP_LEVEL_FIELDS.difference(payload))
+    if missing:
+        raise ReliabilityMatrixError(f"runner manifest missing fields: {', '.join(missing)}")
+    if payload.get("manifest_version") != TASK_PACK_RUN_MANIFEST_VERSION:
+        raise ReliabilityMatrixError("runner manifest missing supported manifest_version")
+    if (
+        payload.get("privacy_state") != "local_private"
+        or payload.get("export_state") != "local_private"
+    ):
+        raise ReliabilityMatrixError("runner manifest must remain local/private")
+    rows = payload.get("rows")
+    if not isinstance(rows, list) or not rows:
+        raise ReliabilityMatrixError("runner manifest missing rows")
+    if not isinstance(payload.get("outcome_counts"), dict):
+        raise ReliabilityMatrixError("runner manifest missing outcome_counts")
+    for index, row in enumerate(rows, start=1):
+        if not isinstance(row, dict):
+            raise ReliabilityMatrixError(f"runner manifest row {index} malformed")
+        row_missing = sorted(TASK_PACK_RUN_REQUIRED_ROW_FIELDS.difference(row))
+        if row_missing:
+            raise ReliabilityMatrixError(
+                f"runner manifest missing row fields for {row.get('task_id') or index}: "
+                + ", ".join(row_missing)
+            )
+        if not isinstance(row.get("observed_proof_summary"), dict):
+            raise ReliabilityMatrixError(
+                f"runner manifest missing observed proof summary for {row['task_id']}"
+            )
+        if not isinstance(row.get("completion_criteria_summary"), list):
+            raise ReliabilityMatrixError(
+                f"runner manifest missing completion criteria summary for {row['task_id']}"
+            )
+        if not isinstance(row.get("unmet_criteria"), list):
+            raise ReliabilityMatrixError(
+                f"runner manifest missing unmet criteria for {row['task_id']}"
+            )
+        if (
+            row.get("evidence_privacy_state") != "local_private"
+            or row.get("export_state") != "local_private"
+        ):
+            raise ReliabilityMatrixError(
+                f"runner manifest row {row['task_id']} must remain local/private"
+            )
+        if row.get("outcome") == PublicTaskCompletionState.COMPLETED.value:
+            observed_proof = row.get("observed_proof_summary")
+            missing_proof = [
+                proof
+                for proof in row["completion_criteria_summary"]
+                if proof not in observed_proof
+            ]
+            if missing_proof:
+                raise ReliabilityMatrixError(
+                    f"completed runner row missing observed proof for {row['task_id']}: "
+                    + ", ".join(missing_proof)
+                )
+    _scan_task_pack_run_private_markers(payload)
+
+
+def _summarize_task_pack_run_manifest(payload: dict[str, Any]) -> dict[str, Any]:
+    rows = [
+        {
+            key: row.get(key)
+            for key in sorted(TASK_PACK_RUN_REQUIRED_ROW_FIELDS)
+            if key in row
+        }
+        for row in payload["rows"]
+    ]
+    return {
+        "status": "available",
+        "manifest_version": payload["manifest_version"],
+        "run_id": payload["run_id"],
+        "runner_mode": payload["runner_mode"],
+        "selected_task_count": payload["selected_task_count"],
+        "selected_task_ids": list(payload.get("selected_task_ids") or []),
+        "outcome_counts": dict(payload["outcome_counts"]),
+        "privacy_state": payload["privacy_state"],
+        "sanitizer_status": payload["sanitizer_status"],
+        "export_state": payload["export_state"],
+        "finished_at": payload["finished_at"],
+        "live_network_attempted": bool(payload.get("live_network_attempted")),
+        "artifact_policy": "raw_public_runtime_artifacts_remain_local_private",
+        "limitation_notes": list(payload.get("limitation_notes") or []),
+        "rows": rows,
+    }
+
+
+def _scan_task_pack_run_private_markers(value: Any) -> None:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key not in {"cookies_reused", "storage_state_reused"}:
+                _scan_task_pack_run_private_markers(str(key))
+            _scan_task_pack_run_private_markers(item)
+    elif isinstance(value, list):
+        for item in value:
+            _scan_task_pack_run_private_markers(item)
+    elif isinstance(value, str):
+        lowered = value.lower()
+        for marker in TASK_PACK_RUN_PRIVATE_MARKERS:
+            if marker.lower() in lowered:
+                raise ReliabilityMatrixError(f"runner manifest private marker detected: {marker}")
 
 
 def build_public_readonly_reliability_row(
