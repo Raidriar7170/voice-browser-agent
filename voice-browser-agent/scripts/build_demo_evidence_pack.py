@@ -22,6 +22,7 @@ from voice_browser_agent.public_readonly import (
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TRACE_ROOT = PROJECT_ROOT / "fixtures/traces"
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "runtime/demo-evidence-release-pack"
+DEFAULT_NORMALIZER_COMPARISON_PATH = PROJECT_ROOT / "runtime/normalizer-comparison/manifest.json"
 FORBIDDEN_MARKERS = (
     "raw_page_text",
     "raw_page_html",
@@ -44,6 +45,13 @@ FORBIDDEN_MARKERS = (
     "password",
     "token",
     "private_url",
+    "raw_prompt",
+    "raw_provider_response",
+    "provider_response",
+    "request_header",
+    "request_headers",
+    "api_key",
+    "authorization",
     "remote_host",
     "remote_vision_backend_url",
     "controlled_target_url",
@@ -71,6 +79,7 @@ def build_release_pack(
     trace_root: Path = DEFAULT_TRACE_ROOT,
     output_dir: Path = DEFAULT_OUTPUT_DIR,
     task_pack_run_root: Path | None = None,
+    normalizer_comparison_path: Path | None = None,
 ) -> dict[str, Any]:
     project_root = Path(project_root)
     trace_root = Path(trace_root)
@@ -87,6 +96,7 @@ def build_release_pack(
         task_pack_run_root
         or project_root / "runtime/public-readonly-task-pack/runs"
     )
+    normalizer_comparison = build_normalizer_comparison_summary(normalizer_comparison_path)
 
     if output_dir.exists():
         shutil.rmtree(output_dir)
@@ -108,6 +118,7 @@ def build_release_pack(
         "public_readonly_reliability_matrix": reliability_matrix,
         "public_readonly_useful_task_pack": useful_task_pack,
         "public_readonly_live_task_pack_runner": live_task_pack_runner,
+        "normalizer_comparison": normalizer_comparison,
     }
     manifest_path = output_dir / "manifest.json"
     manifest_path.write_text(
@@ -164,6 +175,50 @@ def build_public_readonly_live_task_pack_runner_summary(run_root: Path) -> dict[
         raise EvidencePackError(str(exc)) from exc
     scan_payload_for_private_markers(summary, path=Path(run_root) / "manifest.json")
     return summary
+
+
+def build_normalizer_comparison_summary(path: Path | None) -> dict[str, Any]:
+    if path is None:
+        return {"status": "not_provided"}
+    path = Path(path)
+    if not path.exists():
+        return {"status": "missing", "manifest_path": str(path)}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise EvidencePackError(f"malformed normalizer comparison manifest: {path}") from exc
+    if not isinstance(payload, dict):
+        raise EvidencePackError(f"malformed normalizer comparison manifest: {path}")
+    scan_payload_for_private_markers(payload, path=path)
+    if payload.get("manifest_version") != "normalizer_comparison.v1":
+        raise EvidencePackError(f"normalizer comparison manifest missing version: {path}")
+    if payload.get("status") != "available":
+        raise EvidencePackError(f"normalizer comparison manifest unavailable: {path}")
+    if payload.get("privacy_state") != "local_private" or payload.get("export_state") != "local_private":
+        raise EvidencePackError(f"normalizer comparison manifest must remain local/private: {path}")
+    if not isinstance(payload.get("normalizer_modes"), list):
+        raise EvidencePackError(f"normalizer comparison manifest missing modes: {path}")
+    if not isinstance(payload.get("schema_status_counts"), dict):
+        raise EvidencePackError(f"normalizer comparison manifest missing schema counts: {path}")
+    if not isinstance(payload.get("validator_outcome_counts"), dict):
+        raise EvidencePackError(f"normalizer comparison manifest missing validator counts: {path}")
+    if (payload.get("privacy_scan") or {}).get("status") != "passed":
+        raise EvidencePackError(f"normalizer comparison privacy scan did not pass: {path}")
+    return {
+        "status": "available",
+        "manifest_version": payload["manifest_version"],
+        "privacy_state": payload["privacy_state"],
+        "export_state": payload["export_state"],
+        "positioning": payload.get("positioning"),
+        "input_count": payload.get("input_count"),
+        "row_count": payload.get("row_count"),
+        "normalizer_modes": payload["normalizer_modes"],
+        "schema_status_counts": payload["schema_status_counts"],
+        "validator_outcome_counts": payload["validator_outcome_counts"],
+        "fallback_counts": payload.get("fallback_counts") or {},
+        "safety_outcome_counts": payload.get("safety_outcome_counts") or {},
+        "privacy_scan": payload["privacy_scan"],
+    }
 
 
 def collect_local_private_exclusions(trace_root: Path) -> list[dict[str, Any]]:
@@ -418,6 +473,8 @@ def render_html(manifest: dict[str, Any]) -> str:
     )
     runner = manifest.get("public_readonly_live_task_pack_runner", {})
     runner_rows = "\n".join(render_task_pack_runner_row(item) for item in runner.get("rows", []))
+    normalizer = manifest.get("normalizer_comparison", {})
+    normalizer_rows = render_normalizer_comparison_rows(normalizer)
     generated_at = html.escape(manifest["generated_at"])
     return f"""<!doctype html>
 <html lang="en">
@@ -492,6 +549,24 @@ def render_html(manifest: dict[str, Any]) -> str:
       </thead>
       <tbody>
 {runner_rows}
+      </tbody>
+    </table>
+    <h2>Normalizer comparison</h2>
+    <p>Local structured-output comparison, not model training; status <code>{html.escape(normalizer.get("status") or "not_provided")}</code>; export <code>{html.escape(normalizer.get("export_state") or "n/a")}</code>.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Modes</th>
+          <th>Inputs</th>
+          <th>Rows</th>
+          <th>Schema</th>
+          <th>Validator</th>
+          <th>Fallback</th>
+          <th>Safety</th>
+        </tr>
+      </thead>
+      <tbody>
+{normalizer_rows}
       </tbody>
     </table>
     <h2>Packaged evidence</h2>
@@ -593,6 +668,25 @@ def render_task_pack_runner_row(item: dict[str, Any]) -> str:
     )
 
 
+def render_normalizer_comparison_rows(item: dict[str, Any]) -> str:
+    modes = ", ".join(item.get("normalizer_modes") or [])
+    schema = format_observed_proof(item.get("schema_status_counts") or {})
+    validator = format_observed_proof(item.get("validator_outcome_counts") or {})
+    fallback = format_observed_proof(item.get("fallback_counts") or {})
+    safety = format_observed_proof(item.get("safety_outcome_counts") or {})
+    return (
+        "        <tr>"
+        f"<td>{html.escape(modes)}</td>"
+        f"<td>{html.escape(str(item.get('input_count') or ''))}</td>"
+        f"<td>{html.escape(str(item.get('row_count') or ''))}</td>"
+        f"<td>{html.escape(schema)}</td>"
+        f"<td>{html.escape(validator)}</td>"
+        f"<td>{html.escape(fallback)}</td>"
+        f"<td>{html.escape(safety)}</td>"
+        "</tr>"
+    )
+
+
 def format_observed_proof(observed_proof: dict[str, Any]) -> str:
     return ", ".join(
         f"{key}: {value}"
@@ -606,6 +700,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--trace-root", type=Path, default=DEFAULT_TRACE_ROOT)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--task-pack-run-root", type=Path)
+    parser.add_argument("--normalizer-comparison-path", type=Path, default=None)
     return parser.parse_args()
 
 
@@ -617,6 +712,7 @@ def main() -> int:
             trace_root=args.trace_root,
             output_dir=args.output_dir,
             task_pack_run_root=args.task_pack_run_root,
+            normalizer_comparison_path=args.normalizer_comparison_path,
         )
     except EvidencePackError as exc:
         print(f"error: {exc}")

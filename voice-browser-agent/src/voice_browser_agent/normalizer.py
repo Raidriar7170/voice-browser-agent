@@ -1,9 +1,37 @@
 from __future__ import annotations
 
+import json
 import re
+from dataclasses import dataclass
+from typing import Any, Protocol
 
-from .models import BrowserIntentType, BrowserTaskRequest, ClarificationRequest, VisualReference
+import httpx
+
+from .models import (
+    BrowserIntentType,
+    BrowserTaskRequest,
+    ClarificationRequest,
+    NormalizerProvenance,
+    VisualReference,
+)
 from .validator import detect_safety_flags
+
+
+class NormalizerProviderError(RuntimeError):
+    pass
+
+
+class LLMNormalizerClient(Protocol):
+    provider_name: str
+
+    def normalize(self, transcript_text: str) -> dict[str, Any] | str:
+        ...
+
+
+@dataclass(frozen=True)
+class NormalizationResult:
+    output: BrowserTaskRequest | ClarificationRequest
+    provenance: NormalizerProvenance
 
 
 class RuleBasedNormalizer:
@@ -57,18 +85,225 @@ class RuleBasedNormalizer:
         )
 
 
+class MockLLMNormalizerClient:
+    provider_name = "mock-llm"
+
+    def __init__(self, delegate: RuleBasedNormalizer | None = None):
+        self.delegate = delegate or RuleBasedNormalizer()
+
+    def normalize(self, transcript_text: str) -> dict[str, Any]:
+        return self.delegate.normalize(transcript_text).model_dump(mode="json")
+
+
+class GenericHTTPNormalizerClient:
+    provider_name = "generic-http"
+
+    def __init__(
+        self,
+        endpoint_url: str,
+        api_key: str | None = None,
+        model: str | None = None,
+        timeout_seconds: float = 15.0,
+    ):
+        if not endpoint_url:
+            raise ValueError("endpoint_url is required")
+        self.endpoint_url = endpoint_url
+        self.api_key = api_key
+        self.model = model
+        self.timeout_seconds = timeout_seconds
+
+    def normalize(self, transcript_text: str) -> dict[str, Any] | str:
+        headers = {}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        payload: dict[str, Any] = {
+            "transcript_text": transcript_text,
+            "schema": "voice-browser-agent.normalized-output.v1",
+        }
+        if self.model:
+            payload["model"] = self.model
+        try:
+            response = httpx.post(
+                self.endpoint_url,
+                json=payload,
+                headers=headers,
+                timeout=self.timeout_seconds,
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise NormalizerProviderError(f"normalizer provider request failed: {exc}") from exc
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise NormalizerProviderError("normalizer provider returned non-JSON response") from exc
+
+
+class UnavailableLLMNormalizerClient:
+    def __init__(self, provider_name: str, detail: str):
+        self.provider_name = provider_name
+        self.detail = detail
+
+    def normalize(self, transcript_text: str) -> dict[str, Any]:
+        raise NormalizerProviderError(self.detail)
+
+
 class StructuredOutputNormalizer:
-    def __init__(self, llm_client=None, fallback: RuleBasedNormalizer | None = None):
+    def __init__(
+        self,
+        llm_client: LLMNormalizerClient | None = None,
+        fallback: RuleBasedNormalizer | None = None,
+        provider_mode: str = "rule",
+        fallback_policy: str = "rule",
+        prompt_schema_version: str = "structured-normalizer.v1",
+    ):
+        if fallback_policy not in {"rule", "clarify"}:
+            raise ValueError("fallback policy must be 'rule' or 'clarify'")
         self.llm_client = llm_client
         self.fallback = fallback or RuleBasedNormalizer()
+        self.provider_mode = provider_mode
+        self.fallback_policy = fallback_policy
+        self.prompt_schema_version = prompt_schema_version
+        self.last_provenance: NormalizerProvenance | None = None
 
     def normalize(self, transcript_text: str) -> BrowserTaskRequest | ClarificationRequest:
+        result = self.normalize_with_provenance(transcript_text)
+        self.last_provenance = result.provenance
+        return result.output
+
+    def normalize_with_provenance(self, transcript_text: str) -> NormalizationResult:
         if self.llm_client is None:
-            return self.fallback.normalize(transcript_text)
-        payload = self.llm_client.normalize(transcript_text)
-        if payload.get("kind") == "clarification_request":
+            output = self.fallback.normalize(transcript_text)
+            return self._result(
+                output,
+                provider_name="rule-based",
+                output_source="rule",
+                schema_status="not_applicable",
+            )
+        provider_name = getattr(self.llm_client, "provider_name", "llm")
+        try:
+            payload = self.llm_client.normalize(transcript_text)
+            output = self._parse_payload(payload)
+            return self._result(
+                output,
+                provider_name=provider_name,
+                output_source="llm",
+                schema_status="passed",
+            )
+        except Exception as exc:
+            return self._fallback_result(
+                transcript_text,
+                provider_name=provider_name,
+                reason=_fallback_reason(exc),
+            )
+
+    def _parse_payload(self, payload: dict[str, Any] | str) -> BrowserTaskRequest | ClarificationRequest:
+        if isinstance(payload, str):
+            try:
+                payload = json.loads(payload)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"malformed provider JSON: {exc.msg}") from exc
+        if not isinstance(payload, dict):
+            raise ValueError("malformed provider payload: expected object")
+        kind = payload.get("kind")
+        if kind == "clarification_request":
             return ClarificationRequest.model_validate(payload)
-        return BrowserTaskRequest.model_validate(payload)
+        if kind == "browser_task_request":
+            return BrowserTaskRequest.model_validate(payload)
+        raise ValueError(f"malformed provider payload: unknown kind {kind!r}")
+
+    def _fallback_result(
+        self,
+        transcript_text: str,
+        provider_name: str,
+        reason: str,
+    ) -> NormalizationResult:
+        if self.fallback_policy == "clarify":
+            output = ClarificationRequest(
+                question="LLM 意图解析暂不可用，请改用更明确的一条浏览器任务命令。",
+                reason="llm_normalizer_unavailable",
+                transcript_text=transcript_text,
+            )
+            return self._result(
+                output,
+                provider_name=provider_name,
+                output_source="clarification",
+                schema_status="failed",
+                fallback_reason=reason,
+            )
+        output = self.fallback.normalize(transcript_text)
+        return self._result(
+            output,
+            provider_name=provider_name,
+            output_source="fallback_rule",
+            schema_status="failed",
+            fallback_reason=reason,
+        )
+
+    def _result(
+        self,
+        output: BrowserTaskRequest | ClarificationRequest,
+        provider_name: str,
+        output_source: str,
+        schema_status: str,
+        fallback_reason: str | None = None,
+    ) -> NormalizationResult:
+        provenance = NormalizerProvenance(
+            provider_mode=self.provider_mode,
+            provider_name=provider_name,
+            output_source=output_source,
+            prompt_schema_version=self.prompt_schema_version,
+            output_kind=output.kind,
+            schema_status=schema_status,  # type: ignore[arg-type]
+            fallback_reason=fallback_reason,
+        )
+        self.last_provenance = provenance
+        return NormalizationResult(output=output, provenance=provenance)
+
+
+def _fallback_reason(exc: Exception) -> str:
+    message = str(exc) or exc.__class__.__name__
+    if isinstance(exc, NormalizerProviderError):
+        return f"provider unavailable: {message}"
+    return f"malformed provider output: {message}"
+
+
+def normalizer_from_config(config: Any) -> StructuredOutputNormalizer:
+    provider_mode = str(getattr(config, "normalizer_provider", "rule") or "rule")
+    fallback_policy = str(getattr(config, "normalizer_fallback_policy", "rule") or "rule")
+    prompt_schema_version = str(
+        getattr(config, "normalizer_prompt_schema_version", "structured-normalizer.v1")
+        or "structured-normalizer.v1"
+    )
+    if provider_mode == "rule":
+        client = None
+    elif provider_mode == "mock_llm":
+        client = MockLLMNormalizerClient()
+    elif provider_mode in {"openai_compatible", "generic_http"}:
+        endpoint_url = getattr(config, "normalizer_endpoint_url", None)
+        if endpoint_url:
+            client = GenericHTTPNormalizerClient(
+                endpoint_url=str(endpoint_url),
+                api_key=getattr(config, "normalizer_api_key", None),
+                model=getattr(config, "normalizer_model", None),
+                timeout_seconds=float(getattr(config, "normalizer_timeout_seconds", 15.0)),
+            )
+            client.provider_name = provider_mode
+        else:
+            client = UnavailableLLMNormalizerClient(
+                provider_name=provider_mode,
+                detail=f"{provider_mode} normalizer endpoint is not configured",
+            )
+    else:
+        client = UnavailableLLMNormalizerClient(
+            provider_name=provider_mode,
+            detail=f"unsupported normalizer provider: {provider_mode}",
+        )
+    return StructuredOutputNormalizer(
+        llm_client=client,
+        provider_mode=provider_mode,
+        fallback_policy=fallback_policy,
+        prompt_schema_version=prompt_schema_version,
+    )
 
 
 def _is_ambiguous(text: str) -> bool:

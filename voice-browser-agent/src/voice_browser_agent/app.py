@@ -38,7 +38,7 @@ from .models import (
     SanitizerStatus,
     SpokenCommandInput,
 )
-from .normalizer import StructuredOutputNormalizer
+from .normalizer import StructuredOutputNormalizer, normalizer_from_config
 from .preflight import build_readiness_report
 from .public_readonly import PublicReadonlyRoutingConfig, PublicReadonlyTarget, parse_public_readonly_targets
 from .routing import select_execution_route
@@ -283,7 +283,7 @@ class AppState:
             else UnavailableASRAdapter(),
             fallback=FallbackASRAdapter(config.fallback_asr_model),
         )
-        self.normalizer = StructuredOutputNormalizer()
+        self.normalizer = normalizer_from_config(config)
         self.validator = NormalizerValidator()
         self.gate = ConfirmationGate()
         self.writer = TraceWriter(config.traces_dir)
@@ -302,13 +302,16 @@ class AppState:
 
     async def prepare_trace(self, payload: CommandPayload) -> ExecutionTrace:
         transcript = await self.transcript_for_payload(payload)
-        normalized = self.normalizer.normalize(transcript.text)
+        normalized_result = self.normalizer.normalize_with_provenance(transcript.text)
+        normalized = normalized_result.output
         validation = self.validator.validate(normalized)
         trace = ExecutionTrace(
             transcript=transcript,
             normalized_output=normalized,
+            normalizer_provenance=normalized_result.provenance,
             validator_decision=validation,
         )
+        trace.execution_runtime["normalizer"] = normalized_result.provenance.model_dump(mode="json")
         if isinstance(normalized, BrowserTaskRequest):
             trace.confirmation_decision = self.gate.evaluate(normalized, validation)
         return trace

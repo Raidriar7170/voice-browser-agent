@@ -152,6 +152,22 @@
           the completion verifier observes task-specific proof. Real GitHub screenshots are visible
           in the local Operator Console but remain local/private unless a sanitizer-approved trace exists.
         </p>
+        <p>
+          The console also surfaces normalizer provenance: rule, deterministic mock LLM, configured
+          real provider, fallback source, schema status, validator decision, confirmation state, and
+          blocked or clarification reasons. Provider-private data is not part of public evidence.
+        </p>
+      </section>
+
+      <section>
+        <h2>Normalizer Comparison Evidence</h2>
+        <p>
+          <code>runtime/normalizer-comparison/manifest.json</code> is a local structured-output
+          comparison report over committed fixture transcripts and reviewed seed examples. It records
+          normalizer modes, schema status, validator outcome, route readiness, fallback counts, and
+          privacy-scan status. It is evidence for bounded intent parsing behavior, not model training,
+          model scoring, ranking, or broad autonomy.
+        </p>
       </section>
 
       <section>
@@ -159,7 +175,9 @@
         <p><code>uv run python scripts/preflight_real_use.py</code></p>
         <p><code>uv run python scripts/generate_real_vision_trace.py</code></p>
         <p><code>uv run python scripts/generate_real_voice_trace.py</code></p>
+        <p><code>uv run python scripts/build_normalizer_comparison.py --seed-set</code></p>
         <p><code>uv run python scripts/build_demo_evidence_pack.py</code></p>
+        <p><code>uv run python scripts/build_demo_evidence_pack.py --normalizer-comparison-path runtime/normalizer-comparison/manifest.json</code></p>
         <p><code>uv run python scripts/build_speech_to_task_dataset.py --seed-set</code></p>
         <p><code>openspec validate real-voice-e2e-useful-agent-readiness --strict</code></p>
         <p><code>openspec validate public-evidence-and-real-vision-integration --strict</code></p>
@@ -172,7 +190,7 @@
           The 60-90 second demo contract is defined in <code>docs/demo/video-plan.md</code>.
           It shows transcript or fixture input, real audio review, normalization, safety gate
           behavior, controlled visual execution, sanitized trace export, release-pack inspection,
-          and seed-set inspection.
+          normalizer comparison inspection, and seed-set inspection.
         </p>
       </section>
 

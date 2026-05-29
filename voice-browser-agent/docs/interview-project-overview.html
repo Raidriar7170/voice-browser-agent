@@ -148,6 +148,7 @@
         <div>
           <span class="pill">Chinese-first spoken commands</span>
           <span class="pill">Local Operator Console</span>
+          <span class="pill">LLM structured-output normalizer</span>
           <span class="pill">Route decision evidence</span>
           <span class="pill">Public task contracts</span>
           <span class="pill">browser-use-vision dependency</span>
@@ -164,7 +165,7 @@
           </div>
           <div class="card">
             <h3>Normalizer and Validator</h3>
-            <p>Transcript text becomes a structured task or a clarification stop before execution.</p>
+            <p>Transcript text becomes a structured task or a clarification stop. Rule mode is the default; mock or configured LLM modes remain candidate generators behind schema parsing and deterministic validation.</p>
           </div>
           <div class="card">
             <h3>Browser Execution</h3>
@@ -183,7 +184,7 @@
           <li>One spoken command is accepted through upload, recording, transcript, or fixture replay.</li>
           <li>The ASR adapter or fixture manifest creates transcript metadata.</li>
           <li>The operator can review and edit real ASR output before normalization.</li>
-          <li>The Spoken Command Normalizer creates a task request or clarification request.</li>
+          <li>The Spoken Command Normalizer creates a task request or clarification request and records safe provenance for rule, mock LLM, configured provider, or fallback behavior.</li>
           <li>The route selector maps safe commands to controlled local live, preview, clarification, or confirmation paths.</li>
           <li>The Normalizer Validator and Confirmation Gate block unsafe or ambiguous actions.</li>
           <li>The executor records browser actions, agentic steps, final status, and sanitized evidence.</li>
@@ -222,6 +223,13 @@
           The task-pack runner is the reproducibility layer: deterministic mode writes a local
           manifest without network access, while opt-in live mode records honest task outcomes and
           keeps raw public runtime artifacts private until sanitizer approval.
+        </p>
+        <p>
+          Normalizer comparison evidence is generated locally in
+          <code>runtime/normalizer-comparison/manifest.json</code>. It compares structured-output
+          behavior across rule and deterministic mock LLM modes, optionally a configured provider,
+          and reports schema status, validator outcome, fallback state, route readiness, and
+          privacy-scan status. It is not model training, a model score, or broad autonomy evidence.
         </p>
       </section>
 

@@ -300,6 +300,27 @@ def test_speech_to_task_dataset_docs_define_build_command_and_boundaries():
     assert "not broad web-autonomy evidence" in dataset_doc
 
 
+def test_normalizer_comparison_docs_define_local_private_boundaries():
+    readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+    dataset_doc = (PROJECT_ROOT / "docs/demo/speech-to-task-dataset.md").read_text(
+        encoding="utf-8"
+    )
+    closeout = (PROJECT_ROOT / "docs/demo/closeout-checklist.md").read_text(
+        encoding="utf-8"
+    )
+    public_evidence = (PROJECT_ROOT / "docs/public-evidence/index.html").read_text(
+        encoding="utf-8"
+    )
+    combined = f"{readme}\n{dataset_doc}\n{closeout}\n{public_evidence}"
+
+    assert "uv run python scripts/build_normalizer_comparison.py --seed-set" in combined
+    assert "runtime/normalizer-comparison/manifest.json" in combined
+    assert "structured-output comparison" in combined
+    assert "not model training" in combined
+    assert "raw provider responses" in combined
+    assert "API keys" in combined
+
+
 def test_real_use_scenarios_are_documented_and_controlled():
     scenario_doc = (PROJECT_ROOT / "docs/demo/useful-scenarios.md").read_text(encoding="utf-8")
     scenario_manifest = json.loads(

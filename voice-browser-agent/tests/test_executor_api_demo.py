@@ -1,4 +1,5 @@
 import importlib
+import json
 from pathlib import Path
 
 import pytest
@@ -175,6 +176,67 @@ def test_api_happy_path_clarification_confirmation_and_trace_export(tmp_path):
     export = client.get(f"/api/traces/{execution_body['execution_id']}/export")
     assert export.status_code == 200
     assert "raw_audio_path" not in export.text
+
+
+def test_api_records_rule_normalizer_provenance_by_default(tmp_path):
+    client = TestClient(create_app(runtime_dir=tmp_path))
+
+    response = client.post(
+        "/api/normalize",
+        json={"transcript_text": "打开 GitHub 搜索 browser-use-vision，不要登录"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["normalizer_provenance"]["provider_mode"] == "rule"
+    assert body["normalizer_provenance"]["output_source"] == "rule"
+    assert body["execution_runtime"]["normalizer"]["provider_mode"] == "rule"
+    export = client.get(f"/api/traces/{body['execution_id']}/export")
+    assert export.status_code == 200
+    exported = export.json()
+    assert exported["normalizer_provenance"]["provider_mode"] == "rule"
+    assert "api_key" not in json.dumps(exported, ensure_ascii=False)
+
+
+def test_api_uses_mock_llm_normalizer_when_configured(monkeypatch, tmp_path):
+    monkeypatch.setenv("VOICE_BROWSER_NORMALIZER_PROVIDER", "mock_llm")
+    monkeypatch.setenv("VOICE_BROWSER_NORMALIZER_PROMPT_SCHEMA_VERSION", "normalizer.test")
+    client = TestClient(create_app(runtime_dir=tmp_path))
+
+    response = client.post(
+        "/api/normalize",
+        json={"transcript_text": "点击右上角的放大镜图标"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    provenance = body["normalizer_provenance"]
+    assert provenance["provider_mode"] == "mock_llm"
+    assert provenance["provider_name"] == "mock-llm"
+    assert provenance["output_source"] == "llm"
+    assert provenance["schema_status"] == "passed"
+    assert provenance["prompt_schema_version"] == "normalizer.test"
+    assert body["normalized_output"]["intent_type"] == "click_visual_target"
+
+
+def test_api_falls_back_when_configured_provider_is_unavailable(monkeypatch, tmp_path):
+    monkeypatch.setenv("VOICE_BROWSER_NORMALIZER_PROVIDER", "openai_compatible")
+    monkeypatch.delenv("VOICE_BROWSER_NORMALIZER_ENDPOINT_URL", raising=False)
+    client = TestClient(create_app(runtime_dir=tmp_path))
+
+    response = client.post(
+        "/api/normalize",
+        json={"transcript_text": "Search GitHub repositories for agent tooling, do not log in"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    provenance = body["normalizer_provenance"]
+    assert provenance["provider_mode"] == "openai_compatible"
+    assert provenance["output_source"] == "fallback_rule"
+    assert provenance["schema_status"] == "failed"
+    assert "not configured" in provenance["fallback_reason"]
+    assert body["normalized_output"]["public_task_slots"]["search_query"] == "agent tooling"
 
 
 def test_api_executes_uploaded_audio_through_asr_adapter_and_preserves_metadata(tmp_path):

@@ -27,6 +27,14 @@ uv run python scripts/build_speech_to_task_dataset.py --seed-set
 
 The seed-set command uses `fixtures/seed-set/reviewed-variants.json` by default. The manifest separates original trace-derived examples from reviewed variants and records source trace id, evidence mode, correction or variant status, and privacy-scan status.
 
+The same sanitized fixture transcripts and reviewed variants can feed local normalizer comparison:
+
+```bash
+uv run python scripts/build_normalizer_comparison.py --seed-set
+```
+
+That workflow writes `runtime/normalizer-comparison/manifest.json` with source example ids, source trace ids when available, normalizer mode, schema status, validator outcome, fallback state, route readiness, and privacy-scan status. It compares structured-output normalization behavior and stays separate from model training or checkpoint work.
+
 The overlay keeps the original trace-derived target and stores the corrected target separately:
 
 ```json

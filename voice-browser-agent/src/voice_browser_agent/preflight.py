@@ -23,6 +23,7 @@ def build_readiness_report(
     checks = {
         "primary_asr": check_primary_asr(config),
         "fallback_asr": check_fallback_asr(config),
+        "normalizer": check_normalizer(config),
         "browser_automation": check_browser_automation(),
         "real_vision_grounding": check_real_vision_grounding(),
         "runtime_privacy": check_runtime_privacy(project_root=project_root, config=config),
@@ -60,6 +61,45 @@ def check_fallback_asr(config: RuntimeConfig) -> dict[str, Any]:
             if available
             else "Install with `uv sync --extra asr` for local fallback ASR."
         ),
+    }
+
+
+def check_normalizer(config: RuntimeConfig) -> dict[str, Any]:
+    provider_mode = config.normalizer_provider
+    base = {
+        "provider_mode": provider_mode,
+        "fallback_policy": config.normalizer_fallback_policy,
+        "prompt_schema_version": config.normalizer_prompt_schema_version,
+    }
+    if provider_mode == "rule":
+        return {
+            **base,
+            "status": "ready",
+            "detail": "Rule-based normalizer is the active keyless baseline.",
+        }
+    if provider_mode == "mock_llm":
+        return {
+            **base,
+            "status": "ready",
+            "detail": "Deterministic mock LLM normalizer is configured for offline schema testing.",
+        }
+    if provider_mode in {"openai_compatible", "generic_http"}:
+        if config.normalizer_endpoint_url:
+            return {
+                **base,
+                "status": "configured",
+                "detail": "Real LLM structured-output normalizer endpoint is configured.",
+                "model": config.normalizer_model,
+            }
+        return {
+            **base,
+            "status": "misconfigured",
+            "detail": "Real LLM structured-output normalizer endpoint is not configured.",
+        }
+    return {
+        **base,
+        "status": "misconfigured",
+        "detail": "Unsupported normalizer provider mode.",
     }
 
 
@@ -149,6 +189,8 @@ def recommended_actions(checks: dict[str, dict[str, Any]]) -> list[str]:
         actions.append("Configure VOICE_BROWSER_PRIMARY_ASR_URL or run `uv sync --extra asr`.")
     if checks["browser_automation"]["status"] != "ready":
         actions.append("Install Playwright dependencies before live-controlled execution.")
+    if checks["normalizer"]["status"] == "misconfigured":
+        actions.append("Configure the LLM normalizer endpoint or switch VOICE_BROWSER_NORMALIZER_PROVIDER=rule.")
     if checks["real_vision_grounding"]["status"] != "ready":
         actions.append("Install or link browser-use-vision for real visual evidence.")
     if checks["public_readonly"]["status"] == "missing_allowlist":

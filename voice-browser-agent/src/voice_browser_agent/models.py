@@ -138,6 +138,16 @@ class ValidationResult(BaseModel):
     requires_confirmation: bool = False
 
 
+class NormalizerProvenance(BaseModel):
+    provider_mode: str = "rule"
+    provider_name: str = "rule-based"
+    output_source: str = "rule"
+    prompt_schema_version: str = "structured-normalizer.v1"
+    output_kind: str | None = None
+    schema_status: Literal["passed", "failed", "not_applicable"] = "not_applicable"
+    fallback_reason: str | None = None
+
+
 class ConfirmationDecision(BaseModel):
     state: ConfirmationState
     reason: str
@@ -449,6 +459,7 @@ class ExecutionTrace(BaseModel):
     execution_mode: ExecutionMode | None = None
     transcript: ASRTranscript | None = None
     normalized_output: NormalizedOutput | None = None
+    normalizer_provenance: NormalizerProvenance | None = None
     validator_decision: ValidationResult | None = None
     confirmation_decision: ConfirmationDecision | None = None
     route_decision: RouteDecision | None = None

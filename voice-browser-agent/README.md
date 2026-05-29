@@ -31,6 +31,8 @@ The preflight reports primary ASR, fallback ASR, Playwright browser automation, 
 - Raw recordings, private traces, live browser screenshots, credentials, checkpoints, and remote host details stay out of version control.
 - JSON fixture manifests are replayed through `/api/fixtures/{fixture_id}/executions`; they are not raw audio uploads.
 - `VOICE_BROWSER_DEMO_DRY_RUN=true` records an explicit stopped preview trace. Disable it only when a real browser-use/browser-use-vision executor backend is configured.
+- `VOICE_BROWSER_NORMALIZER_PROVIDER=rule` keeps the default keyless deterministic normalizer. Use `mock_llm` for offline structured-output parsing evidence, or configure `openai_compatible` / `generic_http` with `VOICE_BROWSER_NORMALIZER_ENDPOINT_URL` for local private provider trials. Every LLM-style output still passes schema parsing, the deterministic validator, confirmation gates, route policy, and sanitized trace export.
+- Normalizer provenance is recorded as safe metadata: provider mode, output source, prompt/schema version, schema status, output kind, and fallback reason. API keys, request headers, raw prompts, and raw provider responses are excluded from exports and release handoff artifacts.
 - `VOICE_BROWSER_PUBLIC_READONLY_ENABLED=false` keeps `live_public_readonly` disabled by default. When enabled, it only runs allowlisted public read-only targets in a fresh local browser context, with short step/time budgets, No login, no file transfer, and private-by-default traces until sanitizer approval. A task-contract and completion verifier must match before a public task is reported as complete.
 - The public-readonly reliability matrix summarizes the 5-task smoke set across completed, partial, stopped, failed, and blocked outcomes. It is bounded local read-only evidence with private-by-default artifacts, not a production-use, broad-autonomy, barrier-bypass, account-workflow, ranking, model-quality, or raw-public-data claim.
 - The public-readonly useful task pack expands that summary into 8-12 stable read-only task contracts for documentation, reference, package metadata, release notes, and public repository search/read. It remains a local/private summary, not deployed web operation, leaderboard-style ranking, broad autonomy, captcha bypass, account automation, or a raw public artifact release.
@@ -97,6 +99,15 @@ uv run python scripts/build_demo_evidence_pack.py
 
 The command writes a generated local artifact under `runtime/demo-evidence-release-pack/`. Open `runtime/demo-evidence-release-pack/index.html` for the browser-readable evidence index, or inspect `runtime/demo-evidence-release-pack/manifest.json` for the machine-readable manifest. The generated directory stays local; the committed evidence sources remain `fixtures/traces/sanitized/`, `fixtures/traces/live-sanitized/`, `fixtures/traces/agentic-sanitized/`, `fixtures/traces/real-vision-sanitized/`, `fixtures/traces/real-voice-sanitized/`, and `fixtures/traces/real-use-sanitized/`.
 
+Build local normalizer comparison evidence from committed fixture transcripts and reviewed seed examples:
+
+```bash
+uv run python scripts/build_normalizer_comparison.py --seed-set
+uv run python scripts/build_demo_evidence_pack.py --normalizer-comparison-path runtime/normalizer-comparison/manifest.json
+```
+
+The comparison manifest stays under `runtime/normalizer-comparison/`. It compares rule and deterministic mock LLM structured-output behavior, records schema status, validator outcome, route readiness, fallback counts, and privacy-scan status, and is local evidence of bounded intent parsing rather than model training, model score, ranking, or broad autonomy.
+
 Build the local Speech-to-Task adaptation preparation dataset from the same committed trace sources:
 
 ```bash
@@ -111,6 +122,7 @@ Use the console as a command-first operator workflow:
 
 - Primary command: type a short spoken-command transcript and run it. The backend selects a route, shows whether it is controlled live or preview-only, and records the route decision in the trace.
 - Reviewed audio: upload or record one command, review the ASR transcript, edit it if needed, then run the same route-aware execution path while preserving ASR provenance.
+- Normalizer provenance: the summary and route cards show rule, mock LLM, real provider, fallback source, schema status, validator decision, confirmation state, and clarification or blocked reasons without exposing provider-private data.
 - Controlled showcase: GitHub-shaped commands route to a local controlled code-search page unless real GitHub public-readonly is explicitly enabled with a matching task contract.
 - Real public-readonly: when enabled, supported docs, reference, package metadata, release notes, and GitHub search/read commands show the real-page visual result or block state in the console while artifacts remain local/private.
 - Latest task-pack run: readiness and the console can show the most recent local/private task-pack runner manifest, including runner mode, selected task count, outcome counts, sanitizer state, and row-level proof without exposing raw public runtime artifacts.

@@ -1,5 +1,12 @@
+import pytest
+
 from voice_browser_agent.models import BrowserIntentType, BrowserTaskRequest, ClarificationRequest
-from voice_browser_agent.normalizer import RuleBasedNormalizer
+from voice_browser_agent.normalizer import (
+    MockLLMNormalizerClient,
+    NormalizerProviderError,
+    RuleBasedNormalizer,
+    StructuredOutputNormalizer,
+)
 from voice_browser_agent.validator import NormalizerValidator, detect_safety_flags
 
 
@@ -207,3 +214,66 @@ def test_unsupported_github_account_or_broad_research_commands_do_not_run_as_saf
     assert account.requires_confirmation is True
     assert isinstance(broad, ClarificationRequest)
     assert broad.reason == "unsupported_public_task_scope"
+
+
+def test_structured_output_normalizer_records_mock_llm_provenance():
+    result = StructuredOutputNormalizer(
+        llm_client=MockLLMNormalizerClient(),
+        provider_mode="mock_llm",
+        prompt_schema_version="normalizer.test",
+    ).normalize_with_provenance("打开 GitHub 搜索 browser-use-vision，不要登录")
+
+    assert isinstance(result.output, BrowserTaskRequest)
+    assert result.output.public_task_slots["search_query"] == "browser-use-vision"
+    assert result.provenance.provider_mode == "mock_llm"
+    assert result.provenance.output_source == "llm"
+    assert result.provenance.prompt_schema_version == "normalizer.test"
+    assert result.provenance.schema_status == "passed"
+    assert result.provenance.output_kind == "browser_task_request"
+    assert result.provenance.fallback_reason is None
+
+
+def test_structured_output_normalizer_falls_back_and_records_malformed_llm_output():
+    class MalformedClient:
+        provider_name = "malformed-test"
+
+        def normalize(self, transcript_text):
+            return "{not-json"
+
+    result = StructuredOutputNormalizer(
+        llm_client=MalformedClient(),
+        provider_mode="mock_llm",
+        fallback_policy="rule",
+    ).normalize_with_provenance("点击右上角的放大镜图标")
+
+    assert isinstance(result.output, BrowserTaskRequest)
+    assert result.output.intent_type is BrowserIntentType.CLICK_VISUAL_TARGET
+    assert result.provenance.provider_mode == "mock_llm"
+    assert result.provenance.output_source == "fallback_rule"
+    assert result.provenance.schema_status == "failed"
+    assert "malformed" in result.provenance.fallback_reason
+
+
+def test_structured_output_normalizer_can_emit_clarification_when_fallback_policy_is_clarify():
+    class UnavailableClient:
+        provider_name = "unavailable-test"
+
+        def normalize(self, transcript_text):
+            raise NormalizerProviderError("provider unavailable")
+
+    result = StructuredOutputNormalizer(
+        llm_client=UnavailableClient(),
+        provider_mode="mock_llm",
+        fallback_policy="clarify",
+    ).normalize_with_provenance("打开 GitHub 搜索 browser-use-vision")
+
+    assert isinstance(result.output, ClarificationRequest)
+    assert result.output.reason == "llm_normalizer_unavailable"
+    assert result.provenance.output_source == "clarification"
+    assert result.provenance.schema_status == "failed"
+    assert "provider unavailable" in result.provenance.fallback_reason
+
+
+def test_structured_output_normalizer_rejects_unknown_fallback_policy():
+    with pytest.raises(ValueError, match="fallback policy"):
+        StructuredOutputNormalizer(fallback_policy="execute_anyway")

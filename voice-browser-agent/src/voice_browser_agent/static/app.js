@@ -128,13 +128,19 @@ function renderSummary(trace) {
   const mode = trace.execution_mode || trace.execution_runtime?.execution_mode || "unknown";
   const route = trace.route_decision || trace.execution_runtime?.route_decision || {};
   const matrix = matrixRowForTrace(trace);
+  const normalizer = trace.normalizer_provenance || trace.execution_runtime?.normalizer || {};
   const lines = [
     `Input source: ${inputSourceForTrace(trace)}`,
+    `Normalizer: ${normalizer.provider_mode || "unknown"} / ${normalizer.output_source || "unknown"}`,
+    `Normalizer schema: ${normalizer.schema_status || "unknown"}`,
     `Route: ${route.route_type || "unknown"}`,
     `Execution mode: ${mode}`,
     `Evidence mode: ${route.evidence_mode || trace.execution_runtime?.evidence_mode || "unknown"}`,
     `Final status: ${trace.final_status || "unknown"}`,
   ];
+  if (normalizer.fallback_reason) {
+    lines.push(`Normalizer fallback: ${normalizer.fallback_reason}`);
+  }
   if (route.route_type === "public_readonly") {
     lines.push(`Public-readonly target: ${route.public_target_label || "unknown"}`);
     lines.push(`Public task: ${route.public_task_id || "unknown"} (${route.public_task_kind || "unknown"})`);
@@ -169,6 +175,7 @@ function renderSummary(trace) {
 
 function renderRoute(trace) {
   const route = trace.route_decision || trace.execution_runtime?.route_decision || {};
+  const normalizer = trace.normalizer_provenance || trace.execution_runtime?.normalizer || {};
   const matrix = matrixRowForTrace(trace);
   const live = route.live_evidence_eligible ? "live evidence" : "not live evidence";
   const tone = route.live_evidence_eligible ? "good" : "warn";
@@ -177,6 +184,10 @@ function renderRoute(trace) {
   const criteriaSummary = route.public_completion_criteria_summary || matrix.completion_criteria_summary || [];
   setCards("routeCards", [
     ["Route", route.route_type || "unknown", tone],
+    ["Normalizer", normalizer.provider_mode || "unknown"],
+    ["Output source", normalizer.output_source || "unknown", normalizer.fallback_reason ? "warn" : ""],
+    ["Schema", normalizer.schema_status || "unknown", normalizer.schema_status === "failed" ? "warn" : ""],
+    ["Validator", trace.validator_decision?.accepted ? "accepted" : "not accepted", trace.validator_decision?.accepted ? "good" : "warn"],
     ["Target", route.public_target_label || route.controlled_fixture_id || "none"],
     ["Target class", route.public_target_class || matrix.target_class || "n/a"],
     ["Task category", route.public_task_category || matrix.task_category || "n/a"],
@@ -413,9 +424,11 @@ function renderReadiness(report) {
   const checks = report.checks || {};
   const primary_asr = checks.primary_asr || {};
   const fallback_asr = checks.fallback_asr || {};
+  const normalizer = checks.normalizer || {};
   const items = [
     ["primary_asr", primary_asr],
     ["fallback_asr", fallback_asr],
+    ["normalizer", normalizer],
     ["browser_automation", checks.browser_automation || {}],
     ["real_vision_grounding", checks.real_vision_grounding || {}],
     ["runtime_privacy", checks.runtime_privacy || {}],
@@ -448,6 +461,9 @@ function renderReadiness(report) {
     <p class="hint">Useful task pack: ${usefulTaskPack.status || "unknown"}; ${
       usefulTaskPack.task_count || 0
     } contracts; ${categorySummary || "no category_counts"}.</p>
+    <p class="hint">Normalizer: ${normalizer.provider_mode || "unknown"}; ${
+      normalizer.detail || "no detail"
+    }; fallback ${normalizer.fallback_policy || "unknown"}.</p>
     ${renderTaskPackRun(latestTaskPackRun)}
     ${renderUsefulTaskPack(usefulTaskPack)}
     ${unavailable}

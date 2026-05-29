@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -18,6 +19,13 @@ class RuntimeConfig(BaseSettings):
     remote_vision_backend_url: str | None = None
     primary_asr_url: str | None = None
     fallback_asr_model: str = "base"
+    normalizer_provider: Literal["rule", "mock_llm", "openai_compatible", "generic_http"] = "rule"
+    normalizer_fallback_policy: Literal["rule", "clarify"] = "rule"
+    normalizer_prompt_schema_version: str = "structured-normalizer.v1"
+    normalizer_endpoint_url: str | None = None
+    normalizer_api_key: str | None = None
+    normalizer_model: str | None = None
+    normalizer_timeout_seconds: float = Field(default=15.0, ge=1.0, le=120.0)
     enable_status_voice_feedback: bool = False
     public_trace_exports: bool = True
     demo_dry_run: bool = True

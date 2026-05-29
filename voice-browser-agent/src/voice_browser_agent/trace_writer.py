@@ -34,6 +34,13 @@ PRIVATE_KEYS = {
     "raw_screenshot",
     "local_file_uri",
     "third_party_private_markers",
+    "api_key",
+    "authorization",
+    "request_header",
+    "request_headers",
+    "raw_prompt",
+    "raw_provider_response",
+    "provider_response",
 }
 
 

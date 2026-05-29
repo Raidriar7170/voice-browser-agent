@@ -208,6 +208,68 @@ def test_release_pack_includes_latest_live_task_pack_runner_summary(tmp_path):
     assert "/Users/" not in serialized
 
 
+def test_release_pack_includes_normalizer_comparison_summary(tmp_path):
+    builder = load_builder()
+    comparison_spec = importlib.util.spec_from_file_location(
+        "build_normalizer_comparison",
+        PROJECT_ROOT / "scripts/build_normalizer_comparison.py",
+    )
+    comparison = importlib.util.module_from_spec(comparison_spec)
+    assert comparison_spec and comparison_spec.loader
+    comparison_spec.loader.exec_module(comparison)
+    trace_root = copy_trace_sources(tmp_path)
+    comparison_manifest = comparison.build_comparison(
+        project_root=PROJECT_ROOT,
+        trace_root=trace_root,
+        output_dir=tmp_path / "runtime/normalizer-comparison",
+    )
+
+    manifest = builder.build_release_pack(
+        project_root=PROJECT_ROOT,
+        trace_root=trace_root,
+        output_dir=tmp_path / "release-pack",
+        normalizer_comparison_path=tmp_path / "runtime/normalizer-comparison/manifest.json",
+    )
+
+    summary = manifest["normalizer_comparison"]
+    assert summary["status"] == "available"
+    assert summary["input_count"] == comparison_manifest["input_count"]
+    assert set(summary["normalizer_modes"]) == {"rule", "mock_llm"}
+    assert summary["privacy_state"] == "local_private"
+    assert summary["export_state"] == "local_private"
+    assert "rows" not in summary
+    index_html = (tmp_path / "release-pack/index.html").read_text(encoding="utf-8")
+    assert "Normalizer comparison" in index_html
+    assert "structured-output comparison, not model training" in index_html
+
+
+def test_release_pack_rejects_private_normalizer_comparison_manifest(tmp_path):
+    builder = load_builder()
+    trace_root = copy_trace_sources(tmp_path)
+    comparison_path = tmp_path / "runtime/normalizer-comparison/manifest.json"
+    comparison_path.parent.mkdir(parents=True)
+    comparison_path.write_text(
+        json.dumps(
+            {
+                "status": "available",
+                "privacy_state": "local_private",
+                "export_state": "local_private",
+                "raw_provider_response": "secret",
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(builder.EvidencePackError, match="raw_provider_response"):
+        builder.build_release_pack(
+            project_root=PROJECT_ROOT,
+            trace_root=trace_root,
+            output_dir=tmp_path / "release-pack",
+            normalizer_comparison_path=comparison_path,
+        )
+
+
 def test_release_pack_rejects_malformed_task_pack_runner_manifest(tmp_path):
     builder = load_builder()
     trace_root = copy_trace_sources(tmp_path)

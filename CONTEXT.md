@@ -48,6 +48,14 @@ _Avoid_: real-time voice conversation, always-on listening, multi-speaker voice 
 The intent adaptation layer that converts noisy ASR text into a structured, safety-aware browser task request.
 _Avoid_: prompt rewrite, transcript cleanup, chat assistant
 
+**LLM Structured-Output Normalizer**:
+An optional configured normalizer mode where an LLM provider proposes a `BrowserTaskRequest` or `ClarificationRequest`; schemas, deterministic validation, confirmation gates, and route policy still decide whether anything can execute.
+_Avoid_: LLM executor, hidden safety bypass, broad autonomous planner
+
+**Normalizer Provenance**:
+Safe trace metadata describing provider mode, output source, prompt/schema version, output kind, schema status, validator decision, and fallback reason without recording credentials, request headers, raw prompts, or raw provider responses.
+_Avoid_: raw provider log, secret-bearing prompt archive
+
 **Normalizer Validator**:
 A deterministic check that accepts, rejects, or flags a normalized command before browser execution.
 _Avoid_: second LLM judge, hidden prompt rule
@@ -152,6 +160,10 @@ _Avoid_: final status only, benchmark report
 A Speech-to-Task training example created from an Execution Trace and optional human correction.
 _Avoid_: raw private trace dump, ASR benchmark sample
 
+**Normalizer Comparison Evidence**:
+A local/private report comparing rule, deterministic mock LLM, and optionally configured provider normalizer outputs over committed fixtures and reviewed seed examples.
+_Avoid_: model score, training result, public leaderboard, broad autonomy evidence
+
 ## Coverage Matrix (2026-05-26)
 
 This matrix is the current line-by-line coverage audit for the domain language above. "Covered" means the commitment is implemented, tested, documented, represented in OpenSpec specs, or evidenced by sanitized demo artifacts. "Deferred" means the current MVP intentionally stops short for a reason consistent with the bounded Voice-to-Browser Agent scope.
@@ -171,11 +183,13 @@ This matrix is the current line-by-line coverage audit for the domain language a
 | L39-L41 | Chinese-First Spoken Command | zh-first transcript metadata and mixed Chinese/English fixtures | `test_ingestion_asr.py`, `test_normalizer_validator.py` | audio fixtures, prompt examples | Covered |
 | L43-L45 | Spoken Command Execution | one utterance creates one execution request and trace | `test_executor_api_demo.py` | README Quickstart, `spoken-command-ingestion` | Covered |
 | L47-L49 | Spoken Command Normalizer | `RuleBasedNormalizer`, `StructuredOutputNormalizer` | `test_normalizer_validator.py` | `spoken-command-normalization`, prompts | Covered |
+| 2026-05-29 | LLM Structured-Output Normalizer | configurable `normalizer_from_config`, mock and generic HTTP provider boundary, fallback policy | `test_normalizer_validator.py`, `test_executor_api_demo.py`, `test_real_voice_e2e_readiness.py` | `llm-structured-normalizer-evidence`, README, `.env.example` | Covered as optional intent parsing behind deterministic gates |
+| 2026-05-29 | Normalizer Provenance | `NormalizerProvenance`, trace/export runtime metadata, console summary cards | `test_executor_api_demo.py`, `test_operator_console_ui.py` | release-pack summary, Operator Console, docs/public-evidence | Covered without raw provider data |
 | L51-L53 | Normalizer Validator | deterministic `NormalizerValidator` | `test_normalizer_validator.py` | `spoken-command-normalization` | Covered |
 | L55-L57 | Browser Task Request | Pydantic `BrowserTaskRequest` schema | `test_core_schemas_trace.py`, `test_normalizer_validator.py` | `spoken-command-normalization`, trace fixtures | Covered |
 | L59-L61 | Clarification Request | Pydantic `ClarificationRequest`, no execution path | `test_normalizer_validator.py`, `test_executor_api_demo.py` | sanitized `demo-ambiguous.json` | Covered |
 | L63-L65 | Browser Intent Type | enum restricts five MVP intent types | `test_core_schemas_trace.py`, `test_normalizer_validator.py` | demo task suite, `spoken-command-normalization` | Covered |
-| L67-L69 | Operator Console | local FastAPI static UI/API plus public-readonly visible result panel | `test_operator_console_ui.py`, `test_executor_api_demo.py` | `operator-console`, README | Covered |
+| L67-L69 | Operator Console | local FastAPI static UI/API plus public-readonly visible result panel and normalizer provenance display | `test_operator_console_ui.py`, `test_executor_api_demo.py` | `operator-console`, README | Covered |
 | L71-L73 | Demo Task Suite | eight fixture-backed demo tasks | `test_demo_evidence.py` | `docs/demo/demo-task-suite.md` | Covered |
 | L75-L77 | Visual-Grounding-Heavy Task | icon, color swatch, SVG, dashboard tasks | `test_demo_evidence.py`, `test_agentic_vision_executor.py` | demo pages, live/agentic traces | Covered |
 | L79-L81 | Demo Ablation | module-value ablation docs without rankings | `test_demo_evidence.py` | `docs/demo/ablations.md`, `demo-evidence-set` | Covered |
@@ -202,6 +216,7 @@ This matrix is the current line-by-line coverage audit for the domain language a
 | L119-L121 | Confirmation Gate | `ConfirmationGate` pending/confirm/cancel/block states | `test_confirmation_safety.py`, API tests | `safe-browser-execution`, `demo-checkout-stop.json` | Covered |
 | L123-L125 | Execution Trace | Pydantic trace plus writer/export sanitizer | `test_core_schemas_trace.py`, API tests | sanitized preview/live/agentic trace fixtures | Covered |
 | L127-L129 | Trace-Derived Training Example | `training_example_from_trace` with optional human correction and reviewed variants | `test_trace_derived_training_examples.py`, `test_speech_to_task_dataset_builder.py` | `trace-derived-training-examples`, README Runtime, seed-set docs | Covered; no public raw dataset/checkpoints |
+| 2026-05-29 | Normalizer Comparison Evidence | `scripts/build_normalizer_comparison.py` creates local/private manifest from fixtures and seed examples | `test_normalizer_comparison.py`, `test_demo_evidence_release_pack.py` | `demo-evidence-set`, `trace-derived-training-examples`, release-pack index | Covered as local structured-output evidence; model training deferred |
 
 ### Example-Dialogue Commitments
 

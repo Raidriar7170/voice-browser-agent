@@ -53,8 +53,8 @@ def test_operator_console_uses_versioned_static_assets_to_avoid_stale_js_cache(t
 
     html = client.get("/").text
 
-    assert 'href="/static/styles.css?v=console-v3-20260528"' in html
-    assert 'src="/static/app.js?v=console-v3-20260528"' in html
+    assert 'href="/static/styles.css?v=console-v3-20260529"' in html
+    assert 'src="/static/app.js?v=console-v3-20260529"' in html
 
 
 def test_operator_console_javascript_posts_fixture_replay_endpoint():
@@ -135,6 +135,8 @@ def test_operator_console_javascript_loads_real_use_readiness():
     assert "readinessPanel" in app_js
     assert "primary_asr" in app_js
     assert "fallback_asr" in app_js
+    assert "normalizer" in app_js
+    assert "fallback_policy" in app_js
     assert "ASR unavailable" in app_js
 
 
@@ -153,6 +155,9 @@ def test_operator_console_javascript_renders_compact_summary_before_raw_trace():
     assert "Final status:" in app_js
     assert "Route:" in app_js
     assert "Evidence mode:" in app_js
+    assert "Normalizer:" in app_js
+    assert "Normalizer schema:" in app_js
+    assert "Normalizer fallback:" in app_js
     assert "Raw trace JSON" in app_js
 
 

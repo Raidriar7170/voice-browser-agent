@@ -49,10 +49,12 @@ def test_preflight_report_and_api_are_sanitized(tmp_path):
     text = json.dumps(report, ensure_ascii=False)
 
     assert report["project"] == "Voice-to-Browser Agent"
-    assert {"primary_asr", "fallback_asr", "browser_automation", "real_vision_grounding", "runtime_privacy"}.issubset(
+    assert {"primary_asr", "fallback_asr", "browser_automation", "real_vision_grounding", "runtime_privacy", "normalizer"}.issubset(
         report["checks"]
     )
     assert report["checks"]["runtime_privacy"]["status"] == "ready"
+    assert report["checks"]["normalizer"]["status"] == "ready"
+    assert report["checks"]["normalizer"]["provider_mode"] == "rule"
     assert report["recommended_actions"]
     assert "file:///Users/" not in text
     assert "raw_audio_path" not in text
@@ -62,6 +64,26 @@ def test_preflight_report_and_api_are_sanitized(tmp_path):
     response = client.get("/api/readiness")
     assert response.status_code == 200
     assert response.json()["checks"]["runtime_privacy"]["status"] == "ready"
+    assert response.json()["checks"]["normalizer"]["provider_mode"] == "rule"
+
+
+def test_preflight_reports_mock_and_misconfigured_llm_normalizer(monkeypatch, tmp_path):
+    from voice_browser_agent.preflight import build_readiness_report
+
+    monkeypatch.setenv("VOICE_BROWSER_NORMALIZER_PROVIDER", "mock_llm")
+    mock_report = build_readiness_report(project_root=PROJECT_ROOT, runtime_dir=tmp_path / "mock")
+    assert mock_report["checks"]["normalizer"]["status"] == "ready"
+    assert mock_report["checks"]["normalizer"]["provider_mode"] == "mock_llm"
+
+    monkeypatch.setenv("VOICE_BROWSER_NORMALIZER_PROVIDER", "openai_compatible")
+    monkeypatch.delenv("VOICE_BROWSER_NORMALIZER_ENDPOINT_URL", raising=False)
+    llm_report = build_readiness_report(project_root=PROJECT_ROOT, runtime_dir=tmp_path / "llm")
+    assert llm_report["checks"]["normalizer"]["status"] == "misconfigured"
+    assert llm_report["checks"]["normalizer"]["provider_mode"] == "openai_compatible"
+    assert "endpoint" in llm_report["checks"]["normalizer"]["detail"].lower()
+    normalizer_text = json.dumps(llm_report["checks"]["normalizer"], ensure_ascii=False).lower()
+    assert "normalizer_endpoint_url" not in normalizer_text
+    assert "api_key" not in normalizer_text
 
 
 def test_audio_can_be_transcribed_reviewed_and_executed_as_real_voice_controlled(tmp_path):
