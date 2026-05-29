@@ -32,16 +32,53 @@ PRIVATE_KEYS = {
     "raw_page_html",
     "visible_text",
     "raw_screenshot",
+    "raw_visual_payload",
+    "raw_annotated_image",
+    "annotated_image",
+    "raw_image",
+    "image_bytes",
+    "screenshot_bytes",
+    "screenshot_base64",
     "local_file_uri",
     "third_party_private_markers",
     "api_key",
     "authorization",
+    "request_body",
     "request_header",
     "request_headers",
+    "response_body",
     "raw_prompt",
+    "raw_provider_prompt",
+    "raw_provider_payload",
     "raw_provider_response",
+    "provider_request",
+    "provider_private_payload",
+    "provider_private_response",
     "provider_response",
+    "visual_provider_payload",
 }
+
+PRIVATE_VALUE_MARKERS = {
+    marker
+    for marker in PRIVATE_KEYS
+    if marker
+    not in {
+        "url",
+        "public_url",
+        "public_target_url",
+    }
+}
+PRIVATE_VALUE_MARKERS.update(
+    {
+        "/Users/",
+        "/users/",
+        "file:///Users/",
+        "file:///users/",
+        "Bearer ",
+        "bearer ",
+    }
+)
+REDACTED_PRIVATE_MARKER = "[redacted-private-marker]"
 
 
 class TraceWriter:
@@ -88,4 +125,11 @@ def sanitize_trace_dict(value: Any) -> Any:
         return sanitized
     if isinstance(value, list):
         return [sanitize_trace_dict(item) for item in value]
+    if isinstance(value, str) and _contains_private_value_marker(value):
+        return REDACTED_PRIVATE_MARKER
     return value
+
+
+def _contains_private_value_marker(value: str) -> bool:
+    lowered = value.lower()
+    return any(marker.lower() in lowered for marker in PRIVATE_VALUE_MARKERS)

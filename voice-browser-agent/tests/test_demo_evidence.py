@@ -50,6 +50,7 @@ def test_live_controlled_sanitized_trace_artifacts_exist_for_selected_visual_tas
     traces = sorted((PROJECT_ROOT / "fixtures/traces/live-sanitized").glob("*.json"))
     forbidden = (
         "raw_audio_path",
+        "visible_text",
         "raw_screenshot",
         "browser_profile",
         "cookie",
@@ -108,17 +109,30 @@ def test_agentic_sanitized_trace_artifacts_exist_for_selected_visual_tasks():
 
     assert len(traces) >= 2
     fixture_ids = set()
+    verification_outcomes = set()
     for trace in traces:
         text = trace.read_text(encoding="utf-8")
         payload = json.loads(text)
         fixture_ids.add(payload["transcript"]["metadata"]["input_audio_id"])
         assert payload["execution_mode"] == "live_controlled"
         assert payload["execution_runtime"]["execution_style"] == "agentic_vision"
+        assert payload["execution_runtime"]["visual_verifier_mode"] == "deterministic_controlled"
         assert payload["agentic_steps"]
+        assert any(step.get("visual_verification_result") for step in payload["agentic_steps"])
+        for step in payload["agentic_steps"]:
+            verification = step.get("visual_verification_result")
+            if verification:
+                verification_outcomes.add(verification["outcome"])
+                assert verification["expected_condition"]
+                assert verification["observed_state_summary"]
+                assert verification["reason"]
+                assert verification["sanitized_evidence_refs"]
         assert payload["browser_actions"] or payload["grounding_evidence_refs"]
         assert not any(word in text for word in forbidden)
 
     assert {"icon-search", "color-swatch"}.issubset(fixture_ids)
+    assert "passed" in verification_outcomes
+    assert verification_outcomes & {"failed", "uncertain"}
 
 
 def test_public_readme_uses_bounded_demo_positioning():
@@ -379,8 +393,28 @@ def test_demo_docs_distinguish_agentic_evidence_and_ablations():
 
     assert "agentic live-controlled" in suite
     assert "fixtures/traces/agentic-sanitized/" in suite
+    assert "visual verification result" in suite.lower()
+    assert "keyless deterministic verifier" in suite.lower()
     assert "re-observation" in ablations
     assert "visual target resolution" in ablations
+
+
+def test_visual_verification_docs_define_bounded_keyless_positioning():
+    readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8").lower()
+    video_plan = (PROJECT_ROOT / "docs/demo/video-plan.md").read_text(encoding="utf-8").lower()
+    public_evidence = (PROJECT_ROOT / "docs/public-evidence/index.html").read_text(
+        encoding="utf-8"
+    ).lower()
+    interview = (PROJECT_ROOT / "docs/interview-project-overview.html").read_text(
+        encoding="utf-8"
+    ).lower()
+    combined = "\n".join([readme, video_plan, public_evidence, interview])
+
+    assert "visual verification loop evidence" in combined
+    assert "keyless deterministic" in combined
+    assert "real vlm/provider verification is optional" in combined
+    assert "local/private" in combined
+    assert "model fine-tuning" in combined
 
 
 def test_context_coverage_matrix_covers_domain_terms_and_dialogue_commitments():

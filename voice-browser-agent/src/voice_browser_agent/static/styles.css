@@ -199,6 +199,21 @@ label {
   background: #f1f8f3;
 }
 
+.metric-card.visual-verification-passed {
+  border-color: #4f9462;
+  background: #edf8f0;
+}
+
+.metric-card.visual-verification-failed {
+  border-color: #b65b5b;
+  background: #fff0f0;
+}
+
+.metric-card.visual-verification-uncertain {
+  border-color: #c77c3a;
+  background: #fff2e7;
+}
+
 .metric-card.warn {
   border-color: #d8aa54;
   background: #fff8ec;

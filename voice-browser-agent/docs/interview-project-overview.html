@@ -175,6 +175,10 @@
             <h3>Visual Grounding</h3>
             <p><code>browser-use-vision</code> remains the visual grounding dependency; this standalone repo owns voice-to-task flow.</p>
           </div>
+          <div class="card">
+            <h3>Visual Verification</h3>
+            <p>Agentic controlled runs use a keyless deterministic verifier to record expected condition, observed state, proof refs, and recovery or stop decisions. Real VLM/provider verification is optional and local/private.</p>
+          </div>
         </div>
       </section>
 
@@ -187,7 +191,7 @@
           <li>The Spoken Command Normalizer creates a task request or clarification request and records safe provenance for rule, mock LLM, configured provider, or fallback behavior.</li>
           <li>The route selector maps safe commands to controlled local live, preview, clarification, or confirmation paths.</li>
           <li>The Normalizer Validator and Confirmation Gate block unsafe or ambiguous actions.</li>
-          <li>The executor records browser actions, agentic steps, final status, and sanitized evidence.</li>
+          <li>The executor records browser actions, agentic steps, visual verification loop evidence, final status, and sanitized evidence.</li>
         </ol>
       </section>
 
@@ -196,7 +200,7 @@
         <ul>
           <li><code>demo_preview</code>: stable public showcase evidence without live page execution.</li>
           <li><code>live_controlled</code>: selected local controlled visual tasks with action evidence, including the route-aware controlled GitHub-like showcase.</li>
-          <li><code>agentic_live_controlled</code>: observe-act-verify traces with agentic step evidence.</li>
+          <li><code>agentic_live_controlled</code>: observe-act-verify traces with visual verification loop evidence, including passed, recovered, and uncertain-stop outcomes.</li>
           <li><code>real_vision_controlled</code>: controlled <code>icon-search</code> evidence that calls <code>browser_use_vision.som.annotate_screenshot</code>.</li>
           <li><code>real_voice_controlled</code>: reviewed audio command evidence with ASR provenance, controlled execution, and sanitized grounding references.</li>
           <li><code>real_use_failure</code>: ASR unavailable, clarification, confirmation, cancellation, and ambiguous-target traces as reliability evidence.</li>
@@ -223,6 +227,12 @@
           The task-pack runner is the reproducibility layer: deterministic mode writes a local
           manifest without network access, while opt-in live mode records honest task outcomes and
           keeps raw public runtime artifacts private until sanitizer approval.
+        </p>
+        <p>
+          Visual verification loop evidence is controlled-task reliability evidence, not a model
+          quality claim. The default path is keyless deterministic; real VLM/provider verification
+          is optional and local/private, and raw visual/provider artifacts are excluded from
+          release evidence.
         </p>
         <p>
           Normalizer comparison evidence is generated locally in

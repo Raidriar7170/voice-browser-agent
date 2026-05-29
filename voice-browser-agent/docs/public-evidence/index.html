@@ -93,7 +93,7 @@
             <tr>
               <td><code>agentic_live_controlled</code></td>
               <td><code>fixtures/traces/agentic-sanitized/</code></td>
-              <td>Observe-act-verify traces with agentic step evidence.</td>
+              <td>Observe-act-verify traces with visual verification loop evidence, including passed, recovered, and uncertain-stop outcomes.</td>
             </tr>
             <tr>
               <td><code>real_vision_controlled</code></td>
@@ -117,6 +117,14 @@
             </tr>
           </tbody>
         </table>
+        <p>
+          Visual verification loop evidence uses a keyless deterministic verifier on controlled
+          local pages by default. Real VLM/provider verification is optional and local/private; raw
+          screenshots, raw annotated images, provider-private payloads, credentials, local paths,
+          and remote host details are excluded from public evidence. This evidence is intended to
+          show bounded controlled-task reliability, not model fine-tuning, model ranking, deployment
+          claims, or open-ended web autonomy.
+        </p>
         <p>
           The public-readonly reliability matrix is a summary layer over the smoke set, not a
           public raw trace dump. It reports completed, partial, stopped, failed, and blocked

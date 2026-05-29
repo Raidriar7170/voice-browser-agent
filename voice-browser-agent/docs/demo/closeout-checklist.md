@@ -6,6 +6,7 @@ Use this checklist before archiving or committing the final Voice-to-Browser Age
 
 ```bash
 uv run python scripts/preflight_real_use.py
+uv run python scripts/generate_agentic_traces.py
 uv run python scripts/generate_real_voice_trace.py
 uv run python scripts/run_public_readonly_task_pack.py --all --mode deterministic
 uv run python scripts/build_normalizer_comparison.py --seed-set
@@ -62,6 +63,8 @@ Confirm the latest public-readonly task-pack runner manifest appears in readines
 
 Confirm normalizer comparison evidence appears in the release-pack manifest and index when `runtime/normalizer-comparison/manifest.json` is supplied. It must be labeled as local structured-output comparison, not model training or a model score, and it must not expose raw prompts, raw provider responses, API keys, request headers, private URLs, local file URIs, remote host details, or unsanitized runtime fields.
 
+Confirm visual verification loop evidence appears in the release-pack manifest and index. It must summarize passed, failed, and uncertain outcomes; verified fixture ids; recovery count; failed or uncertain reasons; source trace paths; and privacy-scan status. The default verifier is keyless deterministic over controlled local pages. Real VLM/provider verification is optional and local/private, and raw screenshots, raw annotated images, provider-private payloads, credentials, local paths, and remote host details must not appear in release evidence.
+
 ## Archive Order
 
 Confirm `speech-to-task-adaptation-dataset` has already been archived before archiving `project-closeout-interview-pack`.
@@ -83,4 +86,4 @@ Recommended final sequence:
 
 ## Boundaries
 
-The closeout MVP is a bounded spoken-command browser execution project. Model fine-tuning, expanded dataset collection, public hosting, verification-barrier bypassing, account workflows, production deployment, ranking tables, leaderboard claims, state-of-the-art claims, and broad public-web automation remain out of scope for this handoff.
+The closeout MVP is a bounded spoken-command browser execution project. Model fine-tuning, expanded dataset collection, public hosting, verification-barrier bypassing, account workflows, production deployment, ranking tables, leaderboard claims, state-of-the-art claims, broad public-web automation, and real-provider visual verification as a default requirement remain out of scope for this handoff.

@@ -53,8 +53,8 @@ def test_operator_console_uses_versioned_static_assets_to_avoid_stale_js_cache(t
 
     html = client.get("/").text
 
-    assert 'href="/static/styles.css?v=console-v3-20260529"' in html
-    assert 'src="/static/app.js?v=console-v3-20260529"' in html
+    assert 'href="/static/styles.css?v=console-v4-20260529"' in html
+    assert 'src="/static/app.js?v=console-v4-20260529"' in html
 
 
 def test_operator_console_javascript_posts_fixture_replay_endpoint():
@@ -138,6 +138,24 @@ def test_operator_console_javascript_loads_real_use_readiness():
     assert "normalizer" in app_js
     assert "fallback_policy" in app_js
     assert "ASR unavailable" in app_js
+    assert "visual_verifier" in app_js
+    assert "controlled_verifier_available" in app_js
+    assert "provider_state" in app_js
+    assert "missing_setup_action" in app_js
+
+
+def test_readiness_api_surfaces_visual_verifier_state(tmp_path):
+    client = TestClient(create_app(runtime_dir=tmp_path))
+
+    response = client.get("/api/readiness")
+
+    assert response.status_code == 200
+    verifier = response.json()["checks"]["visual_verifier"]
+    assert verifier["status"] == "ready"
+    assert verifier["mode"] == "deterministic_controlled"
+    assert verifier["controlled_verifier_available"] is True
+    assert verifier["provider_state"] in {"not_configured", "configured_private"}
+    assert "missing_setup_action" in verifier
 
 
 def test_operator_console_javascript_renders_compact_summary_before_raw_trace():
@@ -189,6 +207,39 @@ def test_operator_console_javascript_renders_reliability_matrix_before_raw_trace
     assert ".matrix-outcome-stopped" in styles
     assert ".matrix-outcome-failed" in styles
     assert ".matrix-outcome-blocked" in styles
+
+
+def test_operator_console_javascript_renders_visual_verification_without_success_tone_for_non_pass():
+    app_js = (
+        __import__("pathlib")
+        .Path(__file__)
+        .resolve()
+        .parents[1]
+        / "src/voice_browser_agent/static/app.js"
+    ).read_text(encoding="utf-8")
+    styles = (
+        __import__("pathlib")
+        .Path(__file__)
+        .resolve()
+        .parents[1]
+        / "src/voice_browser_agent/static/styles.css"
+    ).read_text(encoding="utf-8")
+
+    assert "visual_verification_result" in app_js
+    assert "Visual verification:" in app_js
+    assert "Expected condition" in app_js
+    assert "Observed state" in app_js
+    assert "Proof refs" in app_js
+    assert "Recovery" in app_js
+    assert "Stop reason" in app_js
+    assert "visual-verification-passed" in app_js
+    assert "visual-verification-failed" in app_js
+    assert "visual-verification-uncertain" in app_js
+    assert "escapeHtml(label)" in app_js
+    assert "escapeHtml(value || \"n/a\")" in app_js
+    assert ".visual-verification-passed" in styles
+    assert ".visual-verification-failed" in styles
+    assert ".visual-verification-uncertain" in styles
 
 
 def test_operator_console_javascript_gates_status_voice_feedback():

@@ -418,6 +418,17 @@ class AgenticVerificationDecision(BaseModel):
     reason: str
 
 
+class VisualVerificationResult(BaseModel):
+    outcome: Literal["passed", "failed", "uncertain"]
+    expected_condition: str
+    observed_state_summary: str
+    reason: str
+    verifier_mode: str = "deterministic_controlled"
+    provider_mode: str | None = None
+    sanitized_evidence_refs: list[str] = Field(default_factory=list)
+    provider_metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class AgenticRecoveryDecision(BaseModel):
     kind: Literal["none", "reobserve", "stop", "clarify"]
     reason: str
@@ -439,6 +450,7 @@ class AgenticVisionStep(BaseModel):
             reason="not verified",
         )
     )
+    visual_verification_result: VisualVerificationResult | None = None
     recovery_decision: AgenticRecoveryDecision = Field(
         default_factory=lambda: AgenticRecoveryDecision(
             kind="none",

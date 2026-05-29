@@ -20,6 +20,10 @@ _Avoid_: voice interaction demo, speech model benchmark, generic assistant
 The reusable browser UI perception component that turns screenshots, OCR, regions, and Set-of-Mark annotations into page context for the browser executor.
 _Avoid_: voice agent core, benchmark harness
 
+**Visual Verification Loop Evidence**:
+Post-action controlled-task evidence that records whether the intended visual state was confirmed, failed, or remained uncertain, including expected condition, observed state summary, proof refs, and recovery or stop decision.
+_Avoid_: action success only, raw screenshot proof, model-quality score, broad autonomy claim
+
 **Remote Vision Backend**:
 The GPU-backed visual model service used by the Visual Grounding Engine for OCR, region captioning, detection, or description.
 _Avoid_: voice backend, browser executor service
@@ -176,6 +180,7 @@ This matrix is the current line-by-line coverage audit for the domain language a
 | L11-L13 | Bounded Voice-to-Browser Agent | bounded intent enum, validator long-horizon rejection, stop conditions | `test_normalizer_validator.py`, `test_confirmation_safety.py` | README, `spoken-command-normalization`, `safe-browser-execution` | Covered |
 | L15-L17 | Reliable Voice-Driven Browser Execution | normalize -> validate -> confirm -> execute -> trace flow | `test_executor_api_demo.py`, `test_agentic_vision_executor.py` | demo task suite, trace fixtures | Covered |
 | L19-L21 | Visual Grounding Engine | imports `browser-use-vision`, stores grounding refs, no copied internals | `test_executor_api_demo.py`, `test_agentic_vision_executor.py`, `test_real_vision_controlled_evidence.py` | README dependency note, `safe-browser-execution`, agentic traces, `real_vision_controlled` trace | Covered |
+| 2026-05-29 | Visual Verification Loop Evidence | `VisualVerificationResult`, deterministic verifier, agentic recovery/stop control flow, release-pack summary | `test_agentic_vision_executor.py`, `test_demo_evidence_release_pack.py`, `test_operator_console_ui.py`, `test_demo_evidence.py` | `visual-verification-loop-evidence`, README, `fixtures/traces/agentic-sanitized/`, release-pack index | Covered as keyless controlled-task evidence; real VLM/provider verification is optional and local/private |
 | L23-L25 | Remote Vision Backend | optional `VOICE_BROWSER_REMOTE_VISION_BACKEND_URL`, runtime passthrough | `test_executor_api_demo.py` | `.env.example`, `safe-browser-execution` | Covered as optional heavy inference |
 | L27-L29 | Hybrid Local-GPU Runtime | local console/browser config plus optional ASR/vision URLs | `test_executor_api_demo.py`, `test_ingestion_asr.py` | README Runtime, `.env.example`, `safe-browser-execution` | Covered |
 | L31-L33 | Voice Browser Stack | FastAPI, Pydantic, browser-use, `browser-use-vision`, minimal web console | `test_operator_console_ui.py`, API tests | `pyproject.toml`, README | Covered |
@@ -202,7 +207,7 @@ This matrix is the current line-by-line coverage audit for the domain language a
 | 2026-05-29 | Public-Readonly Task-Pack Runner | selected/full useful-pack runner writes versioned local/private manifests with deterministic and opt-in live modes | `test_public_readonly_task_pack_runner.py`, `test_public_readonly_api_ui_evidence.py`, `test_demo_evidence_release_pack.py` | `scripts/run_public_readonly_task_pack.py`, runtime manifest path, release-pack summary, Operator Console readiness | Covered as local/private until sanitized |
 | 2026-05-28 | Public-Readonly Visible Result Artifact | local/private screenshot metadata and guarded artifact serving for real public runs | `test_public_readonly_contract.py`, `test_public_readonly_api_ui_evidence.py`, `test_operator_console_ui.py` | README, `operator-console`, `safe-browser-execution` | Covered |
 | 2026-05-27 | Real Voice E2E Smoke | uploaded or recorded audio can be reviewed and executed against a controlled local visual task | `test_real_voice_e2e_readiness.py`, `test_operator_console_ui.py` | `fixtures/traces/real-voice-sanitized/`, `scripts/generate_real_voice_trace.py`, `spoken-command-ingestion` | Covered |
-| 2026-05-27 | Local Real-Use Preflight | readiness report for primary ASR, fallback ASR, browser automation, visual grounding, and privacy | `test_real_voice_e2e_readiness.py` | `scripts/preflight_real_use.py`, `/api/readiness`, README | Covered |
+| 2026-05-27 | Local Real-Use Preflight | readiness report for primary ASR, fallback ASR, browser automation, visual grounding, visual verifier state, and privacy | `test_real_voice_e2e_readiness.py`, `test_operator_console_ui.py` | `scripts/preflight_real_use.py`, `/api/readiness`, README | Covered |
 | 2026-05-27 | ASR Transcript Review | original ASR output and reviewed transcript are recorded before normalization/execution | `test_real_voice_e2e_readiness.py`, `test_operator_console_ui.py` | Operator Console, `fixtures/traces/real-voice-sanitized/`, `operator-console` | Covered |
 | 2026-05-27 | Useful Local Scenario Pack | CRM/settings/dashboard pages and metadata show practical controlled local workflows | `test_demo_evidence.py` | `docs/demo/useful-scenarios.md`, `fixtures/useful-scenarios.json`, `demo/pages/*` | Covered |
 | 2026-05-27 | Real-Use Failure Traces | ASR unavailable, clarification, confirmation, cancellation, and ambiguous-target traces are committed as reliability evidence | `test_demo_evidence.py`, `test_demo_evidence_release_pack.py` | `fixtures/traces/real-use-sanitized/`, `docs/public-evidence/index.html` | Covered |

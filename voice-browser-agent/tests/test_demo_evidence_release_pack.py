@@ -115,6 +115,17 @@ def test_release_pack_manifest_covers_preview_live_agentic_real_vision_and_real_
     assert {"icon-search", "color-swatch"}.issubset({item["fixture_id"] for item in live})
     assert any(item["fixture_id"] == "github-showcase" for item in live)
     assert {"icon-search", "color-swatch"}.issubset({item["fixture_id"] for item in agentic})
+    visual = manifest["visual_verification"]
+    assert visual["privacy_scan"]["status"] == "passed"
+    assert visual["outcome_counts"]["passed"] >= 1
+    assert visual["outcome_counts"]["failed"] + visual["outcome_counts"]["uncertain"] >= 1
+    assert {"icon-search", "color-swatch"}.issubset(set(visual["verified_fixture_ids"]))
+    assert visual["recovery_count"] >= 0
+    assert visual["failed_or_uncertain_reasons"]
+    assert any(row["recovery_or_stop_decisions"] for row in visual["rows"])
+    assert all(path.startswith("fixtures/traces/agentic-sanitized/") for path in visual["source_trace_paths"])
+    assert all(item["visual_verification"]["status"] == "available" for item in agentic)
+    assert any(item["visual_verification"]["recovery_count"] > 0 for item in agentic)
     assert {item["fixture_id"] for item in real_vision} == {"icon-search"}
     assert {item["fixture_id"] for item in real_voice} == {"icon-search"}
     assert len(failures) >= 5
@@ -158,6 +169,10 @@ def test_release_pack_manifest_covers_preview_live_agentic_real_vision_and_real_
     index_html = (output_dir / "index.html").read_text(encoding="utf-8")
     assert "final_title: OpenAI Docs" in index_html
     assert "visible_marker: Docs" in index_html
+    assert "Visual verification loop" in index_html
+    assert "Recovery or Stop Decision" in index_html
+    assert "deterministic_controlled" in index_html
+    assert "visual_verification_result" not in index_html
     assert "raw_page_text" not in json.dumps(useful, ensure_ascii=False)
 
 
@@ -400,6 +415,60 @@ def test_release_pack_classifies_agentic_mode_independently_of_execution_mode(tm
     assert agentic_items
     assert all(item["execution_mode"] == "live_controlled" for item in agentic_items)
     assert all(item["agentic_step_count"] > 0 for item in agentic_items)
+    assert all(item["visual_verification"]["outcome_counts"] for item in agentic_items)
+
+
+def test_release_pack_rejects_agentic_trace_missing_visual_verification(tmp_path):
+    builder = load_builder()
+    trace_root = copy_trace_sources(tmp_path)
+    trace_path = trace_root / "agentic-sanitized/agentic-icon-search.json"
+    payload = json.loads(trace_path.read_text(encoding="utf-8"))
+    for step in payload["agentic_steps"]:
+        step.pop("visual_verification_result", None)
+    trace_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    with pytest.raises(builder.EvidencePackError, match="visual verification evidence"):
+        builder.build_release_pack(
+            project_root=PROJECT_ROOT,
+            trace_root=trace_root,
+            output_dir=tmp_path / "release-pack",
+        )
+
+
+def test_release_pack_rejects_unsafe_visual_verification_artifacts(tmp_path):
+    builder = load_builder()
+    trace_root = copy_trace_sources(tmp_path)
+    trace_path = trace_root / "agentic-sanitized/agentic-icon-search.json"
+    payload = json.loads(trace_path.read_text(encoding="utf-8"))
+    verification = payload["agentic_steps"][0]["visual_verification_result"]
+    verification["sanitized_evidence_refs"].append("screenshots/raw_screenshot.png")
+    trace_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    with pytest.raises(builder.EvidencePackError, match="raw_screenshot"):
+        builder.build_release_pack(
+            project_root=PROJECT_ROOT,
+            trace_root=trace_root,
+            output_dir=tmp_path / "release-pack",
+        )
+
+
+@pytest.mark.parametrize("field_name", ["reason", "observed_state_summary"])
+def test_release_pack_rejects_private_visual_verification_value_markers(tmp_path, field_name):
+    builder = load_builder()
+    trace_root = copy_trace_sources(tmp_path)
+    trace_path = trace_root / "agentic-sanitized/agentic-icon-search.json"
+    payload = json.loads(trace_path.read_text(encoding="utf-8"))
+    payload["agentic_steps"][0]["visual_verification_result"][field_name] = (
+        "provider returned raw_provider_response with request_headers"
+    )
+    trace_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    with pytest.raises(builder.EvidencePackError, match="raw_provider_response"):
+        builder.build_release_pack(
+            project_root=PROJECT_ROOT,
+            trace_root=trace_root,
+            output_dir=tmp_path / "release-pack",
+        )
 
 
 def test_release_pack_fails_when_real_vision_evidence_is_missing_or_empty(tmp_path):

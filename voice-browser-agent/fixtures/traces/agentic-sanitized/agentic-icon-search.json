@@ -7,7 +7,7 @@
       "adapter_name": "fixture-manifest-asr",
       "input_audio_id": "icon-search",
       "language_mode": "zh-first",
-      "created_at": "2026-05-26T11:03:57.761624Z",
+      "created_at": "2026-05-29T09:43:20.373331Z",
       "confidence": 1.0,
       "diagnostics": {
         "fixture": true,
@@ -39,7 +39,17 @@
       "irreversible_submit"
     ],
     "safety_flags": [],
-    "controlled_target_ref": "demo/pages/icon_only_toolbar.html"
+    "controlled_target_ref": "demo/pages/icon_only_toolbar.html",
+    "public_task_slots": {}
+  },
+  "normalizer_provenance": {
+    "provider_mode": "rule",
+    "provider_name": "rule-based",
+    "output_source": "rule",
+    "prompt_schema_version": "structured-normalizer.v1",
+    "output_kind": "browser_task_request",
+    "schema_status": "not_applicable",
+    "fallback_reason": null
   },
   "validator_decision": {
     "accepted": true,
@@ -51,22 +61,26 @@
     "state": "confirmed",
     "reason": "no confirmation required",
     "decided_by": null,
-    "created_at": "2026-05-26T11:03:57.761729Z"
+    "created_at": "2026-05-29T09:43:20.373536Z"
   },
+  "route_decision": null,
   "browser_actions": [
     {
       "action_type": "click",
       "description": "clicked the icon-only search control using visual target evidence",
-      "screenshot_ref": "screenshots/sanitized/agentic/icon-search-step-1.png",
+      "screenshot_ref": "screenshots/sanitized/agentic/icon-search-step-1-post.png",
       "grounding_evidence_refs": [
         "grounding/agentic/icon-search-step-1.json",
-        "browser-use-vision:controlled-adapter"
+        "browser-use-vision:controlled-adapter",
+        "grounding/agentic/icon-search-step-1-post-action.json"
       ],
       "browser_state": {
         "controlled_target_ref": "demo/pages/icon_only_toolbar.html",
-        "page_title": "Controlled Icon Toolbar"
+        "page_title": "Controlled Icon Toolbar",
+        "visual_state_marker": "search-panel-open",
+        "result_state": "search panel open"
       },
-      "created_at": "2026-05-26T11:03:58.340690Z"
+      "created_at": "2026-05-29T09:43:20.893813Z"
     }
   ],
   "agentic_steps": [
@@ -89,22 +103,41 @@
         "description": "clicked the icon-only search control using visual target evidence",
         "browser_state": {
           "controlled_target_ref": "demo/pages/icon_only_toolbar.html",
-          "page_title": "Controlled Icon Toolbar"
+          "page_title": "Controlled Icon Toolbar",
+          "visual_state_marker": "search-panel-open",
+          "result_state": "search panel open"
         }
       },
       "verification_decision": {
         "passed": true,
-        "reason": "meaningful progress verified"
+        "reason": "deterministic controlled verifier matched safe post-action evidence"
+      },
+      "visual_verification_result": {
+        "outcome": "passed",
+        "expected_condition": "Controlled visual target demo/pages/icon_only_toolbar.html satisfies task: 点击右上角的放大镜图标",
+        "observed_state_summary": "selected_target_ref=controlled:demo/pages/icon_only_toolbar.html; page_title=Controlled Icon Toolbar; controlled_target_ref=demo/pages/icon_only_toolbar.html; result_state=search panel open; safe body text marker present; action=clicked the icon-only search control using visual target evidence",
+        "reason": "deterministic controlled verifier matched safe post-action evidence",
+        "verifier_mode": "deterministic_controlled",
+        "provider_mode": null,
+        "sanitized_evidence_refs": [
+          "grounding/agentic/icon-search-step-1.json",
+          "browser-use-vision:controlled-adapter",
+          "grounding/agentic/icon-search-step-1-post-action.json",
+          "screenshots/sanitized/agentic/icon-search-step-1-post.png",
+          "screenshots/sanitized/agentic/icon-search-step-1.png"
+        ],
+        "provider_metadata": {}
       },
       "recovery_decision": {
         "kind": "none",
-        "reason": "progress verified"
+        "reason": "visual verification passed"
       }
     }
   ],
   "grounding_evidence_refs": [
     "grounding/agentic/icon-search-step-1.json",
-    "browser-use-vision:controlled-adapter"
+    "browser-use-vision:controlled-adapter",
+    "grounding/agentic/icon-search-step-1-post-action.json"
   ],
   "execution_runtime": {
     "execution_mode": "live_controlled",
@@ -116,6 +149,8 @@
     "controlled_fixture_id": "icon-search",
     "controlled_target_ref": "demo/pages/icon_only_toolbar.html",
     "visual_grounding_dependency": "browser-use-vision",
+    "visual_verifier_mode": "deterministic_controlled",
+    "visual_verifier_provider_mode": "none",
     "request_constraints": [
       "bounded single browser task",
       "public or controlled pages only",
@@ -128,9 +163,11 @@
     ],
     "agentic_execution": true
   },
+  "evidence_privacy_state": "not_applicable",
+  "sanitizer_status": "not_required",
   "final_status": "succeeded",
   "failure_reason": null,
   "stop_reason": null,
-  "created_at": "2026-05-26T11:03:57.761722Z",
-  "updated_at": "2026-05-26T11:03:58.383330Z"
+  "created_at": "2026-05-29T09:43:20.373521Z",
+  "updated_at": "2026-05-29T09:43:20.935344Z"
 }

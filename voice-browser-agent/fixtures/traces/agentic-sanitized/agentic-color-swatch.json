@@ -7,7 +7,7 @@
       "adapter_name": "fixture-manifest-asr",
       "input_audio_id": "color-swatch",
       "language_mode": "zh-first",
-      "created_at": "2026-05-26T11:03:58.386005Z",
+      "created_at": "2026-05-29T09:43:20.938579Z",
       "confidence": 1.0,
       "diagnostics": {
         "fixture": true,
@@ -39,7 +39,17 @@
       "irreversible_submit"
     ],
     "safety_flags": [],
-    "controlled_target_ref": "demo/pages/color_swatch.html"
+    "controlled_target_ref": "demo/pages/color_swatch.html",
+    "public_task_slots": {}
+  },
+  "normalizer_provenance": {
+    "provider_mode": "rule",
+    "provider_name": "rule-based",
+    "output_source": "rule",
+    "prompt_schema_version": "structured-normalizer.v1",
+    "output_kind": "browser_task_request",
+    "schema_status": "not_applicable",
+    "fallback_reason": null
   },
   "validator_decision": {
     "accepted": true,
@@ -51,22 +61,42 @@
     "state": "confirmed",
     "reason": "no confirmation required",
     "decided_by": null,
-    "created_at": "2026-05-26T11:03:58.386101Z"
+    "created_at": "2026-05-29T09:43:20.938677Z"
   },
+  "route_decision": null,
   "browser_actions": [
     {
       "action_type": "click",
-      "description": "selected the green color swatch using visual target evidence",
-      "screenshot_ref": "screenshots/sanitized/agentic/color-swatch-step-1.png",
+      "description": "clicked stale color-swatch target without changing page state",
+      "screenshot_ref": "screenshots/sanitized/agentic/color-swatch-step-1-post.png",
       "grounding_evidence_refs": [
         "grounding/agentic/color-swatch-step-1.json",
-        "browser-use-vision:controlled-adapter"
+        "browser-use-vision:controlled-adapter",
+        "grounding/agentic/color-swatch-step-1-post-action.json"
       ],
       "browser_state": {
         "controlled_target_ref": "demo/pages/color_swatch.html",
         "page_title": "Controlled Color Swatch"
       },
-      "created_at": "2026-05-26T11:03:58.940984Z"
+      "created_at": "2026-05-29T09:43:21.472972Z"
+    },
+    {
+      "action_type": "click",
+      "description": "selected the green color swatch using visual target evidence",
+      "screenshot_ref": "screenshots/sanitized/agentic/color-swatch-step-2-post.png",
+      "grounding_evidence_refs": [
+        "grounding/agentic/color-swatch-step-2.json",
+        "browser-use-vision:controlled-adapter",
+        "grounding/agentic/color-swatch-step-2-post-action.json"
+      ],
+      "browser_state": {
+        "controlled_target_ref": "demo/pages/color_swatch.html",
+        "page_title": "Controlled Color Swatch",
+        "visual_state_marker": "green-swatch-selected",
+        "selected_value": "green",
+        "result_state": "green swatch selected"
+      },
+      "created_at": "2026-05-29T09:43:21.486109Z"
     }
   ],
   "agentic_steps": [
@@ -83,28 +113,97 @@
         "browser-use-vision:controlled-adapter"
       ],
       "screenshot_ref": "screenshots/sanitized/agentic/color-swatch-step-1.png",
-      "selected_action": "click: selected the green color swatch using visual target evidence",
+      "selected_action": "click: clicked stale color-swatch target without changing page state",
       "action_result": {
-        "status": "succeeded",
-        "description": "selected the green color swatch using visual target evidence",
+        "status": "no_effect",
+        "description": "clicked stale color-swatch target without changing page state",
         "browser_state": {
           "controlled_target_ref": "demo/pages/color_swatch.html",
           "page_title": "Controlled Color Swatch"
         }
       },
       "verification_decision": {
+        "passed": false,
+        "reason": "post-action visual state showed no meaningful progress"
+      },
+      "visual_verification_result": {
+        "outcome": "failed",
+        "expected_condition": "Controlled visual target demo/pages/color_swatch.html satisfies task: 选择页面上的绿色色块",
+        "observed_state_summary": "selected_target_ref=controlled:demo/pages/color_swatch.html; page_title=Controlled Color Swatch; controlled_target_ref=demo/pages/color_swatch.html; safe body text marker present; action=clicked stale color-swatch target without changing page state",
+        "reason": "post-action visual state showed no meaningful progress",
+        "verifier_mode": "deterministic_controlled",
+        "provider_mode": null,
+        "sanitized_evidence_refs": [
+          "grounding/agentic/color-swatch-step-1.json",
+          "browser-use-vision:controlled-adapter",
+          "grounding/agentic/color-swatch-step-1-post-action.json",
+          "screenshots/sanitized/agentic/color-swatch-step-1-post.png",
+          "screenshots/sanitized/agentic/color-swatch-step-1.png"
+        ],
+        "provider_metadata": {}
+      },
+      "recovery_decision": {
+        "kind": "reobserve",
+        "reason": "re-observing after visual verification failed: post-action visual state showed no meaningful progress"
+      }
+    },
+    {
+      "step_index": 2,
+      "observation_summary": "Observed color swatches and resolved the requested green option.",
+      "target_status": "resolved",
+      "selected_target_ref": "controlled:demo/pages/color_swatch.html",
+      "target_candidates": [
+        "controlled:demo/pages/color_swatch.html"
+      ],
+      "grounding_evidence_refs": [
+        "grounding/agentic/color-swatch-step-2.json",
+        "browser-use-vision:controlled-adapter"
+      ],
+      "screenshot_ref": "screenshots/sanitized/agentic/color-swatch-step-2.png",
+      "selected_action": "click: selected the green color swatch using visual target evidence",
+      "action_result": {
+        "status": "succeeded",
+        "description": "selected the green color swatch using visual target evidence",
+        "browser_state": {
+          "controlled_target_ref": "demo/pages/color_swatch.html",
+          "page_title": "Controlled Color Swatch",
+          "visual_state_marker": "green-swatch-selected",
+          "selected_value": "green",
+          "result_state": "green swatch selected"
+        }
+      },
+      "verification_decision": {
         "passed": true,
-        "reason": "meaningful progress verified"
+        "reason": "deterministic controlled verifier matched safe post-action evidence"
+      },
+      "visual_verification_result": {
+        "outcome": "passed",
+        "expected_condition": "Controlled visual target demo/pages/color_swatch.html satisfies task: 选择页面上的绿色色块",
+        "observed_state_summary": "selected_target_ref=controlled:demo/pages/color_swatch.html; page_title=Controlled Color Swatch; controlled_target_ref=demo/pages/color_swatch.html; result_state=green swatch selected; selected_value=green; safe body text marker present; action=selected the green color swatch using visual target evidence",
+        "reason": "deterministic controlled verifier matched safe post-action evidence",
+        "verifier_mode": "deterministic_controlled",
+        "provider_mode": null,
+        "sanitized_evidence_refs": [
+          "grounding/agentic/color-swatch-step-2.json",
+          "browser-use-vision:controlled-adapter",
+          "grounding/agentic/color-swatch-step-2-post-action.json",
+          "screenshots/sanitized/agentic/color-swatch-step-2-post.png",
+          "screenshots/sanitized/agentic/color-swatch-step-2.png"
+        ],
+        "provider_metadata": {}
       },
       "recovery_decision": {
         "kind": "none",
-        "reason": "progress verified"
+        "reason": "visual verification passed"
       }
     }
   ],
   "grounding_evidence_refs": [
     "grounding/agentic/color-swatch-step-1.json",
-    "browser-use-vision:controlled-adapter"
+    "browser-use-vision:controlled-adapter",
+    "grounding/agentic/color-swatch-step-1-post-action.json",
+    "grounding/agentic/color-swatch-step-2.json",
+    "grounding/agentic/color-swatch-step-2-post-action.json"
   ],
   "execution_runtime": {
     "execution_mode": "live_controlled",
@@ -116,6 +215,8 @@
     "controlled_fixture_id": "color-swatch",
     "controlled_target_ref": "demo/pages/color_swatch.html",
     "visual_grounding_dependency": "browser-use-vision",
+    "visual_verifier_mode": "deterministic_controlled",
+    "visual_verifier_provider_mode": "none",
     "request_constraints": [
       "bounded single browser task",
       "public or controlled pages only",
@@ -128,9 +229,11 @@
     ],
     "agentic_execution": true
   },
+  "evidence_privacy_state": "not_applicable",
+  "sanitizer_status": "not_required",
   "final_status": "succeeded",
   "failure_reason": null,
   "stop_reason": null,
-  "created_at": "2026-05-26T11:03:58.386093Z",
-  "updated_at": "2026-05-26T11:03:58.986065Z"
+  "created_at": "2026-05-29T09:43:20.938669Z",
+  "updated_at": "2026-05-29T09:43:20.938670Z"
 }

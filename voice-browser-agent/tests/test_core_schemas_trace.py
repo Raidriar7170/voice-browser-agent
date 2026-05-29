@@ -15,6 +15,7 @@ from voice_browser_agent.models import (
     ExecutionStatus,
     ExecutionTrace,
     ValidationResult,
+    VisualVerificationResult,
     VisualReference,
 )
 from voice_browser_agent.trace_writer import TraceWriter
@@ -137,3 +138,75 @@ def test_agentic_step_trace_serializes_and_sanitizes_private_nested_fields(tmp_p
     assert "raw_screenshot" not in exported_text
     assert "cookies" not in exported_text
     assert "/private/raw.png" not in exported_text
+
+
+def test_agentic_step_accepts_missing_visual_verification_for_existing_traces():
+    step = AgenticVisionStep.model_validate(
+        {
+            "step_index": 1,
+            "observation_summary": "Legacy step before visual verification result existed.",
+            "target_status": "resolved",
+        }
+    )
+
+    assert step.visual_verification_result is None
+
+
+def test_visual_verification_result_serializes_and_sanitizes_private_provider_fields(tmp_path):
+    trace = ExecutionTrace(
+        execution_id="exec-visual-verifier",
+        final_status=ExecutionStatus.STOPPED,
+    )
+    trace.agentic_steps.append(
+        AgenticVisionStep(
+            step_index=1,
+            observation_summary="Observed the controlled toolbar after a click.",
+            target_status="resolved",
+            selected_target_ref="controlled:search",
+            visual_verification_result=VisualVerificationResult(
+                outcome="uncertain",
+                expected_condition="Search panel should be visibly open.",
+                observed_state_summary=(
+                    "Toolbar remained visible; no safe panel marker was present."
+                ),
+                reason="deterministic verifier could not confirm the expected state",
+                verifier_mode="deterministic_controlled",
+                provider_mode="mock_vlm",
+                sanitized_evidence_refs=[
+                    "grounding/agentic/verify-step-1.json",
+                    "screenshots/raw_screenshot/private.png",
+                ],
+                provider_metadata={
+                    "schema_version": "visual-verifier.v1",
+                    "safe_label": "local mock verifier",
+                    "raw_visual_payload": {"local_file_uri": "file:///Users/private/raw.png"},
+                    "raw_provider_payload": {"api_key": "secret-token"},
+                    "raw_annotated_image": "base64-private-image",
+                    "request_headers": {"authorization": "Bearer secret-token"},
+                },
+            ),
+        )
+    )
+
+    writer = TraceWriter(tmp_path)
+    saved = json.loads(writer.write(trace).read_text(encoding="utf-8"))
+    exported = writer.export_sanitized(trace)
+    exported_text = json.dumps(exported)
+
+    verification = saved["agentic_steps"][0]["visual_verification_result"]
+    assert verification["outcome"] == "uncertain"
+    assert verification["sanitized_evidence_refs"] == [
+        "grounding/agentic/verify-step-1.json",
+        "screenshots/raw_screenshot/private.png",
+    ]
+    assert exported["agentic_steps"][0]["visual_verification_result"]["provider_metadata"][
+        "safe_label"
+    ] == "local mock verifier"
+    assert exported["agentic_steps"][0]["visual_verification_result"][
+        "sanitized_evidence_refs"
+    ] == ["grounding/agentic/verify-step-1.json", "[redacted-private-marker]"]
+    assert "raw_visual_payload" not in exported_text
+    assert "raw_provider_payload" not in exported_text
+    assert "raw_annotated_image" not in exported_text
+    assert "secret-token" not in exported_text
+    assert "file:///Users/private/raw.png" not in exported_text

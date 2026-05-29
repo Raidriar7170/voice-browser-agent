@@ -46,8 +46,23 @@ FORBIDDEN_MARKERS = (
     "token",
     "private_url",
     "raw_prompt",
+    "raw_provider_prompt",
+    "raw_provider_payload",
     "raw_provider_response",
     "provider_response",
+    "provider_request",
+    "provider_private_payload",
+    "provider_private_response",
+    "raw_visual_payload",
+    "raw_annotated_image",
+    "annotated_image",
+    "raw_image",
+    "image_bytes",
+    "screenshot_bytes",
+    "screenshot_base64",
+    "visual_provider_payload",
+    "request_body",
+    "response_body",
     "request_header",
     "request_headers",
     "api_key",
@@ -60,6 +75,12 @@ FORBIDDEN_MARKERS = (
     "/Users/",
     "/users/",
 )
+VISUAL_VERIFICATION_OUTCOMES = ("passed", "failed", "uncertain")
+SAFE_PRIVATE_MARKER_LABELS = {
+    "screenshot_bytes_discarded",
+    "annotated_image_bytes_discarded",
+    "annotated_image_b64_len",
+}
 TRACE_GROUPS = (
     ("sanitized", "demo_preview", "demo-*.json"),
     ("live-sanitized", "live_controlled", "live-*.json"),
@@ -87,6 +108,7 @@ def build_release_pack(
     artifacts = collect_artifacts(project_root=project_root, trace_root=trace_root)
     local_private_exclusions = collect_local_private_exclusions(trace_root=trace_root)
     check_completeness(project_root=project_root, artifacts=artifacts)
+    visual_verification = build_visual_verification_summary(artifacts)
     reliability_matrix = build_public_readonly_reliability_matrix(project_root)
     useful_task_pack = build_public_readonly_useful_task_pack_summary(
         project_root / "fixtures/public-readonly-useful-task-pack.json"
@@ -115,6 +137,7 @@ def build_release_pack(
         "privacy_scan": {"status": "passed"},
         "artifacts": artifacts,
         "local_private_exclusions": local_private_exclusions,
+        "visual_verification": visual_verification,
         "public_readonly_reliability_matrix": reliability_matrix,
         "public_readonly_useful_task_pack": useful_task_pack,
         "public_readonly_live_task_pack_runner": live_task_pack_runner,
@@ -300,6 +323,12 @@ def collect_artifacts(project_root: Path, trace_root: Path) -> list[dict[str, An
                 "live_evidence_eligible": route.get("live_evidence_eligible"),
                 "_source_abs": trace_path,
             }
+            if evidence_mode == "agentic_live_controlled":
+                artifact["visual_verification"] = build_visual_verification_artifact_summary(
+                    payload=payload,
+                    artifact=artifact,
+                    trace_path=trace_path,
+                )
             validate_artifact(artifact, trace_path)
             artifacts.append(artifact)
     return artifacts
@@ -330,6 +359,186 @@ def read_trace(trace_path: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise EvidencePackError(f"malformed trace is not an object: {trace_path}")
     return payload
+
+
+def build_visual_verification_artifact_summary(
+    payload: dict[str, Any],
+    artifact: dict[str, Any],
+    trace_path: Path,
+) -> dict[str, Any]:
+    steps = payload.get("agentic_steps") or []
+    if not isinstance(steps, list) or not steps:
+        raise EvidencePackError(f"agentic trace missing visual verification evidence: {trace_path}")
+
+    outcome_counts = {outcome: 0 for outcome in VISUAL_VERIFICATION_OUTCOMES}
+    verification_steps: list[dict[str, Any]] = []
+    failed_or_uncertain_reasons: list[dict[str, str]] = []
+    recovery_count = 0
+    missing_action_verification = False
+
+    for step in steps:
+        if not isinstance(step, dict):
+            raise EvidencePackError(f"malformed agentic step in {trace_path}")
+        recovery = step.get("recovery_decision") or {}
+        if isinstance(recovery, dict) and recovery.get("kind") in {"reobserve", "clarify"}:
+            recovery_count += 1
+
+        verification = step.get("visual_verification_result")
+        if verification is None:
+            if step.get("action_result") is not None:
+                missing_action_verification = True
+            continue
+        if not isinstance(verification, dict):
+            raise EvidencePackError(f"malformed visual verification evidence in {trace_path}")
+        scan_payload_for_private_markers(verification, path=trace_path)
+        outcome = verification.get("outcome")
+        if outcome not in VISUAL_VERIFICATION_OUTCOMES:
+            raise EvidencePackError(f"malformed visual verification outcome in {trace_path}")
+        expected_condition = _required_text(
+            verification,
+            "expected_condition",
+            "visual verification expected condition",
+            trace_path,
+        )
+        observed_state_summary = _required_text(
+            verification,
+            "observed_state_summary",
+            "visual verification observed state",
+            trace_path,
+        )
+        reason = _required_text(
+            verification,
+            "reason",
+            "visual verification reason",
+            trace_path,
+        )
+        verifier_mode = _required_text(
+            verification,
+            "verifier_mode",
+            "visual verification mode",
+            trace_path,
+        )
+        refs = verification.get("sanitized_evidence_refs")
+        if not isinstance(refs, list) or not refs or not all(isinstance(ref, str) and ref for ref in refs):
+            raise EvidencePackError(f"visual verification missing sanitized evidence refs: {trace_path}")
+        provider_metadata = verification.get("provider_metadata") or {}
+        if not isinstance(provider_metadata, dict):
+            raise EvidencePackError(f"malformed visual verification provider metadata in {trace_path}")
+
+        outcome_counts[outcome] += 1
+        step_summary = {
+            "step_index": step.get("step_index"),
+            "outcome": outcome,
+            "expected_condition": expected_condition,
+            "observed_state_summary": observed_state_summary,
+            "reason": reason,
+            "verifier_mode": verifier_mode,
+            "provider_mode": verification.get("provider_mode") or "none",
+            "sanitized_evidence_refs": refs,
+            "recovery_decision": recovery if isinstance(recovery, dict) else {},
+        }
+        verification_steps.append(step_summary)
+        if outcome in {"failed", "uncertain"}:
+            failed_or_uncertain_reasons.append(
+                {
+                    "fixture_id": artifact["fixture_id"],
+                    "outcome": outcome,
+                    "reason": reason,
+                    "source_path": artifact["source_path"],
+                }
+            )
+
+    if missing_action_verification or not verification_steps:
+        raise EvidencePackError(f"agentic trace missing visual verification evidence: {trace_path}")
+
+    return {
+        "status": "available",
+        "outcome_counts": outcome_counts,
+        "verified": outcome_counts["passed"] > 0,
+        "has_failed_or_uncertain": outcome_counts["failed"] + outcome_counts["uncertain"] > 0,
+        "recovery_count": recovery_count,
+        "failed_or_uncertain_reasons": failed_or_uncertain_reasons,
+        "source_trace_path": artifact["source_path"],
+        "privacy_scan": {"status": artifact.get("privacy_scan") or "passed"},
+        "steps": verification_steps,
+    }
+
+
+def build_visual_verification_summary(artifacts: list[dict[str, Any]]) -> dict[str, Any]:
+    rows: list[dict[str, Any]] = []
+    outcome_counts = {outcome: 0 for outcome in VISUAL_VERIFICATION_OUTCOMES}
+    verified_fixture_ids: set[str] = set()
+    failed_or_uncertain_reasons: list[dict[str, str]] = []
+    source_trace_paths: list[str] = []
+    recovery_count = 0
+
+    for artifact in artifacts:
+        if artifact.get("evidence_mode") != "agentic_live_controlled":
+            continue
+        summary = artifact.get("visual_verification")
+        if not isinstance(summary, dict) or summary.get("status") != "available":
+            raise EvidencePackError(
+                f"agentic trace missing visual verification evidence: {artifact.get('source_path')}"
+            )
+        for outcome in VISUAL_VERIFICATION_OUTCOMES:
+            outcome_counts[outcome] += int((summary.get("outcome_counts") or {}).get(outcome, 0))
+        if summary.get("verified"):
+            verified_fixture_ids.add(str(artifact["fixture_id"]))
+        recovery_count += int(summary.get("recovery_count") or 0)
+        failed_or_uncertain_reasons.extend(summary.get("failed_or_uncertain_reasons") or [])
+        source_trace_paths.append(str(artifact["source_path"]))
+        rows.append(
+            {
+                "fixture_id": artifact["fixture_id"],
+                "source_trace_path": artifact["source_path"],
+                "outcome_counts": summary.get("outcome_counts") or {},
+                "verified": bool(summary.get("verified")),
+                "recovery_count": int(summary.get("recovery_count") or 0),
+                "failed_or_uncertain_reasons": summary.get("failed_or_uncertain_reasons") or [],
+                "recovery_or_stop_decisions": visual_verification_decisions(
+                    summary.get("steps") or []
+                ),
+                "privacy_scan_status": (summary.get("privacy_scan") or {}).get("status", "passed"),
+            }
+        )
+
+    if not rows:
+        raise EvidencePackError("missing visual verification evidence for agentic traces")
+    if outcome_counts["passed"] < 1:
+        raise EvidencePackError("visual verification evidence missing passed outcome")
+    if outcome_counts["failed"] + outcome_counts["uncertain"] < 1:
+        raise EvidencePackError("visual verification evidence missing failed or uncertain outcome")
+
+    return {
+        "status": "available",
+        "privacy_scan": {"status": "passed"},
+        "outcome_counts": outcome_counts,
+        "verified_fixture_ids": sorted(verified_fixture_ids),
+        "recovery_count": recovery_count,
+        "failed_or_uncertain_reasons": failed_or_uncertain_reasons,
+        "source_trace_paths": source_trace_paths,
+        "rows": rows,
+    }
+
+
+def visual_verification_decisions(steps: list[dict[str, Any]]) -> list[str]:
+    decisions: list[str] = []
+    for step in steps:
+        recovery = step.get("recovery_decision") or {}
+        if not isinstance(recovery, dict):
+            continue
+        kind = recovery.get("kind")
+        reason = recovery.get("reason")
+        if kind and reason:
+            decisions.append(f"step {step.get('step_index')}: {kind} ({reason})")
+    return decisions
+
+
+def _required_text(payload: dict[str, Any], key: str, label: str, trace_path: Path) -> str:
+    value = payload.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise EvidencePackError(f"missing {label}: {trace_path}")
+    return value.strip()
 
 
 def validate_artifact(artifact: dict[str, Any], trace_path: Path) -> None:
@@ -456,6 +665,8 @@ def scan_payload_for_private_markers(value: Any, path: Path) -> None:
 
 def scan_text_for_private_markers(text: str, path: Path) -> None:
     lowered = text.lower()
+    if lowered in SAFE_PRIVATE_MARKER_LABELS:
+        return
     for marker in FORBIDDEN_MARKERS:
         if marker.lower() in lowered:
             raise EvidencePackError(f"private marker '{marker}' found in {path}")
@@ -475,6 +686,9 @@ def render_html(manifest: dict[str, Any]) -> str:
     runner_rows = "\n".join(render_task_pack_runner_row(item) for item in runner.get("rows", []))
     normalizer = manifest.get("normalizer_comparison", {})
     normalizer_rows = render_normalizer_comparison_rows(normalizer)
+    visual = manifest.get("visual_verification", {})
+    visual_rows = "\n".join(render_visual_verification_row(item) for item in visual.get("rows", []))
+    visual_counts = format_observed_proof(visual.get("outcome_counts") or {})
     generated_at = html.escape(manifest["generated_at"])
     return f"""<!doctype html>
 <html lang="en">
@@ -494,6 +708,25 @@ def render_html(manifest: dict[str, Any]) -> str:
     <h1>Voice-to-Browser Agent Evidence Pack</h1>
     <p>Bounded demo evidence pack for reproducible reviewer handoff.</p>
     <p>Generated at <code>{generated_at}</code>. Privacy scan: <strong>passed</strong>.</p>
+    <h2>Visual verification loop</h2>
+    <p>Keyless <code>deterministic_controlled</code> verifier summary: <code>{html.escape(visual_counts)}</code>; recovery count <code>{html.escape(str(visual.get("recovery_count") or 0))}</code>; privacy scan <code>{html.escape((visual.get("privacy_scan") or {}).get("status") or "unknown")}</code>. Real VLM/provider verification remains optional and local/private.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Fixture</th>
+          <th>Outcomes</th>
+          <th>Verified</th>
+          <th>Recovery</th>
+          <th>Recovery or Stop Decision</th>
+          <th>Failed or Uncertain Reason</th>
+          <th>Source Trace</th>
+          <th>Privacy</th>
+        </tr>
+      </thead>
+      <tbody>
+{visual_rows}
+      </tbody>
+    </table>
     <h2>Public-readonly reliability matrix</h2>
     <p>Bounded local read-only matrix; raw public runtime traces, screenshots, and page text remain local/private.</p>
     <table>
@@ -664,6 +897,26 @@ def render_task_pack_runner_row(item: dict[str, Any]) -> str:
         f"<td>{html.escape(unmet)}</td>"
         f"<td>{html.escape(reason)}</td>"
         f"<td>{html.escape(item.get('export_state') or '')}</td>"
+        "</tr>"
+    )
+
+
+def render_visual_verification_row(item: dict[str, Any]) -> str:
+    reasons = "; ".join(
+        f"{entry.get('outcome')}: {entry.get('reason')}"
+        for entry in item.get("failed_or_uncertain_reasons") or []
+    )
+    decisions = "; ".join(item.get("recovery_or_stop_decisions") or [])
+    return (
+        "        <tr>"
+        f"<td>{html.escape(item.get('fixture_id') or '')}</td>"
+        f"<td>{html.escape(format_observed_proof(item.get('outcome_counts') or {}))}</td>"
+        f"<td>{html.escape('yes' if item.get('verified') else 'no')}</td>"
+        f"<td>{html.escape(str(item.get('recovery_count') or 0))}</td>"
+        f"<td>{html.escape(decisions or 'none')}</td>"
+        f"<td>{html.escape(reasons or 'none')}</td>"
+        f"<td><code>{html.escape(item.get('source_trace_path') or '')}</code></td>"
+        f"<td>{html.escape(item.get('privacy_scan_status') or '')}</td>"
         "</tr>"
     )
 

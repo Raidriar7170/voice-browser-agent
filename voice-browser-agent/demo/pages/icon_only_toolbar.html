@@ -13,13 +13,23 @@
   <body>
     <header aria-label="toolbar">
       <button aria-label="settings">⚙</button>
-      <button aria-label="search">⌕</button>
+      <button aria-label="search" onclick="openSearchPanel()">⌕</button>
       <button aria-label="help">?</button>
     </header>
     <main>
       <h1>Icon-only toolbar demo</h1>
       <p>The correct target is the search icon in the top-right toolbar.</p>
+      <section id="search-panel" hidden data-visual-state="closed">
+        <h2>Search panel open</h2>
+      </section>
     </main>
+    <script>
+      function openSearchPanel() {
+        const panel = document.getElementById("search-panel");
+        panel.hidden = false;
+        panel.dataset.visualState = "open";
+        document.body.dataset.visualVerificationState = "search-panel-open";
+      }
+    </script>
   </body>
 </html>
-

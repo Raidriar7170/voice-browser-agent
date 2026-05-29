@@ -7,7 +7,7 @@
       "adapter_name": "fixture-manifest-asr",
       "input_audio_id": "svg-dashboard",
       "language_mode": "zh-first",
-      "created_at": "2026-05-26T11:03:58.988518Z",
+      "created_at": "2026-05-29T09:43:21.530033Z",
       "confidence": 1.0,
       "diagnostics": {
         "fixture": true,
@@ -21,6 +21,7 @@
     "intent_type": "extract_compare_visible_info",
     "constraints": [
       "bounded single browser task",
+      "public_readonly",
       "public or controlled pages only",
       "controlled target: demo/pages/svg_dashboard.html"
     ],
@@ -36,10 +37,25 @@
     "stop_conditions": [
       "login_required",
       "payment_or_checkout",
-      "irreversible_submit"
+      "irreversible_submit",
+      "stop_if_login_required"
     ],
     "safety_flags": [],
-    "controlled_target_ref": "demo/pages/svg_dashboard.html"
+    "controlled_target_ref": "demo/pages/svg_dashboard.html",
+    "public_task_slots": {
+      "read_target": "图表里最高的柱子是什么颜色",
+      "extraction_target": "图表里最高的柱子是什么颜色",
+      "read_only_intent": true
+    }
+  },
+  "normalizer_provenance": {
+    "provider_mode": "rule",
+    "provider_name": "rule-based",
+    "output_source": "rule",
+    "prompt_schema_version": "structured-normalizer.v1",
+    "output_kind": "browser_task_request",
+    "schema_status": "not_applicable",
+    "fallback_reason": null
   },
   "validator_decision": {
     "accepted": true,
@@ -51,22 +67,39 @@
     "state": "confirmed",
     "reason": "no confirmation required",
     "decided_by": null,
-    "created_at": "2026-05-26T11:03:58.988599Z"
+    "created_at": "2026-05-29T09:43:21.530378Z"
   },
+  "route_decision": null,
   "browser_actions": [
     {
       "action_type": "extract",
       "description": "extracted the SVG dashboard text using visual region evidence",
-      "screenshot_ref": "screenshots/sanitized/agentic/svg-dashboard-step-1.png",
+      "screenshot_ref": "screenshots/sanitized/agentic/svg-dashboard-step-1-post.png",
       "grounding_evidence_refs": [
         "grounding/agentic/svg-dashboard-step-1.json",
-        "browser-use-vision:controlled-adapter"
+        "browser-use-vision:controlled-adapter",
+        "grounding/agentic/svg-dashboard-step-1-post-action.json"
       ],
       "browser_state": {
         "controlled_target_ref": "demo/pages/svg_dashboard.html",
         "page_title": "Controlled SVG Dashboard"
       },
-      "created_at": "2026-05-26T11:03:59.537012Z"
+      "created_at": "2026-05-29T09:43:22.067070Z"
+    },
+    {
+      "action_type": "extract",
+      "description": "extracted the SVG dashboard text using visual region evidence",
+      "screenshot_ref": "screenshots/sanitized/agentic/svg-dashboard-step-2-post.png",
+      "grounding_evidence_refs": [
+        "grounding/agentic/svg-dashboard-step-2.json",
+        "browser-use-vision:controlled-adapter",
+        "grounding/agentic/svg-dashboard-step-2-post-action.json"
+      ],
+      "browser_state": {
+        "controlled_target_ref": "demo/pages/svg_dashboard.html",
+        "page_title": "Controlled SVG Dashboard"
+      },
+      "created_at": "2026-05-29T09:43:22.072160Z"
     }
   ],
   "agentic_steps": [
@@ -93,18 +126,84 @@
         }
       },
       "verification_decision": {
-        "passed": true,
-        "reason": "meaningful progress verified"
+        "passed": false,
+        "reason": "post-action evidence was insufficient for deterministic visual verification"
+      },
+      "visual_verification_result": {
+        "outcome": "uncertain",
+        "expected_condition": "Controlled visual target demo/pages/svg_dashboard.html satisfies task: 读取图表里最高的柱子是什么颜色",
+        "observed_state_summary": "selected_target_ref=controlled:demo/pages/svg_dashboard.html; page_title=Controlled SVG Dashboard; controlled_target_ref=demo/pages/svg_dashboard.html; safe body text marker present; action=extracted the SVG dashboard text using visual region evidence",
+        "reason": "post-action evidence was insufficient for deterministic visual verification",
+        "verifier_mode": "deterministic_controlled",
+        "provider_mode": null,
+        "sanitized_evidence_refs": [
+          "grounding/agentic/svg-dashboard-step-1.json",
+          "browser-use-vision:controlled-adapter",
+          "grounding/agentic/svg-dashboard-step-1-post-action.json",
+          "screenshots/sanitized/agentic/svg-dashboard-step-1-post.png",
+          "screenshots/sanitized/agentic/svg-dashboard-step-1.png"
+        ],
+        "provider_metadata": {}
       },
       "recovery_decision": {
-        "kind": "none",
-        "reason": "progress verified"
+        "kind": "reobserve",
+        "reason": "re-observing after visual verification uncertain: post-action evidence was insufficient for deterministic visual verification"
+      }
+    },
+    {
+      "step_index": 2,
+      "observation_summary": "Observed an SVG dashboard region and resolved the chart text target.",
+      "target_status": "resolved",
+      "selected_target_ref": "controlled:demo/pages/svg_dashboard.html",
+      "target_candidates": [
+        "controlled:demo/pages/svg_dashboard.html"
+      ],
+      "grounding_evidence_refs": [
+        "grounding/agentic/svg-dashboard-step-2.json",
+        "browser-use-vision:controlled-adapter"
+      ],
+      "screenshot_ref": "screenshots/sanitized/agentic/svg-dashboard-step-2.png",
+      "selected_action": "extract: extracted the SVG dashboard text using visual region evidence",
+      "action_result": {
+        "status": "succeeded",
+        "description": "extracted the SVG dashboard text using visual region evidence",
+        "browser_state": {
+          "controlled_target_ref": "demo/pages/svg_dashboard.html",
+          "page_title": "Controlled SVG Dashboard"
+        }
+      },
+      "verification_decision": {
+        "passed": false,
+        "reason": "post-action evidence was insufficient for deterministic visual verification"
+      },
+      "visual_verification_result": {
+        "outcome": "uncertain",
+        "expected_condition": "Controlled visual target demo/pages/svg_dashboard.html satisfies task: 读取图表里最高的柱子是什么颜色",
+        "observed_state_summary": "selected_target_ref=controlled:demo/pages/svg_dashboard.html; page_title=Controlled SVG Dashboard; controlled_target_ref=demo/pages/svg_dashboard.html; safe body text marker present; action=extracted the SVG dashboard text using visual region evidence",
+        "reason": "post-action evidence was insufficient for deterministic visual verification",
+        "verifier_mode": "deterministic_controlled",
+        "provider_mode": null,
+        "sanitized_evidence_refs": [
+          "grounding/agentic/svg-dashboard-step-2.json",
+          "browser-use-vision:controlled-adapter",
+          "grounding/agentic/svg-dashboard-step-2-post-action.json",
+          "screenshots/sanitized/agentic/svg-dashboard-step-2-post.png",
+          "screenshots/sanitized/agentic/svg-dashboard-step-2.png"
+        ],
+        "provider_metadata": {}
+      },
+      "recovery_decision": {
+        "kind": "stop",
+        "reason": "visual verification uncertain: post-action evidence was insufficient for deterministic visual verification"
       }
     }
   ],
   "grounding_evidence_refs": [
     "grounding/agentic/svg-dashboard-step-1.json",
-    "browser-use-vision:controlled-adapter"
+    "browser-use-vision:controlled-adapter",
+    "grounding/agentic/svg-dashboard-step-1-post-action.json",
+    "grounding/agentic/svg-dashboard-step-2.json",
+    "grounding/agentic/svg-dashboard-step-2-post-action.json"
   ],
   "execution_runtime": {
     "execution_mode": "live_controlled",
@@ -116,21 +215,27 @@
     "controlled_fixture_id": "svg-dashboard",
     "controlled_target_ref": "demo/pages/svg_dashboard.html",
     "visual_grounding_dependency": "browser-use-vision",
+    "visual_verifier_mode": "deterministic_controlled",
+    "visual_verifier_provider_mode": "none",
     "request_constraints": [
       "bounded single browser task",
+      "public_readonly",
       "public or controlled pages only",
       "controlled target: demo/pages/svg_dashboard.html"
     ],
     "stop_conditions": [
       "login_required",
       "payment_or_checkout",
-      "irreversible_submit"
+      "irreversible_submit",
+      "stop_if_login_required"
     ],
     "agentic_execution": true
   },
-  "final_status": "succeeded",
+  "evidence_privacy_state": "not_applicable",
+  "sanitizer_status": "not_required",
+  "final_status": "stopped",
   "failure_reason": null,
-  "stop_reason": null,
-  "created_at": "2026-05-26T11:03:58.988595Z",
-  "updated_at": "2026-05-26T11:03:59.600997Z"
+  "stop_reason": "visual_verification_uncertain",
+  "created_at": "2026-05-29T09:43:21.530368Z",
+  "updated_at": "2026-05-29T09:43:22.116053Z"
 }

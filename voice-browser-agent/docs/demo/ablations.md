@@ -31,3 +31,9 @@ Expected limitation: without re-observation, the executor may keep acting on a s
 Task: select the green swatch in `demo/pages/color_swatch.html`.
 
 Expected limitation: without visual target resolution, the executor cannot justify which swatch matches the spoken color reference. With visual grounding enabled, the agentic trace records the selected target reference and grounding evidence before the click.
+
+## Visual Verification Removed
+
+Task: complete an agentic live-controlled action after the browser reports a successful click.
+
+Expected limitation: action success alone cannot prove the intended visual state changed. With visual verification loop evidence enabled, the keyless deterministic verifier records the expected condition, observed state, proof refs, and either a passed outcome, bounded recovery, or explicit failed/uncertain stop. Real VLM/provider verification is optional and local/private, not required for this controlled evidence.

@@ -9,7 +9,14 @@ from playwright.async_api import async_playwright
 from voice_browser_agent.app import create_app
 from voice_browser_agent.executor import BrowserExecutorAdapter, BrowserExecutorConfig, BrowserExecutionResult
 from voice_browser_agent.asr import FallbackASRAdapter
-from voice_browser_agent.models import BrowserIntentType, BrowserTaskRequest, ExecutionStatus
+from voice_browser_agent.models import (
+    AgenticVisionStep,
+    BrowserIntentType,
+    BrowserTaskRequest,
+    ExecutionStatus,
+    ExecutionTrace,
+    VisualVerificationResult,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -330,9 +337,47 @@ def test_fixture_replay_can_run_selected_fixture_in_live_controlled_mode(tmp_pat
     assert body["execution_runtime"]["controlled_target_ref"] == "demo/pages/icon_only_toolbar.html"
     assert body["execution_runtime"]["local_browser"] is True
     assert body["execution_runtime"]["visual_grounding_dependency"] == "browser-use-vision"
+    assert body["execution_runtime"]["visual_verifier_mode"] == "deterministic_controlled"
+    assert body["execution_runtime"]["visual_verifier_provider_mode"] == "none"
     assert body["agentic_steps"]
     assert body["agentic_steps"][0]["observation_summary"]
+    verification = body["agentic_steps"][0]["visual_verification_result"]
+    assert verification["outcome"] == "passed"
+    assert verification["expected_condition"]
+    assert verification["observed_state_summary"]
+    assert verification["sanitized_evidence_refs"]
+    assert "visible_text" not in json.dumps(body, ensure_ascii=False)
     assert body["browser_actions"][0]["browser_state"]["page_title"] == "Controlled Icon Toolbar"
+
+
+def test_trace_api_sanitizes_visual_verification_value_markers(tmp_path):
+    app = create_app(runtime_dir=tmp_path)
+    trace = ExecutionTrace(execution_id="exec-private-visual", final_status=ExecutionStatus.STOPPED)
+    trace.agentic_steps.append(
+        AgenticVisionStep(
+            step_index=1,
+            observation_summary="Observed controlled page.",
+            target_status="resolved",
+            visual_verification_result=VisualVerificationResult(
+                outcome="uncertain",
+                expected_condition="No raw visual details should be exposed.",
+                observed_state_summary="raw_screenshot path appeared in a private provider payload",
+                reason="raw_provider_response contained request_headers",
+                sanitized_evidence_refs=["screenshots/raw_screenshot/private.png"],
+            ),
+        )
+    )
+    app.state.voice_browser.writer.write(trace)
+    client = TestClient(app)
+
+    response = client.get("/api/traces/exec-private-visual")
+
+    assert response.status_code == 200
+    text = json.dumps(response.json(), ensure_ascii=False)
+    assert "raw_screenshot" not in text
+    assert "raw_provider_response" not in text
+    assert "request_headers" not in text
+    assert "[redacted-private-marker]" in text
 
 
 def test_confirmation_decision_cannot_be_replayed_to_execute_twice(tmp_path):

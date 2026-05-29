@@ -15,9 +15,22 @@
   <body>
     <h1>Color swatch demo</h1>
     <div class="swatches">
-      <button class="teal" aria-label="green color swatch"></button>
-      <button class="rose" aria-label="rose color swatch"></button>
-      <button class="amber" aria-label="amber color swatch"></button>
+      <button class="teal" aria-label="green color swatch" onclick="selectSwatch('green', this)"></button>
+      <button class="rose" aria-label="rose color swatch" onclick="selectSwatch('rose', this)"></button>
+      <button class="amber" aria-label="amber color swatch" onclick="selectSwatch('amber', this)"></button>
     </div>
+    <p id="swatch-status" data-visual-state="none">No swatch selected.</p>
+    <script>
+      function selectSwatch(color, button) {
+        for (const swatch of document.querySelectorAll(".swatches button")) {
+          swatch.setAttribute("aria-pressed", "false");
+        }
+        button.setAttribute("aria-pressed", "true");
+        document.body.dataset.selectedSwatch = color;
+        document.body.dataset.visualVerificationState = `${color}-swatch-selected`;
+        document.getElementById("swatch-status").dataset.visualState = color;
+        document.getElementById("swatch-status").textContent = `${color} swatch selected.`;
+      }
+    </script>
   </body>
 </html>

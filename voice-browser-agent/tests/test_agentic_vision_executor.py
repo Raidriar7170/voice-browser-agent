@@ -37,7 +37,8 @@ async def test_agentic_executor_records_successful_observe_act_verify_step():
                 status="succeeded",
                 action_type="click",
                 description="clicked the search icon",
-                browser_state={"visible_text": "Search panel open"},
+                browser_state={"result_state": "Search panel open"},
+                grounding_evidence_refs=["grounding/step-1-post-action.json"],
             )
         ],
     )
@@ -53,8 +54,15 @@ async def test_agentic_executor_records_successful_observe_act_verify_step():
     assert result.agentic_steps[0].observation_summary == "Saw toolbar with one search icon."
     assert result.agentic_steps[0].selected_target_ref == "som:search"
     assert result.agentic_steps[0].verification_decision.passed is True
+    assert result.agentic_steps[0].visual_verification_result.outcome == "passed"
+    assert result.agentic_steps[0].visual_verification_result.verifier_mode == (
+        "deterministic_controlled"
+    )
     assert result.actions[0].action_type == "click"
-    assert result.grounding_evidence_refs == ["grounding/step-1.json"]
+    assert result.grounding_evidence_refs == [
+        "grounding/step-1.json",
+        "grounding/step-1-post-action.json",
+    ]
 
 
 @pytest.mark.asyncio
@@ -153,6 +161,8 @@ async def test_agentic_executor_recovers_from_no_effect_action_with_reobservatio
                 status="succeeded",
                 action_type="click",
                 description="clicked fresh target",
+                browser_state={"result_state": "Search panel open"},
+                grounding_evidence_refs=["grounding/fresh-post-action.json"],
             ),
         ],
     )
@@ -171,6 +181,157 @@ async def test_agentic_executor_recovers_from_no_effect_action_with_reobservatio
     assert result.final_status is ExecutionStatus.SUCCEEDED
     assert [step.recovery_decision.kind for step in result.agentic_steps] == ["reobserve", "none"]
     assert result.agentic_steps[-1].selected_target_ref == "som:fresh-search"
+
+
+@pytest.mark.asyncio
+async def test_agentic_executor_does_not_pass_with_only_pre_action_grounding():
+    adapter = ScriptedAgenticVisionAdapter(
+        observations=[
+            VisualObservation(
+                summary="Initial search icon target.",
+                target_status="resolved",
+                selected_target_ref="som:search",
+                grounding_evidence_refs=["grounding/pre-action-only.json"],
+            )
+        ],
+        outcomes=[
+            VisualActionOutcome(
+                status="succeeded",
+                action_type="click",
+                description="clicked target without post-action proof",
+            )
+        ],
+    )
+    executor = AgenticVisionExecutor(
+        config=BrowserExecutorConfig(
+            dry_run=False,
+            execution_mode="live_controlled",
+            max_steps=1,
+            max_recoveries=0,
+        ),
+        observation_adapter=adapter,
+    )
+
+    result = await executor.execute(_request(), execution_id="exec-agentic-pre-action-only")
+
+    assert result.final_status is ExecutionStatus.STOPPED
+    assert result.stop_reason == "visual_verification_uncertain"
+    assert result.agentic_steps[0].visual_verification_result.outcome == "uncertain"
+    assert result.agentic_steps[0].verification_decision.passed is False
+
+
+@pytest.mark.asyncio
+async def test_agentic_executor_reobserves_when_action_succeeds_but_visual_verification_fails():
+    adapter = ScriptedAgenticVisionAdapter(
+        observations=[
+            VisualObservation(
+                summary="Initial controlled toolbar target.",
+                target_status="resolved",
+                selected_target_ref="som:search",
+                grounding_evidence_refs=["grounding/initial.json"],
+            ),
+            VisualObservation(
+                summary="Fresh controlled toolbar target after re-observation.",
+                target_status="resolved",
+                selected_target_ref="som:search-fresh",
+                grounding_evidence_refs=["grounding/fresh.json"],
+            ),
+        ],
+        outcomes=[
+            VisualActionOutcome(
+                status="succeeded",
+                action_type="click",
+                description="clicked the search icon but the visual state did not change",
+                browser_state={
+                    "visual_verification": {
+                        "outcome": "failed",
+                        "expected_condition": "Search panel should be visibly open.",
+                        "observed_state_summary": "Toolbar remained visible with no search panel.",
+                        "reason": "post-action state did not include the expected panel marker",
+                        "sanitized_evidence_refs": ["grounding/verify-failed.json"],
+                    }
+                },
+            ),
+            VisualActionOutcome(
+                status="succeeded",
+                action_type="click",
+                description="clicked the fresh search target",
+                browser_state={
+                    "visual_verification": {
+                        "outcome": "passed",
+                        "expected_condition": "Search panel should be visibly open.",
+                        "observed_state_summary": "Search panel open marker is visible.",
+                        "reason": "post-action state matched the expected panel marker",
+                        "sanitized_evidence_refs": ["grounding/verify-passed.json"],
+                    }
+                },
+            ),
+        ],
+    )
+    executor = AgenticVisionExecutor(
+        config=BrowserExecutorConfig(
+            dry_run=False,
+            execution_mode="live_controlled",
+            max_steps=3,
+            max_recoveries=1,
+        ),
+        observation_adapter=adapter,
+    )
+
+    result = await executor.execute(_request(), execution_id="exec-agentic-visual-recovery")
+
+    assert result.final_status is ExecutionStatus.SUCCEEDED
+    assert result.agentic_steps[0].action_result.status == "succeeded"
+    assert result.agentic_steps[0].visual_verification_result.outcome == "failed"
+    assert result.agentic_steps[0].verification_decision.passed is False
+    assert result.agentic_steps[0].recovery_decision.kind == "reobserve"
+    assert result.agentic_steps[1].visual_verification_result.outcome == "passed"
+
+
+@pytest.mark.asyncio
+async def test_agentic_executor_stops_with_reason_when_visual_verification_is_uncertain():
+    adapter = ScriptedAgenticVisionAdapter(
+        observations=[
+            VisualObservation(
+                summary="Controlled toolbar target is visible.",
+                target_status="resolved",
+                selected_target_ref="som:search",
+            )
+        ],
+        outcomes=[
+            VisualActionOutcome(
+                status="succeeded",
+                action_type="click",
+                description="clicked the search icon",
+                browser_state={
+                    "visual_verification": {
+                        "outcome": "uncertain",
+                        "expected_condition": "Search panel should be visibly open.",
+                        "observed_state_summary": "The captured state was partially occluded.",
+                        "reason": "controlled verifier could not safely determine completion",
+                    }
+                },
+            )
+        ],
+    )
+    executor = AgenticVisionExecutor(
+        config=BrowserExecutorConfig(
+            dry_run=False,
+            execution_mode="live_controlled",
+            max_steps=1,
+            max_recoveries=0,
+        ),
+        observation_adapter=adapter,
+    )
+
+    result = await executor.execute(_request(), execution_id="exec-agentic-uncertain")
+
+    assert result.final_status is ExecutionStatus.STOPPED
+    assert result.stop_reason == "visual_verification_uncertain"
+    assert result.agentic_steps[0].action_result.status == "succeeded"
+    assert result.agentic_steps[0].visual_verification_result.outcome == "uncertain"
+    assert result.agentic_steps[0].recovery_decision.kind == "stop"
+    assert "could not safely determine" in result.agentic_steps[0].recovery_decision.reason
 
 
 @pytest.mark.asyncio

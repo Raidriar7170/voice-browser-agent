@@ -21,7 +21,7 @@ Check real-use readiness before running uploaded or recorded audio:
 uv run python scripts/preflight_real_use.py
 ```
 
-The preflight reports primary ASR, fallback ASR, Playwright browser automation, real `browser-use-vision` grounding, and runtime privacy status without exposing local runtime paths.
+The preflight reports primary ASR, fallback ASR, Playwright browser automation, real `browser-use-vision` grounding, visual verifier readiness, and runtime privacy status without exposing local runtime paths.
 
 ## Runtime
 
@@ -33,6 +33,7 @@ The preflight reports primary ASR, fallback ASR, Playwright browser automation, 
 - `VOICE_BROWSER_DEMO_DRY_RUN=true` records an explicit stopped preview trace. Disable it only when a real browser-use/browser-use-vision executor backend is configured.
 - `VOICE_BROWSER_NORMALIZER_PROVIDER=rule` keeps the default keyless deterministic normalizer. Use `mock_llm` for offline structured-output parsing evidence, or configure `openai_compatible` / `generic_http` with `VOICE_BROWSER_NORMALIZER_ENDPOINT_URL` for local private provider trials. Every LLM-style output still passes schema parsing, the deterministic validator, confirmation gates, route policy, and sanitized trace export.
 - Normalizer provenance is recorded as safe metadata: provider mode, output source, prompt/schema version, schema status, output kind, and fallback reason. API keys, request headers, raw prompts, and raw provider responses are excluded from exports and release handoff artifacts.
+- Visual verification loop evidence is keyless deterministic by default for controlled local pages. Each agentic step separates action status from the visual verification result, including outcome, expected condition, observed state summary, reason, proof refs, and recovery or stop decision. Real VLM/provider verification is optional and local/private; raw screenshots, raw annotated images, raw prompts, provider responses, credentials, local paths, and remote host details are not release evidence.
 - `VOICE_BROWSER_PUBLIC_READONLY_ENABLED=false` keeps `live_public_readonly` disabled by default. When enabled, it only runs allowlisted public read-only targets in a fresh local browser context, with short step/time budgets, No login, no file transfer, and private-by-default traces until sanitizer approval. A task-contract and completion verifier must match before a public task is reported as complete.
 - The public-readonly reliability matrix summarizes the 5-task smoke set across completed, partial, stopped, failed, and blocked outcomes. It is bounded local read-only evidence with private-by-default artifacts, not a production-use, broad-autonomy, barrier-bypass, account-workflow, ranking, model-quality, or raw-public-data claim.
 - The public-readonly useful task pack expands that summary into 8-12 stable read-only task contracts for documentation, reference, package metadata, release notes, and public repository search/read. It remains a local/private summary, not deployed web operation, leaderboard-style ranking, broad autonomy, captcha bypass, account automation, or a raw public artifact release.
@@ -77,7 +78,7 @@ The command writes `runtime/public-readonly-task-pack/runs/<run_id>/manifest.jso
 - Real voice controlled trace artifacts: `fixtures/traces/real-voice-sanitized/`
 - Real-use failure and operator-decision traces: `fixtures/traces/real-use-sanitized/`
 
-The public artifacts show bounded spoken-command execution, explicit safety stops, and traceable evidence. Demo-preview traces are separate from live controlled and agentic live controlled traces. They do not claim broad web autonomy.
+The public artifacts show bounded spoken-command execution, explicit safety stops, visual verification loop evidence, and traceable evidence. Demo-preview traces are separate from live controlled and agentic live controlled traces. They do not claim broad web autonomy.
 
 Refresh the committed real-vision controlled trace when the local Playwright browser and editable `browser-use-vision` dependency are available:
 
@@ -98,6 +99,8 @@ uv run python scripts/build_demo_evidence_pack.py
 ```
 
 The command writes a generated local artifact under `runtime/demo-evidence-release-pack/`. Open `runtime/demo-evidence-release-pack/index.html` for the browser-readable evidence index, or inspect `runtime/demo-evidence-release-pack/manifest.json` for the machine-readable manifest. The generated directory stays local; the committed evidence sources remain `fixtures/traces/sanitized/`, `fixtures/traces/live-sanitized/`, `fixtures/traces/agentic-sanitized/`, `fixtures/traces/real-vision-sanitized/`, `fixtures/traces/real-voice-sanitized/`, and `fixtures/traces/real-use-sanitized/`.
+
+The release pack summarizes visual verification outcomes, verified fixture ids, recovery count, failed or uncertain reasons, source trace paths, and privacy-scan status without asking reviewers to inspect raw trace JSON first. It rejects missing verification evidence and private visual/provider artifacts before presenting the pack as sanitizer-passed.
 
 Build local normalizer comparison evidence from committed fixture transcripts and reviewed seed examples:
 
@@ -125,6 +128,7 @@ Use the console as a command-first operator workflow:
 - Normalizer provenance: the summary and route cards show rule, mock LLM, real provider, fallback source, schema status, validator decision, confirmation state, and clarification or blocked reasons without exposing provider-private data.
 - Controlled showcase: GitHub-shaped commands route to a local controlled code-search page unless real GitHub public-readonly is explicitly enabled with a matching task contract.
 - Real public-readonly: when enabled, supported docs, reference, package metadata, release notes, and GitHub search/read commands show the real-page visual result or block state in the console while artifacts remain local/private.
+- Visual verification: agentic runs show passed, failed, or uncertain visual verification; expected condition; observed state; proof refs; recovery; and stop reason before raw JSON. Failed or uncertain verification is not styled as successful.
 - Latest task-pack run: readiness and the console can show the most recent local/private task-pack runner manifest, including runner mode, selected task count, outcome counts, sanitizer state, and row-level proof without exposing raw public runtime artifacts.
 - Advanced replay: fixture selection, execution-mode override, raw trace JSON, and sanitized export remain available for reproducibility and debugging.
 

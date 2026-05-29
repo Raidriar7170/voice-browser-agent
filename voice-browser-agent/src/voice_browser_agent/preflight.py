@@ -26,6 +26,7 @@ def build_readiness_report(
         "normalizer": check_normalizer(config),
         "browser_automation": check_browser_automation(),
         "real_vision_grounding": check_real_vision_grounding(),
+        "visual_verifier": check_visual_verifier(config),
         "runtime_privacy": check_runtime_privacy(project_root=project_root, config=config),
         "public_readonly": check_public_readonly(config, project_root=project_root),
     }
@@ -125,6 +126,27 @@ def check_real_vision_grounding() -> dict[str, Any]:
             "browser-use-vision package is importable."
             if available
             else "Install or link browser-use-vision before real visual evidence generation."
+        ),
+    }
+
+
+def check_visual_verifier(config: RuntimeConfig) -> dict[str, Any]:
+    provider_configured = bool(config.remote_vision_backend_url)
+    provider_state = "configured_private" if provider_configured else "not_configured"
+    return {
+        "status": "ready",
+        "mode": "deterministic_controlled",
+        "controlled_verifier_available": True,
+        "provider_mode": "local_private_provider" if provider_configured else "none",
+        "provider_state": provider_state,
+        "missing_setup_action": (
+            "none for keyless controlled verification"
+            if not provider_configured
+            else "none; provider details remain local/private"
+        ),
+        "detail": (
+            "Keyless deterministic verifier is available for controlled local tasks; "
+            "real VLM/provider verification is optional and private-by-default."
         ),
     }
 

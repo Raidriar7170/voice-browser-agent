@@ -26,8 +26,10 @@ function escapeHtml(value) {
 function setCards(id, cards) {
   $(id).innerHTML = cards
     .map(
-      ([label, value, tone = ""]) =>
-        `<div class="metric-card ${tone}"><span>${label}</span><strong>${value || "n/a"}</strong></div>`,
+      ([label, value, tone = ""]) => {
+        const safeTone = String(tone || "").replace(/[^a-z0-9_-]/gi, "");
+        return `<div class="metric-card ${safeTone}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || "n/a")}</strong></div>`;
+      },
     )
     .join("");
 }
@@ -45,6 +47,24 @@ function matrixOutcomeClass(outcome) {
     blocked: "matrix-outcome-blocked",
   };
   return classes[outcome] || "warn";
+}
+
+function visualVerificationOutcomeClass(outcome) {
+  const classes = {
+    passed: "visual-verification-passed",
+    failed: "visual-verification-failed",
+    uncertain: "visual-verification-uncertain",
+  };
+  return classes[outcome] || "warn";
+}
+
+function visualVerificationSteps(trace) {
+  return (trace.agentic_steps || []).filter((step) => step.visual_verification_result);
+}
+
+function finalVisualVerificationStep(trace) {
+  const steps = visualVerificationSteps(trace);
+  return steps.length ? steps[steps.length - 1] : null;
 }
 
 function artifactImageSrc(trace, artifact) {
@@ -129,6 +149,9 @@ function renderSummary(trace) {
   const route = trace.route_decision || trace.execution_runtime?.route_decision || {};
   const matrix = matrixRowForTrace(trace);
   const normalizer = trace.normalizer_provenance || trace.execution_runtime?.normalizer || {};
+  const visualStep = finalVisualVerificationStep(trace);
+  const visualVerification = visualStep?.visual_verification_result;
+  const visualProofRefs = visualVerification?.sanitized_evidence_refs || [];
   const lines = [
     `Input source: ${inputSourceForTrace(trace)}`,
     `Normalizer: ${normalizer.provider_mode || "unknown"} / ${normalizer.output_source || "unknown"}`,
@@ -160,6 +183,17 @@ function renderSummary(trace) {
     lines.push(`Export state: ${matrix.export_state || route.public_evidence_export_state || "unknown"}`);
     lines.push(`Private trace state: ${route.evidence_privacy_state || trace.evidence_privacy_state || "unknown"}`);
     lines.push(`Sanitizer status: ${route.sanitizer_status || trace.sanitizer_status || "unknown"}`);
+  }
+  if (visualVerification) {
+    lines.push(`Visual verification: ${visualVerification.outcome || "unknown"}`);
+    lines.push(`Expected condition: ${visualVerification.expected_condition || "unknown"}`);
+    lines.push(`Observed state: ${visualVerification.observed_state_summary || "unknown"}`);
+    lines.push(`Proof refs: ${visualProofRefs.length ? visualProofRefs.join(", ") : "none"}`);
+    lines.push(
+      `Recovery: ${visualStep.recovery_decision?.kind || "none"} | ${
+        visualStep.recovery_decision?.reason || "no recovery decision"
+      }`,
+    );
   }
   if (trace.stop_reason) lines.push(`Stop reason: ${trace.stop_reason}`);
   if (trace.failure_reason) lines.push(`Failure reason: ${trace.failure_reason}`);
@@ -222,11 +256,30 @@ function renderEvidence(trace) {
   const outcome = matrix.outcome || completionState;
   const observedProof = trace.execution_runtime?.public_observed_proof_summary || {};
   const unmetCriteria = trace.execution_runtime?.public_unmet_criteria || [];
+  const visualStep = finalVisualVerificationStep(trace);
+  const visualVerification = visualStep?.visual_verification_result || {};
+  const visualProofRefs = visualVerification.sanitized_evidence_refs || [];
   setCards("evidenceCards", [
     ["Status", trace.final_status || "unknown", outcome === "completed" ? "good" : matrixOutcomeClass(outcome)],
     ["Page", browserState.page_title || route.public_target_label || route.controlled_target_ref || "none"],
     ["Action", lastAction.action_type || lastStep.selected_action || "none"],
     ["Grounding", refs.length ? `${refs.length} refs` : "none"],
+    [
+      "Visual verification",
+      visualVerification.outcome || "none",
+      visualVerificationOutcomeClass(visualVerification.outcome),
+    ],
+    ["Expected condition", visualVerification.expected_condition || "none"],
+    ["Observed state", visualVerification.observed_state_summary || "none"],
+    ["Proof refs", visualProofRefs.length ? visualProofRefs.join(", ") : "none"],
+    [
+      "Recovery",
+      visualStep?.recovery_decision
+        ? `${visualStep.recovery_decision.kind}: ${visualStep.recovery_decision.reason}`
+        : "none",
+      visualVerificationOutcomeClass(visualVerification.outcome),
+    ],
+    ["Stop reason", trace.stop_reason || trace.failure_reason || "none"],
     ["Matrix outcome", outcome || "n/a", matrixOutcomeClass(outcome)],
     ["Public completion", completionState || "n/a", completionState === "completed" ? "good" : matrixOutcomeClass(outcome)],
     ["Observed proof", Object.keys(observedProof).length ? Object.keys(observedProof).join(", ") : "none"],
@@ -244,6 +297,7 @@ function eventTypeLabel(type) {
     browser: "Browser action",
     confirmation: "Confirmation",
     clarification: "Clarification",
+    stop: "Stop reason",
   };
   return labels[type] || "Trace event";
 }
@@ -276,6 +330,12 @@ function renderTimeline(trace) {
     const verification = step.verification_decision
       ? ` | verification: ${step.verification_decision.reason}`
       : "";
+    const visualVerification = step.visual_verification_result
+      ? ` | Visual verification: ${step.visual_verification_result.outcome}` +
+        ` | Expected condition: ${step.visual_verification_result.expected_condition}` +
+        ` | Observed state: ${step.visual_verification_result.observed_state_summary}` +
+        ` | Proof refs: ${(step.visual_verification_result.sanitized_evidence_refs || []).join(", ") || "none"}`
+      : "";
     const recovery = step.recovery_decision
       ? ` | recovery: ${step.recovery_decision.kind} (${step.recovery_decision.reason})`
       : "";
@@ -283,7 +343,7 @@ function renderTimeline(trace) {
       eventTypeLabel("agentic"),
       `step ${step.step_index}: ${step.observation_summary}` +
         `${step.selected_action ? ` | action: ${step.selected_action}` : ""}` +
-        `${verification}${recovery}${screenshot}${grounding}`,
+        `${verification}${visualVerification}${recovery}${screenshot}${grounding}`,
     );
   }
   for (const action of trace.browser_actions || []) {
@@ -294,6 +354,9 @@ function renderTimeline(trace) {
       eventTypeLabel("browser"),
       `${action.action_type}: ${action.description}${screenshot}${grounding}`,
     );
+  }
+  if (trace.stop_reason || trace.failure_reason) {
+    addTimelineItem(eventTypeLabel("stop"), trace.stop_reason || trace.failure_reason);
   }
 }
 
@@ -425,12 +488,14 @@ function renderReadiness(report) {
   const primary_asr = checks.primary_asr || {};
   const fallback_asr = checks.fallback_asr || {};
   const normalizer = checks.normalizer || {};
+  const visualVerifier = checks.visual_verifier || {};
   const items = [
     ["primary_asr", primary_asr],
     ["fallback_asr", fallback_asr],
     ["normalizer", normalizer],
     ["browser_automation", checks.browser_automation || {}],
     ["real_vision_grounding", checks.real_vision_grounding || {}],
+    ["visual_verifier", visualVerifier],
     ["runtime_privacy", checks.runtime_privacy || {}],
     ["public_readonly", checks.public_readonly || {}],
   ];
@@ -464,6 +529,11 @@ function renderReadiness(report) {
     <p class="hint">Normalizer: ${normalizer.provider_mode || "unknown"}; ${
       normalizer.detail || "no detail"
     }; fallback ${normalizer.fallback_policy || "unknown"}.</p>
+    <p class="hint">Visual verifier: ${visualVerifier.mode || "unknown"}; controlled ${
+      visualVerifier.controlled_verifier_available ? "available" : "unavailable"
+    }; provider ${visualVerifier.provider_state || "unknown"}; setup ${
+      visualVerifier.missing_setup_action || "unknown"
+    }.</p>
     ${renderTaskPackRun(latestTaskPackRun)}
     ${renderUsefulTaskPack(usefulTaskPack)}
     ${unavailable}
