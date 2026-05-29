@@ -323,6 +323,17 @@ def test_readiness_api_reports_public_readonly_state_and_sanitizer(monkeypatch, 
     assert public["allowlist"] == [{"id": "openai-docs", "label": "OpenAI Docs"}]
     assert public["browser_isolation"]["status"] == "ready"
     assert public["sanitizer"]["status"] == "required"
+    assert public["useful_task_pack"]["status"] == "available"
+    assert public["useful_task_pack"]["task_count"] >= 8
+    assert set(public["useful_task_pack"]["category_counts"]) >= {
+        "documentation",
+        "reference",
+        "package_metadata",
+        "release_notes",
+        "public_repository_search",
+        "public_repository_read",
+    }
+    assert public["useful_task_pack"]["public_ready"] is False
     assert "https://platform.openai.com/docs" not in json.dumps(body, ensure_ascii=False)
 
 
@@ -547,6 +558,20 @@ def test_operator_console_static_assets_render_public_readonly_readiness_and_rou
 
     assert "public_readonly" in app_js
     assert "Public-readonly" in app_js
+    assert "Useful task pack" in app_js
+    assert "useful_task_pack" in app_js
+    assert "renderUsefulTaskPack" in app_js
+    assert "usefulTaskPackRows" in app_js
+    assert "task_category" in app_js
+    assert "public_task_category" in app_js
+    assert "category_counts" in app_js
+    assert "observed_proof_summary" in app_js
+    assert "unmet_criteria" in app_js
+    assert "stop_or_failure_reason" in app_js
+    assert "completion_criteria_summary" in app_js
+    assert "task_kind" in app_js
+    assert "target_class" in app_js
+    assert "export_state" in app_js
     assert "public_target_label" in app_js
     assert "public_origin" in app_js
     assert "public_allowlist_id" in app_js
@@ -685,3 +710,10 @@ def test_docs_define_public_readonly_smoke_boundaries_and_non_goals():
     }
     assert "completion verifier" in combined
     assert "task-contract" in combined
+    useful_pack = PROJECT_ROOT / "fixtures/public-readonly-useful-task-pack.json"
+    useful = json.loads(useful_pack.read_text())
+    assert len(useful["tasks"]) >= 8
+    assert "public-readonly useful task pack" in combined
+    assert "package metadata" in combined
+    assert "release notes" in combined
+    assert all(task["artifact_status"] == "local_private_until_sanitized" for task in useful["tasks"])

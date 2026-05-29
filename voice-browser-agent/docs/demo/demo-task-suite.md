@@ -25,6 +25,8 @@ The public-readonly smoke fixture is `fixtures/public-readonly-smoke.json`. It r
 
 The public-readonly reliability matrix is generated from those task contracts. It reports target class, completion criteria, observed proof summary, unmet criteria, outcome, stop/failure reason, privacy state, sanitizer status, and export state without publishing raw public traces, screenshots, page text, cookies, credentials, browser profiles, local paths, private data, or remote host details.
 
+The public-readonly useful task pack is `fixtures/public-readonly-useful-task-pack.json`. It expands the local/private summary surface to 8-12 stable documentation, reference, package metadata, release notes, and public repository search/read task contracts. It is still task-contract evidence, not production automation, unrestricted public-web autonomy, captcha bypass, account automation, benchmark ranking, model-quality evidence, or a raw public artifact release.
+
 The checked-in preview traces in `fixtures/traces/sanitized/` are generated in explicit demo-preview mode. A preview trace uses `demo_preview_not_executed` when the browser was not launched.
 
 Live controlled traces belong in `fixtures/traces/live-sanitized/`. These artifacts are separate from preview traces, must be marked with `execution_mode: live_controlled`, and may report `succeeded`, `failed`, or `stopped` as long as the trace includes action evidence or grounding evidence plus an explicit failure or stop reason. The first required live controlled targets are `icon-search` and `color-swatch`; `svg-dashboard` is the optional third controlled visual task.

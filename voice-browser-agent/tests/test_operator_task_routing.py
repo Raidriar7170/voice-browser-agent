@@ -105,6 +105,62 @@ def _github_task_config(enabled: bool = True) -> PublicReadonlyRoutingConfig:
     )
 
 
+def _useful_task_config(enabled: bool = True) -> PublicReadonlyRoutingConfig:
+    contracts = json.dumps(
+        [
+            {
+                "task_id": "pypi-package-read",
+                "task_kind": "package_metadata_read",
+                "target_url_template": "https://pypi.org/project/{package_name}/",
+                "allowed_actions": ["navigate", "extract"],
+                "slots": ["target_site_hint", "package_ecosystem", "package_name"],
+                "task_category": "package_metadata",
+                "target_class": "package_metadata",
+                "completion_criteria": {
+                    "criteria_id": "pypi-package-metadata",
+                    "required_proof": ["package_name", "package_metadata_marker", "final_title"],
+                    "visible_markers": ["{package_name}", "Project description"],
+                    "url_path_contains": "/project/{package_name}/",
+                },
+                "max_steps": 2,
+                "timeout_seconds": 10,
+                "privacy_policy": "local_private",
+            },
+            {
+                "task_id": "github-release-notes-read",
+                "task_kind": "release_notes_read",
+                "target_url_template": "https://github.com/{owner}/{repo}/releases",
+                "allowed_actions": ["navigate", "extract"],
+                "slots": ["target_site_hint", "owner", "repo", "release_target"],
+                "task_category": "release_notes",
+                "target_class": "release_notes",
+                "completion_criteria": {
+                    "criteria_id": "github-release-notes",
+                    "required_proof": ["repo_slug", "release_notes_marker", "final_title"],
+                    "visible_markers": ["Releases", "{repo}"],
+                    "url_path_contains": "/{owner}/{repo}/releases",
+                },
+                "max_steps": 2,
+                "timeout_seconds": 12,
+                "privacy_policy": "local_private",
+            },
+        ]
+    )
+    return PublicReadonlyRoutingConfig.from_runtime_config(
+        RuntimeConfig(
+            public_readonly_enabled=enabled,
+            public_readonly_allowlist=(
+                "pypi|PyPI|https://pypi.org/|pypi,package,metadata|"
+                f"{contracts};"
+                "github|GitHub|https://github.com/|github,release,releases|"
+                f"{contracts}"
+            ),
+            public_readonly_max_steps=5,
+            public_readonly_timeout_seconds=20,
+        )
+    )
+
+
 class IconSearchASRAdapter:
     name = "route-smoke-asr"
 
@@ -482,3 +538,123 @@ def test_public_task_route_preserves_contract_slots_limits_and_private_evidence_
     assert payload["execution_limits"] == {"max_steps": 3, "timeout_seconds": 12}
     assert payload["evidence_privacy_state"] == "local_private"
     assert payload["sanitizer_status"] == "pending"
+
+
+def test_useful_public_task_route_preserves_task_category_slots_and_stable_reasons():
+    package_request = BrowserTaskRequest(
+        task="Read PyPI package metadata for playwright",
+        intent_type=BrowserIntentType.EXTRACT_COMPARE_VISIBLE_INFO,
+        constraints=["bounded single browser task", "public_readonly"],
+        visual_references=[],
+        requires_confirmation=False,
+        stop_conditions=["login_required", "stop_if_login_required"],
+        public_task_slots={
+            "target_site_hint": "pypi",
+            "task_category": "package_metadata",
+            "package_ecosystem": "pypi",
+            "package_name": "playwright",
+            "read_only_intent": True,
+        },
+    )
+    release_request = BrowserTaskRequest(
+        task="Read GitHub release notes for microsoft/playwright",
+        intent_type=BrowserIntentType.EXTRACT_COMPARE_VISIBLE_INFO,
+        constraints=["bounded single browser task", "public_readonly"],
+        visual_references=[],
+        requires_confirmation=False,
+        stop_conditions=["login_required", "stop_if_login_required"],
+        public_task_slots={
+            "target_site_hint": "github",
+            "task_category": "release_notes",
+            "release_target": "microsoft/playwright",
+            "owner": "microsoft",
+            "repo": "playwright",
+            "read_only_intent": True,
+        },
+    )
+
+    package_route = select_execution_route(
+        package_request,
+        ValidationResult(accepted=True, reason="accepted"),
+        ConfirmationDecision(state=ConfirmationState.CONFIRMED, reason="confirmed"),
+        public_readonly_config=_useful_task_config(),
+    )
+    release_route = select_execution_route(
+        release_request,
+        ValidationResult(accepted=True, reason="accepted"),
+        ConfirmationDecision(state=ConfirmationState.CONFIRMED, reason="confirmed"),
+        public_readonly_config=_useful_task_config(),
+    )
+    manual_override = select_execution_route(
+        package_request.model_copy(
+            update={
+                "task": "Read PyPI package metadata",
+                "public_task_slots": {
+                    "target_site_hint": "pypi",
+                    "task_category": "package_metadata",
+                    "read_only_intent": True,
+                }
+            }
+        ),
+        ValidationResult(accepted=True, reason="accepted"),
+        ConfirmationDecision(state=ConfirmationState.CONFIRMED, reason="confirmed"),
+        public_readonly_config=_useful_task_config(),
+        requested_execution_mode=ExecutionMode.LIVE_PUBLIC_READONLY,
+    )
+
+    package_payload = package_route.model_dump(mode="json")
+    assert package_payload["route_type"] == "public_readonly"
+    assert package_payload["public_task_id"] == "pypi-package-read"
+    assert package_payload["public_task_category"] == "package_metadata"
+    assert package_payload["public_task_slots"]["package_name"] == "playwright"
+    assert package_payload["public_completion_criteria_id"] == "pypi-package-metadata"
+    assert release_route.route_type is RouteType.PUBLIC_READONLY
+    assert release_route.public_task_id == "github-release-notes-read"
+    assert release_route.public_task_category == "release_notes"
+    assert release_route.public_task_slots["release_target"] == "microsoft/playwright"
+    assert manual_override.route_type is RouteType.BLOCKED
+    assert manual_override.route_reason == "public_task_contract_mismatch"
+
+
+def test_useful_public_task_route_infers_package_and_release_slots_without_normalizer_metadata():
+    package_request = BrowserTaskRequest(
+        task="Read PyPI package metadata for playwright",
+        intent_type=BrowserIntentType.EXTRACT_COMPARE_VISIBLE_INFO,
+        constraints=["bounded single browser task", "public_readonly"],
+        visual_references=[],
+        requires_confirmation=False,
+        stop_conditions=["login_required", "stop_if_login_required"],
+    )
+    release_request = BrowserTaskRequest(
+        task="Read GitHub release notes for microsoft/playwright",
+        intent_type=BrowserIntentType.EXTRACT_COMPARE_VISIBLE_INFO,
+        constraints=["bounded single browser task", "public_readonly"],
+        visual_references=[],
+        requires_confirmation=False,
+        stop_conditions=["login_required", "stop_if_login_required"],
+    )
+
+    package_route = select_execution_route(
+        package_request,
+        ValidationResult(accepted=True, reason="accepted"),
+        ConfirmationDecision(state=ConfirmationState.CONFIRMED, reason="confirmed"),
+        public_readonly_config=_useful_task_config(),
+    )
+    release_route = select_execution_route(
+        release_request,
+        ValidationResult(accepted=True, reason="accepted"),
+        ConfirmationDecision(state=ConfirmationState.CONFIRMED, reason="confirmed"),
+        public_readonly_config=_useful_task_config(),
+    )
+
+    assert package_route.route_type is RouteType.PUBLIC_READONLY
+    assert package_route.public_task_id == "pypi-package-read"
+    assert package_route.public_task_slots["package_name"] == "playwright"
+    assert package_route.public_task_slots["package_ecosystem"] == "pypi"
+    assert package_route.public_task_category == "package_metadata"
+    assert release_route.route_type is RouteType.PUBLIC_READONLY
+    assert release_route.public_task_id == "github-release-notes-read"
+    assert release_route.public_task_slots["release_target"] == "microsoft/playwright"
+    assert release_route.public_task_slots["owner"] == "microsoft"
+    assert release_route.public_task_slots["repo"] == "playwright"
+    assert release_route.public_task_category == "release_notes"

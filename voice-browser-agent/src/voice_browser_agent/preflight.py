@@ -5,7 +5,11 @@ from pathlib import Path
 from typing import Any
 
 from .config import RuntimeConfig, load_config
-from .public_readonly import public_readonly_readiness
+from .public_readonly import (
+    ReliabilityMatrixError,
+    build_public_readonly_useful_task_pack_summary,
+    public_readonly_readiness,
+)
 
 
 def build_readiness_report(
@@ -21,7 +25,7 @@ def build_readiness_report(
         "browser_automation": check_browser_automation(),
         "real_vision_grounding": check_real_vision_grounding(),
         "runtime_privacy": check_runtime_privacy(project_root=project_root, config=config),
-        "public_readonly": check_public_readonly(config),
+        "public_readonly": check_public_readonly(config, project_root=project_root),
     }
     return {
         "project": "Voice-to-Browser Agent",
@@ -98,8 +102,29 @@ def check_runtime_privacy(project_root: Path, config: RuntimeConfig) -> dict[str
     }
 
 
-def check_public_readonly(config: RuntimeConfig) -> dict[str, Any]:
-    return public_readonly_readiness(config)
+def check_public_readonly(config: RuntimeConfig, project_root: Path) -> dict[str, Any]:
+    readiness = public_readonly_readiness(config)
+    pack_path = project_root / "fixtures/public-readonly-useful-task-pack.json"
+    try:
+        summary = build_public_readonly_useful_task_pack_summary(pack_path)
+        readiness["useful_task_pack"] = {
+            **summary,
+            "status": "available",
+            "privacy": "local_private",
+        }
+    except (OSError, ReliabilityMatrixError, ValueError) as exc:
+        readiness["useful_task_pack"] = {
+            "status": "unavailable",
+            "task_count": 0,
+            "category_counts": {},
+            "outcome_counts": {},
+            "required_categories": [],
+            "rows": [],
+            "public_ready": False,
+            "privacy": "local_private",
+            "detail": str(exc),
+        }
+    return readiness
 
 
 def recommended_actions(checks: dict[str, dict[str, Any]]) -> list[str]:

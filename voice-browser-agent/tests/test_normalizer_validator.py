@@ -115,6 +115,31 @@ def test_expanded_public_reference_commands_preserve_safe_slots():
     assert wikipedia.public_task_slots["read_only_intent"] is True
 
 
+def test_useful_public_package_and_release_commands_preserve_safe_slots():
+    pypi = RuleBasedNormalizer().normalize("Read PyPI package metadata for playwright")
+    npm = RuleBasedNormalizer().normalize("Check npm package metadata for playwright")
+    release = RuleBasedNormalizer().normalize("Read GitHub release notes for microsoft/playwright")
+
+    assert isinstance(pypi, BrowserTaskRequest)
+    assert pypi.public_task_slots["target_site_hint"] == "pypi"
+    assert pypi.public_task_slots["task_category"] == "package_metadata"
+    assert pypi.public_task_slots["package_ecosystem"] == "pypi"
+    assert pypi.public_task_slots["package_name"] == "playwright"
+    assert pypi.public_task_slots["read_only_intent"] is True
+    assert isinstance(npm, BrowserTaskRequest)
+    assert npm.public_task_slots["target_site_hint"] == "npm"
+    assert npm.public_task_slots["task_category"] == "package_metadata"
+    assert npm.public_task_slots["package_ecosystem"] == "npm"
+    assert npm.public_task_slots["package_name"] == "playwright"
+    assert isinstance(release, BrowserTaskRequest)
+    assert release.public_task_slots["target_site_hint"] == "github"
+    assert release.public_task_slots["task_category"] == "release_notes"
+    assert release.public_task_slots["release_target"] == "microsoft/playwright"
+    assert release.public_task_slots["owner"] == "microsoft"
+    assert release.public_task_slots["repo"] == "playwright"
+    assert release.public_task_slots["read_only_intent"] is True
+
+
 def test_public_commands_with_unsafe_urls_preserve_safety_concerns():
     unsafe_protocol = RuleBasedNormalizer().normalize("Open file:///Users/example/private.txt and read it")
     private_network = RuleBasedNormalizer().normalize("Open http://127.0.0.1/admin and read it")

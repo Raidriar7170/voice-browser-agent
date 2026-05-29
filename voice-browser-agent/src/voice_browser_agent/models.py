@@ -157,6 +157,7 @@ class RouteDecision(BaseModel):
     public_allowlist_id: str | None = None
     public_task_id: str | None = None
     public_task_kind: str | None = None
+    public_task_category: str | None = None
     public_task_slots: dict[str, Any] = Field(default_factory=dict)
     public_completion_criteria_id: str | None = None
     public_completion_criteria_summary: list[str] = Field(default_factory=list)
@@ -194,6 +195,7 @@ class PublicTaskContract(BaseModel):
     task_kind: str
     allowlist_id: str
     target_class: str | None = None
+    task_category: str | None = None
     target_url: str | None = None
     target_url_template: str | None = None
     allowed_actions: list[str] = Field(default_factory=list)
@@ -268,6 +270,70 @@ class PublicReadonlyReliabilitySmokeTask(BaseModel):
 class PublicReadonlyReliabilitySmokeSet(BaseModel):
     tasks: list[PublicReadonlyReliabilitySmokeTask] = Field(min_length=5, max_length=8)
     boundaries: list[str] = Field(default_factory=list)
+
+
+USEFUL_TASK_PACK_REQUIRED_CATEGORIES = (
+    "documentation",
+    "reference",
+    "package_metadata",
+    "release_notes",
+    "public_repository_search",
+    "public_repository_read",
+)
+
+
+class PublicReadonlyUsefulTask(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    task_id: str = Field(alias="id")
+    target_label: str
+    target_class: str
+    task_category: str
+    allowlist_id: str
+    browser_intent_type: str | None = None
+    task_kind: str
+    safe_slots: list[str] = Field(min_length=1)
+    target_url: str | None = None
+    target_url_template: str | None = Field(default=None, alias="url_template")
+    allowed_actions: list[str] = Field(min_length=1)
+    command: str | None = None
+    requested_slots: dict[str, Any] = Field(default_factory=dict)
+    completion_criteria: PublicTaskCompletionCriteria
+    execution_mode: ExecutionMode = ExecutionMode.LIVE_PUBLIC_READONLY
+    limits: dict[str, int]
+    privacy_policy: str = "local_private"
+    expected_task_pack_coverage: PublicTaskCompletionState
+    task_pack_attempt_evidence: PublicReadonlyReliabilityAttemptEvidence
+    regression_coverage: list[str] = Field(default_factory=list)
+    safety_boundaries: list[str] = Field(default_factory=list)
+    artifact_status: str = "local_private_until_sanitized"
+
+    @model_validator(mode="after")
+    def _validate_target_and_limits(self) -> "PublicReadonlyUsefulTask":
+        if not self.target_url and not self.target_url_template:
+            raise ValueError("target URL or template is required")
+        max_steps = self.limits.get("max_steps")
+        timeout_seconds = self.limits.get("timeout_seconds")
+        if max_steps is None or max_steps < 1 or max_steps > 5:
+            raise ValueError("limits.max_steps must be between 1 and 5")
+        if timeout_seconds is None or timeout_seconds < 1 or timeout_seconds > 60:
+            raise ValueError("limits.timeout_seconds must be between 1 and 60")
+        return self
+
+
+class PublicReadonlyUsefulTaskPack(BaseModel):
+    tasks: list[PublicReadonlyUsefulTask] = Field(min_length=8, max_length=12)
+    required_categories: list[str] = Field(
+        default_factory=lambda: list(USEFUL_TASK_PACK_REQUIRED_CATEGORIES)
+    )
+    boundaries: list[str] = Field(default_factory=list)
+
+    @property
+    def category_counts(self) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for task in self.tasks:
+            counts[task.task_category] = counts.get(task.task_category, 0) + 1
+        return counts
 
 
 class PublicReadonlyReliabilityMatrixRow(BaseModel):

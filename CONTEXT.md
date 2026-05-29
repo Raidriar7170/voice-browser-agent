@@ -104,6 +104,10 @@ _Avoid_: production automation, public benchmark, unrestricted browsing trace
 A reviewer-readable summary of the 5-task public-readonly smoke set showing task id, target class, completion criteria, observed proof summary, unmet criteria, outcome, stop/failure reason, privacy state, sanitizer status, and export state.
 _Avoid_: production automation, unrestricted public-web autonomy, captcha bypass, account automation, benchmark ranking, model-quality claim, public raw-dataset evidence
 
+**Public-Readonly Useful Task Pack**:
+An 8-12 task contract set for stable read-only public documentation, reference, package metadata, release notes, and public repository search/read tasks, summarized as local/private evidence.
+_Avoid_: arbitrary public-web autonomy, search-engine automation, account workflow, mutation workflow, captcha bypass, production automation, benchmark ranking, raw public artifact release
+
 **Reproducible Audio Fixture**:
 A saved audio sample paired with an expected spoken command and demo task.
 _Avoid_: live-only microphone input, non-repeatable demo speech
@@ -176,6 +180,7 @@ This matrix is the current line-by-line coverage audit for the domain language a
 | 2026-05-28 | Public Task Contract | `PublicTaskContract`, GitHub search/read contracts, parser, route selection, executor contract guard | `test_public_readonly_contract.py`, `test_operator_task_routing.py`, `test_public_readonly_api_ui_evidence.py` | `public-readonly-web-execution`, `fixtures/public-readonly-smoke.json`, README | Covered |
 | 2026-05-28 | Public Task Completion Verifier | `PublicTaskCompletionVerifier` records docs and GitHub-specific proof, unmet criteria, and outcome state | `test_public_readonly_contract.py` | `safe-browser-execution`, `docs/demo/demo-task-suite.md`, public evidence page | Covered |
 | 2026-05-28 | Public-Readonly Smoke Evidence | smoke fixture defines OpenAI Docs, Python Docs, GitHub repository search/read, and MDN bounded tasks with private artifact status | `test_public_readonly_api_ui_evidence.py` | `fixtures/public-readonly-smoke.json`, `docs/demo/useful-scenarios.md`, `docs/demo/video-plan.md` | Covered as local/private until sanitized |
+| 2026-05-28 | Public-Readonly Useful Task Pack | useful pack fixture defines documentation, reference, package metadata, release notes, and public repository search/read contracts with local/private summaries | `test_public_readonly_contract.py`, `test_public_readonly_task_pack_runner.py`, `test_demo_evidence_release_pack.py` | `fixtures/public-readonly-useful-task-pack.json`, release-pack manifest, docs/demo | Covered as local/private summary evidence |
 | 2026-05-28 | Public-Readonly Visible Result Artifact | local/private screenshot metadata and guarded artifact serving for real public runs | `test_public_readonly_contract.py`, `test_public_readonly_api_ui_evidence.py`, `test_operator_console_ui.py` | README, `operator-console`, `safe-browser-execution` | Covered |
 | 2026-05-27 | Real Voice E2E Smoke | uploaded or recorded audio can be reviewed and executed against a controlled local visual task | `test_real_voice_e2e_readiness.py`, `test_operator_console_ui.py` | `fixtures/traces/real-voice-sanitized/`, `scripts/generate_real_voice_trace.py`, `spoken-command-ingestion` | Covered |
 | 2026-05-27 | Local Real-Use Preflight | readiness report for primary ASR, fallback ASR, browser automation, visual grounding, and privacy | `test_real_voice_e2e_readiness.py` | `scripts/preflight_real_use.py`, `/api/readiness`, README | Covered |

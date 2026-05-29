@@ -138,6 +138,23 @@ def test_release_pack_manifest_covers_preview_live_agentic_real_vision_and_real_
         "visible_marker": "documentation overview",
     }
     assert "raw_page_text" not in json.dumps(matrix, ensure_ascii=False)
+    useful = manifest["public_readonly_useful_task_pack"]
+    assert useful["is_complete"] is True
+    assert useful["task_count"] >= 8
+    assert useful["public_ready"] is False
+    assert set(useful["category_counts"]) >= {
+        "documentation",
+        "reference",
+        "package_metadata",
+        "release_notes",
+        "public_repository_search",
+        "public_repository_read",
+    }
+    assert all(row["export_state"] == "local_private" for row in useful["rows"])
+    index_html = (output_dir / "index.html").read_text(encoding="utf-8")
+    assert "final_title: OpenAI Docs" in index_html
+    assert "visible_marker: Docs" in index_html
+    assert "raw_page_text" not in json.dumps(useful, ensure_ascii=False)
 
 
 def test_release_pack_preserves_route_metadata_for_controlled_showcase(tmp_path):

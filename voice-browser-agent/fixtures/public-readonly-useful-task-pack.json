@@ -1,0 +1,503 @@
+{
+  "required_categories": [
+    "documentation",
+    "reference",
+    "package_metadata",
+    "release_notes",
+    "public_repository_search",
+    "public_repository_read"
+  ],
+  "tasks": [
+    {
+      "id": "openai-docs-overview",
+      "target_label": "OpenAI Docs",
+      "target_class": "documentation",
+      "task_category": "documentation",
+      "allowlist_id": "openai-docs",
+      "browser_intent_type": "read_reference",
+      "task_kind": "direct_reference_read",
+      "safe_slots": ["target_site_hint", "read_target"],
+      "target_url": "https://platform.openai.com/docs",
+      "allowed_actions": ["navigate", "extract"],
+      "command": "Open the public OpenAI Docs overview and read the visible page title.",
+      "requested_slots": {
+        "target_site_hint": "OpenAI Docs",
+        "read_target": "documentation overview"
+      },
+      "completion_criteria": {
+        "criteria_id": "openai-docs-overview-title",
+        "required_proof": ["final_title", "visible_marker"],
+        "visible_markers": ["Docs"]
+      },
+      "execution_mode": "live_public_readonly",
+      "limits": {
+        "max_steps": 2,
+        "timeout_seconds": 8
+      },
+      "privacy_policy": "local_private",
+      "expected_task_pack_coverage": "completed",
+      "task_pack_attempt_evidence": {
+        "outcome": "completed",
+        "final_status": "succeeded",
+        "observed_proof_summary": {
+          "final_title": "OpenAI Docs",
+          "visible_marker": "Docs"
+        },
+        "unmet_criteria": [],
+        "stop_or_failure_reason": null,
+        "evidence_privacy_state": "local_private",
+        "sanitizer_status": "pending",
+        "visible_result_state": "not_captured",
+        "export_state": "local_private",
+        "regression_coverage": ["completed_documentation_proof"]
+      },
+      "regression_coverage": ["completed_documentation_proof"],
+      "safety_boundaries": ["read-only", "No login", "no upload/download"],
+      "artifact_status": "local_private_until_sanitized"
+    },
+    {
+      "id": "python-docs-search",
+      "target_label": "Python Docs",
+      "target_class": "documentation",
+      "task_category": "documentation",
+      "allowlist_id": "python-docs",
+      "browser_intent_type": "search_open",
+      "task_kind": "documentation_search",
+      "safe_slots": ["target_site_hint", "search_query"],
+      "url_template": "https://docs.python.org/3/search.html?q={search_query}",
+      "allowed_actions": ["navigate", "search", "extract"],
+      "command": "Search Python documentation for pathlib.",
+      "requested_slots": {
+        "target_site_hint": "Python Docs",
+        "search_query": "pathlib"
+      },
+      "completion_criteria": {
+        "criteria_id": "python-docs-pathlib-search",
+        "required_proof": ["searched_query", "result_heading", "url_path"],
+        "visible_markers": ["Search Results", "pathlib"],
+        "url_path_contains": "/search.html"
+      },
+      "execution_mode": "live_public_readonly",
+      "limits": {
+        "max_steps": 3,
+        "timeout_seconds": 12
+      },
+      "privacy_policy": "local_private",
+      "expected_task_pack_coverage": "partial",
+      "task_pack_attempt_evidence": {
+        "outcome": "partial",
+        "final_status": "stopped",
+        "observed_proof_summary": {
+          "searched_query": "pathlib",
+          "url_path": "/3/search.html"
+        },
+        "unmet_criteria": ["result_heading"],
+        "stop_or_failure_reason": "missing_public_task_completion",
+        "evidence_privacy_state": "local_private",
+        "sanitizer_status": "pending",
+        "visible_result_state": "not_captured",
+        "export_state": "local_private",
+        "regression_coverage": ["partial_missing_result_heading"]
+      },
+      "regression_coverage": ["partial_missing_result_heading"],
+      "safety_boundaries": ["read-only", "No login", "no upload/download"],
+      "artifact_status": "local_private_until_sanitized"
+    },
+    {
+      "id": "mdn-fetch-reference",
+      "target_label": "MDN Web Docs",
+      "target_class": "reference",
+      "task_category": "reference",
+      "allowlist_id": "mdn-docs",
+      "browser_intent_type": "read_reference",
+      "task_kind": "reference_read",
+      "safe_slots": ["target_site_hint", "read_target"],
+      "target_url": "https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API",
+      "allowed_actions": ["navigate", "extract"],
+      "command": "Read the public MDN Fetch API reference page.",
+      "requested_slots": {
+        "target_site_hint": "MDN Web Docs",
+        "read_target": "Fetch API reference"
+      },
+      "completion_criteria": {
+        "criteria_id": "mdn-fetch-api-reference",
+        "required_proof": ["final_title", "visible_marker", "url_path"],
+        "visible_markers": ["Fetch API"],
+        "url_path_contains": "/Web/API/Fetch_API"
+      },
+      "execution_mode": "live_public_readonly",
+      "limits": {
+        "max_steps": 2,
+        "timeout_seconds": 10
+      },
+      "privacy_policy": "local_private",
+      "expected_task_pack_coverage": "completed",
+      "task_pack_attempt_evidence": {
+        "outcome": "completed",
+        "final_status": "succeeded",
+        "observed_proof_summary": {
+          "final_title": "Fetch API - Web APIs | MDN",
+          "visible_marker": "Fetch API",
+          "url_path": "/en-US/docs/Web/API/Fetch_API"
+        },
+        "unmet_criteria": [],
+        "stop_or_failure_reason": null,
+        "evidence_privacy_state": "local_private",
+        "sanitizer_status": "pending",
+        "visible_result_state": "not_captured",
+        "export_state": "local_private",
+        "regression_coverage": ["completed_reference_proof"]
+      },
+      "regression_coverage": ["completed_reference_proof"],
+      "safety_boundaries": ["read-only", "No login", "no upload/download"],
+      "artifact_status": "local_private_until_sanitized"
+    },
+    {
+      "id": "wikipedia-http-reference",
+      "target_label": "Wikipedia",
+      "target_class": "reference",
+      "task_category": "reference",
+      "allowlist_id": "wikipedia",
+      "browser_intent_type": "read_reference",
+      "task_kind": "reference_read",
+      "safe_slots": ["target_site_hint", "read_target"],
+      "target_url": "https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol",
+      "allowed_actions": ["navigate", "extract"],
+      "command": "Read the public Wikipedia reference page for HTTP.",
+      "requested_slots": {
+        "target_site_hint": "Wikipedia",
+        "read_target": "Hypertext Transfer Protocol"
+      },
+      "completion_criteria": {
+        "criteria_id": "wikipedia-http-reference",
+        "required_proof": ["final_title", "visible_marker", "url_path"],
+        "visible_markers": ["Hypertext Transfer Protocol"],
+        "url_path_contains": "/wiki/Hypertext_Transfer_Protocol"
+      },
+      "execution_mode": "live_public_readonly",
+      "limits": {
+        "max_steps": 2,
+        "timeout_seconds": 10
+      },
+      "privacy_policy": "local_private",
+      "expected_task_pack_coverage": "stopped",
+      "task_pack_attempt_evidence": {
+        "outcome": "stopped",
+        "final_status": "stopped",
+        "observed_proof_summary": {
+          "final_title": "Wikipedia"
+        },
+        "unmet_criteria": ["visible_marker", "url_path"],
+        "stop_or_failure_reason": "public_task_rate_limited",
+        "evidence_privacy_state": "local_private",
+        "sanitizer_status": "pending",
+        "visible_result_state": "not_captured",
+        "export_state": "local_private",
+        "regression_coverage": ["stopped_reference_boundary"]
+      },
+      "regression_coverage": ["stopped_reference_boundary"],
+      "safety_boundaries": ["read-only", "No login", "no upload/download"],
+      "artifact_status": "local_private_until_sanitized"
+    },
+    {
+      "id": "pypi-playwright-package",
+      "target_label": "PyPI",
+      "target_class": "package_metadata",
+      "task_category": "package_metadata",
+      "allowlist_id": "pypi",
+      "browser_intent_type": "read_reference",
+      "task_kind": "package_metadata_read",
+      "safe_slots": ["target_site_hint", "package_name"],
+      "target_url": "https://pypi.org/project/playwright/",
+      "allowed_actions": ["navigate", "extract"],
+      "command": "Read public PyPI metadata for the playwright package.",
+      "requested_slots": {
+        "target_site_hint": "PyPI",
+        "package_name": "playwright"
+      },
+      "completion_criteria": {
+        "criteria_id": "pypi-playwright-package-metadata",
+        "required_proof": ["package_name", "version_marker", "project_summary"],
+        "visible_markers": ["playwright", "pip install"]
+      },
+      "execution_mode": "live_public_readonly",
+      "limits": {
+        "max_steps": 2,
+        "timeout_seconds": 10
+      },
+      "privacy_policy": "local_private",
+      "expected_task_pack_coverage": "completed",
+      "task_pack_attempt_evidence": {
+        "outcome": "completed",
+        "final_status": "succeeded",
+        "observed_proof_summary": {
+          "package_name": "playwright",
+          "version_marker": "latest version marker",
+          "project_summary": "Browser automation package metadata"
+        },
+        "unmet_criteria": [],
+        "stop_or_failure_reason": null,
+        "evidence_privacy_state": "local_private",
+        "sanitizer_status": "pending",
+        "visible_result_state": "not_captured",
+        "export_state": "local_private",
+        "regression_coverage": ["completed_package_metadata_proof"]
+      },
+      "regression_coverage": ["completed_package_metadata_proof"],
+      "safety_boundaries": ["read-only", "No login", "no upload/download"],
+      "artifact_status": "local_private_until_sanitized"
+    },
+    {
+      "id": "npm-playwright-package",
+      "target_label": "npm",
+      "target_class": "package_metadata",
+      "task_category": "package_metadata",
+      "allowlist_id": "npm",
+      "browser_intent_type": "read_reference",
+      "task_kind": "package_metadata_read",
+      "safe_slots": ["target_site_hint", "package_name"],
+      "target_url": "https://www.npmjs.com/package/playwright",
+      "allowed_actions": ["navigate", "extract"],
+      "command": "Read public npm metadata for the playwright package.",
+      "requested_slots": {
+        "target_site_hint": "npm",
+        "package_name": "playwright"
+      },
+      "completion_criteria": {
+        "criteria_id": "npm-playwright-package-metadata",
+        "required_proof": ["package_name", "version_marker", "repository_marker"],
+        "visible_markers": ["playwright", "Repository"]
+      },
+      "execution_mode": "live_public_readonly",
+      "limits": {
+        "max_steps": 2,
+        "timeout_seconds": 10
+      },
+      "privacy_policy": "local_private",
+      "expected_task_pack_coverage": "partial",
+      "task_pack_attempt_evidence": {
+        "outcome": "partial",
+        "final_status": "stopped",
+        "observed_proof_summary": {
+          "package_name": "playwright"
+        },
+        "unmet_criteria": ["version_marker", "repository_marker"],
+        "stop_or_failure_reason": "missing_public_task_completion",
+        "evidence_privacy_state": "local_private",
+        "sanitizer_status": "pending",
+        "visible_result_state": "not_captured",
+        "export_state": "local_private",
+        "regression_coverage": ["partial_package_metadata_missing_fields"]
+      },
+      "regression_coverage": ["partial_package_metadata_missing_fields"],
+      "safety_boundaries": ["read-only", "No login", "no upload/download"],
+      "artifact_status": "local_private_until_sanitized"
+    },
+    {
+      "id": "python-release-notes",
+      "target_label": "Python Release Notes",
+      "target_class": "release_notes",
+      "task_category": "release_notes",
+      "allowlist_id": "python-docs",
+      "browser_intent_type": "read_reference",
+      "task_kind": "release_notes_read",
+      "safe_slots": ["target_site_hint", "release_series"],
+      "target_url": "https://docs.python.org/3/whatsnew/3.12.html",
+      "allowed_actions": ["navigate", "extract"],
+      "command": "Read public Python 3.12 release notes.",
+      "requested_slots": {
+        "target_site_hint": "Python Docs",
+        "release_series": "3.12"
+      },
+      "completion_criteria": {
+        "criteria_id": "python-312-release-notes",
+        "required_proof": ["final_title", "release_series", "change_log_marker"],
+        "visible_markers": ["What\u2019s New In Python 3.12"]
+      },
+      "execution_mode": "live_public_readonly",
+      "limits": {
+        "max_steps": 2,
+        "timeout_seconds": 10
+      },
+      "privacy_policy": "local_private",
+      "expected_task_pack_coverage": "failed",
+      "task_pack_attempt_evidence": {
+        "outcome": "failed",
+        "final_status": "failed",
+        "observed_proof_summary": {},
+        "unmet_criteria": ["final_title", "release_series", "change_log_marker"],
+        "stop_or_failure_reason": "public_task_network_error",
+        "evidence_privacy_state": "local_private",
+        "sanitizer_status": "pending",
+        "visible_result_state": "not_captured",
+        "export_state": "local_private",
+        "regression_coverage": ["failed_release_notes_network"]
+      },
+      "regression_coverage": ["failed_release_notes_network"],
+      "safety_boundaries": ["read-only", "No login", "no upload/download"],
+      "artifact_status": "local_private_until_sanitized"
+    },
+    {
+      "id": "fastapi-release-notes",
+      "target_label": "FastAPI Release Notes",
+      "target_class": "release_notes",
+      "task_category": "release_notes",
+      "allowlist_id": "fastapi-docs",
+      "browser_intent_type": "read_reference",
+      "task_kind": "release_notes_read",
+      "safe_slots": ["target_site_hint", "release_series"],
+      "target_url": "https://fastapi.tiangolo.com/release-notes/",
+      "allowed_actions": ["navigate", "extract"],
+      "command": "Read public FastAPI release notes.",
+      "requested_slots": {
+        "target_site_hint": "FastAPI Docs",
+        "release_series": "current"
+      },
+      "completion_criteria": {
+        "criteria_id": "fastapi-release-notes",
+        "required_proof": ["final_title", "release_note_marker", "url_path"],
+        "visible_markers": ["Release Notes"],
+        "url_path_contains": "/release-notes/"
+      },
+      "execution_mode": "live_public_readonly",
+      "limits": {
+        "max_steps": 2,
+        "timeout_seconds": 10
+      },
+      "privacy_policy": "local_private",
+      "expected_task_pack_coverage": "completed",
+      "task_pack_attempt_evidence": {
+        "outcome": "completed",
+        "final_status": "succeeded",
+        "observed_proof_summary": {
+          "final_title": "Release Notes - FastAPI",
+          "release_note_marker": "Release Notes",
+          "url_path": "/release-notes/"
+        },
+        "unmet_criteria": [],
+        "stop_or_failure_reason": null,
+        "evidence_privacy_state": "local_private",
+        "sanitizer_status": "pending",
+        "visible_result_state": "not_captured",
+        "export_state": "local_private",
+        "regression_coverage": ["completed_release_notes_proof"]
+      },
+      "regression_coverage": ["completed_release_notes_proof"],
+      "safety_boundaries": ["read-only", "No login", "no upload/download"],
+      "artifact_status": "local_private_until_sanitized"
+    },
+    {
+      "id": "github-repo-search",
+      "target_label": "GitHub",
+      "target_class": "public_repository",
+      "task_category": "public_repository_search",
+      "allowlist_id": "github",
+      "browser_intent_type": "search_open",
+      "task_kind": "github-repo-search",
+      "safe_slots": ["target_site_hint", "search_query"],
+      "url_template": "https://github.com/search?q={search_query}&type=repositories",
+      "allowed_actions": ["navigate", "search", "extract"],
+      "command": "Search public GitHub repositories for agent tooling.",
+      "requested_slots": {
+        "target_site_hint": "GitHub",
+        "search_query": "agent tooling"
+      },
+      "completion_criteria": {
+        "criteria_id": "github-agent-tooling-repo-search",
+        "required_proof": ["searched_query", "search_page_state", "repository_result_marker"],
+        "visible_markers": ["Repositories", "agent tooling"],
+        "url_path_contains": "/search"
+      },
+      "execution_mode": "live_public_readonly",
+      "limits": {
+        "max_steps": 3,
+        "timeout_seconds": 15
+      },
+      "privacy_policy": "local_private",
+      "expected_task_pack_coverage": "stopped",
+      "task_pack_attempt_evidence": {
+        "outcome": "stopped",
+        "final_status": "stopped",
+        "observed_proof_summary": {
+          "searched_query": "agent tooling",
+          "search_page_state": "search attempted"
+        },
+        "unmet_criteria": ["repository_result_marker"],
+        "stop_or_failure_reason": "public_task_captcha_or_verification",
+        "evidence_privacy_state": "local_private",
+        "sanitizer_status": "pending",
+        "visible_result_state": "local_private",
+        "export_state": "local_private",
+        "regression_coverage": ["stopped_public_repo_search_boundary"]
+      },
+      "regression_coverage": ["stopped_public_repo_search_boundary"],
+      "safety_boundaries": [
+        "read-only",
+        "No login",
+        "no star/fork/comment/issue/pull-request",
+        "no upload/download"
+      ],
+      "artifact_status": "local_private_until_sanitized"
+    },
+    {
+      "id": "github-public-repo-read",
+      "target_label": "GitHub",
+      "target_class": "public_repository",
+      "task_category": "public_repository_read",
+      "allowlist_id": "github",
+      "browser_intent_type": "read_reference",
+      "task_kind": "github-public-repo-read",
+      "safe_slots": ["target_site_hint", "owner", "repo", "repo_slug", "read_target"],
+      "url_template": "https://github.com/{owner}/{repo}",
+      "allowed_actions": ["navigate", "extract"],
+      "command": "Read the public README for Raidriar7170/gui-agent-benchmark on GitHub.",
+      "requested_slots": {
+        "target_site_hint": "GitHub",
+        "owner": "Raidriar7170",
+        "repo": "gui-agent-benchmark",
+        "repo_slug": "Raidriar7170/gui-agent-benchmark",
+        "read_target": "README"
+      },
+      "completion_criteria": {
+        "criteria_id": "github-public-repo-readme",
+        "required_proof": ["repo_slug", "repo_page_title", "readme_or_description_marker"],
+        "visible_markers": ["README", "gui-agent-benchmark"]
+      },
+      "execution_mode": "live_public_readonly",
+      "limits": {
+        "max_steps": 2,
+        "timeout_seconds": 15
+      },
+      "privacy_policy": "local_private",
+      "expected_task_pack_coverage": "blocked",
+      "task_pack_attempt_evidence": {
+        "outcome": "blocked",
+        "final_status": "blocked",
+        "observed_proof_summary": {},
+        "unmet_criteria": ["repo_slug", "repo_page_title", "readme_or_description_marker"],
+        "stop_or_failure_reason": "public_readonly_override_not_allowed",
+        "evidence_privacy_state": "local_private",
+        "sanitizer_status": "pending",
+        "visible_result_state": "not_captured",
+        "export_state": "local_private",
+        "regression_coverage": ["blocked_public_repo_read_pre_navigation"]
+      },
+      "regression_coverage": ["blocked_public_repo_read_pre_navigation"],
+      "safety_boundaries": [
+        "read-only",
+        "No login",
+        "no private repository access",
+        "no star/fork/comment/issue/pull-request",
+        "no upload/download"
+      ],
+      "artifact_status": "local_private_until_sanitized"
+    }
+  ],
+  "boundaries": [
+    "read-only public pages",
+    "No login",
+    "private-by-default traces",
+    "not unrestricted public-web autonomy",
+    "no mutation, upload, download, account, captcha bypass, or private-network workflow"
+  ]
+}

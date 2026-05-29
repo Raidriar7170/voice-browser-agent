@@ -81,7 +81,20 @@ def _is_unsupported_public_scope(text: str) -> bool:
     lowered = text.lower()
     if not any(
         marker in lowered
-        for marker in ("github", "public", "docs", "documentation", "网站", "公开", "文档")
+        for marker in (
+            "github",
+            "public",
+            "docs",
+            "documentation",
+            "pypi",
+            "npm",
+            "package",
+            "release",
+            "releases",
+            "网站",
+            "公开",
+            "文档",
+        )
     ):
         return False
     broad_markers = (
@@ -168,6 +181,17 @@ def _public_task_slots_for(text: str) -> dict[str, object]:
         slots["target_site_hint"] = "wikipedia"
     elif "github" in lowered:
         slots["target_site_hint"] = "github"
+    elif "pypi" in lowered:
+        slots["target_site_hint"] = "pypi"
+    elif "npm" in lowered:
+        slots["target_site_hint"] = "npm"
+    package_name = _extract_package_name(text)
+    if package_name:
+        ecosystem = "pypi" if "pypi" in lowered else "npm" if "npm" in lowered else "package"
+        slots["target_site_hint"] = ecosystem
+        slots["task_category"] = "package_metadata"
+        slots["package_ecosystem"] = ecosystem
+        slots["package_name"] = package_name
     search_query = _extract_search_query(text)
     if search_query:
         slots["search_query"] = search_query
@@ -179,6 +203,16 @@ def _public_task_slots_for(text: str) -> dict[str, object]:
         slots["target_site_hint"] = "github"
         slots["task_kind_hint"] = "github-public-repo-read"
         slots["repo_slug"] = repo_slug
+        slots["owner"] = owner
+        slots["repo"] = repo
+    release_target = _extract_release_target(text)
+    if release_target:
+        owner, repo = release_target.split("/", 1)
+        slots["target_site_hint"] = "github"
+        slots["task_category"] = "release_notes"
+        slots["task_kind_hint"] = "release_notes_read"
+        slots["release_target"] = release_target
+        slots["repo_slug"] = release_target
         slots["owner"] = owner
         slots["repo"] = repo
     read_target = _extract_read_target(text)
@@ -245,6 +279,29 @@ def _extract_read_target(text: str) -> str | None:
             target = match.group(1).strip()
             return target[:120] if target else None
     return None
+
+
+def _extract_package_name(text: str) -> str | None:
+    lowered = text.lower()
+    if "package" not in lowered and "pypi" not in lowered and "npm" not in lowered:
+        return None
+    patterns = (
+        r"(?:pypi|npm)\s+package\s+metadata\s+for\s+([A-Za-z0-9_.@/\-]+)",
+        r"(?:package\s+metadata\s+for|metadata\s+for)\s+([A-Za-z0-9_.@/\-]+)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            return match.group(1).strip().strip(",.，。")[:80]
+    return None
+
+
+def _extract_release_target(text: str) -> str | None:
+    lowered = text.lower()
+    if "release" not in lowered and "releases" not in lowered:
+        return None
+    slug = _extract_github_repo_slug(text)
+    return slug
 
 
 def _extract_github_repo_slug(text: str) -> str | None:

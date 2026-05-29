@@ -51,6 +51,8 @@ For the public-readonly flow, inspect one completed, partial, stopped, failed, a
 
 Confirm the public-readonly reliability matrix appears in the release-pack manifest and index as a bounded local read-only summary. It must not expose raw public runtime traces, screenshots, page text, cookies, credentials, browser profiles, local paths, private data, or remote host details.
 
+Confirm the public-readonly useful task pack appears in the release-pack manifest and index as a local/private metadata summary. It must cover package metadata and release notes without implying broad public-web autonomy, deployed web operation, leaderboard-style ranking, model score claims, captcha bypass, or account workflows.
+
 ## Archive Order
 
 Confirm `speech-to-task-adaptation-dataset` has already been archived before archiving `project-closeout-interview-pack`.

@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -22,17 +23,22 @@ from voice_browser_agent.models import (
     SanitizerStatus,
 )
 from voice_browser_agent.public_readonly import (
+    build_public_readonly_useful_task_pack_summary,
     PublicTaskCompletionVerifier,
     PublicReadonlyPolicy,
     PublicReadonlyRoutingConfig,
     ReliabilityMatrixError,
     load_public_readonly_smoke_set,
+    load_public_readonly_useful_task_pack,
     parse_public_readonly_targets,
     summarize_reliability_matrix,
 )
 from voice_browser_agent.routing import select_execution_route
 from voice_browser_agent.trace_writer import TraceWriter, sanitize_trace_dict
 from voice_browser_agent.models import ConfirmationDecision, ConfirmationState, ValidationResult
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _public_request(text: str = "打开 OpenAI 的公开文档页面") -> BrowserTaskRequest:
@@ -52,6 +58,66 @@ def _validation() -> ValidationResult:
 
 def _confirmed() -> ConfirmationDecision:
     return ConfirmationDecision(state=ConfirmationState.CONFIRMED, reason="no confirmation required")
+
+
+def _useful_task(
+    task_id: str,
+    category: str,
+    outcome: str = "completed",
+    action: str = "extract",
+) -> dict:
+    proof = ["final_title", "visible_marker"]
+    observed = (
+        {"final_title": f"{task_id} title", "visible_marker": f"{task_id} marker"}
+        if outcome == "completed"
+        else {}
+    )
+    final_status = {
+        "completed": "succeeded",
+        "partial": "stopped",
+        "stopped": "stopped",
+        "failed": "failed",
+        "blocked": "blocked",
+    }[outcome]
+    return {
+        "id": task_id,
+        "target_label": f"{task_id} target",
+        "target_class": category,
+        "task_category": category,
+        "allowlist_id": task_id,
+        "browser_intent_type": "read_reference",
+        "task_kind": f"{category}_read",
+        "safe_slots": ["target_site_hint", "read_target"],
+        "target_url": f"https://example.com/{task_id}",
+        "allowed_actions": ["navigate", action],
+        "requested_slots": {
+            "target_site_hint": f"{task_id} target",
+            "read_target": task_id,
+        },
+        "completion_criteria": {
+            "criteria_id": f"{task_id}-criteria",
+            "required_proof": proof,
+        },
+        "execution_mode": "live_public_readonly",
+        "limits": {"max_steps": 2, "timeout_seconds": 10},
+        "privacy_policy": "local_private",
+        "expected_task_pack_coverage": outcome,
+        "task_pack_attempt_evidence": {
+            "outcome": outcome,
+            "final_status": final_status,
+            "observed_proof_summary": observed,
+            "unmet_criteria": [] if outcome == "completed" else proof,
+            "stop_or_failure_reason": None if outcome == "completed" else f"public_task_{outcome}",
+            "evidence_privacy_state": "local_private",
+            "sanitizer_status": "pending",
+            "visible_result_state": "not_captured",
+            "export_state": "local_private",
+            "regression_coverage": [f"{outcome}_coverage"],
+        },
+        "regression_coverage": [f"{outcome}_coverage"],
+        "safety_boundaries": ["read-only", "No login", "no upload/download"],
+        "artifact_status": "local_private_until_sanitized",
+    }
 
 
 def _runtime_with_public_task_contracts(enabled: bool = True) -> RuntimeConfig:
@@ -190,6 +256,225 @@ def test_public_readonly_smoke_set_loads_reliability_contracts_with_matrix_cover
         .visual_artifact_policy
         == "local_private_visible_result"
     )
+
+
+def test_public_readonly_useful_task_pack_loads_8_to_12_tasks_with_category_coverage():
+    pack_path = PROJECT_ROOT / "fixtures/public-readonly-useful-task-pack.json"
+
+    task_pack = load_public_readonly_useful_task_pack(pack_path)
+
+    assert 8 <= len(task_pack.tasks) <= 12
+    assert task_pack.required_categories == [
+        "documentation",
+        "reference",
+        "package_metadata",
+        "release_notes",
+        "public_repository_search",
+        "public_repository_read",
+    ]
+    assert set(task_pack.category_counts) >= set(task_pack.required_categories)
+    assert {task.task_pack_attempt_evidence.outcome for task in task_pack.tasks} == {
+        "completed",
+        "partial",
+        "stopped",
+        "failed",
+        "blocked",
+    }
+    for task in task_pack.tasks:
+        assert task.task_id
+        assert task.task_category in task_pack.required_categories
+        assert task.target_class
+        assert task.allowlist_id
+        assert task.safe_slots
+        assert task.target_url or task.target_url_template
+        assert set(task.allowed_actions).issubset(
+            {"navigate", "search", "filter", "expand", "extract", "inspect", "observe", "read"}
+        )
+        assert task.completion_criteria.required_proof
+        assert task.privacy_policy == "local_private"
+        assert task.artifact_status == "local_private_until_sanitized"
+
+
+def test_public_readonly_useful_task_pack_rejects_bad_size_categories_proof_and_actions(
+    tmp_path,
+):
+    valid_tasks = [
+        _useful_task("docs-a", "documentation", "completed"),
+        _useful_task("docs-b", "documentation", "partial"),
+        _useful_task("ref-a", "reference", "stopped"),
+        _useful_task("package-a", "package_metadata", "failed"),
+        _useful_task("release-a", "release_notes", "blocked"),
+        _useful_task("repo-search-a", "public_repository_search", "completed"),
+        _useful_task("repo-read-a", "public_repository_read", "partial"),
+        _useful_task("ref-b", "reference", "stopped"),
+    ]
+    boundaries = ["read-only public pages", "No login", "private-by-default traces"]
+
+    cases = {
+        "fewer than 8": valid_tasks[:7],
+        "more than 12": valid_tasks + [
+            _useful_task(f"extra-{index}", "documentation", "completed")
+            for index in range(5)
+        ],
+        "missing category": [task for task in valid_tasks if task["task_category"] != "release_notes"],
+        "completion criteria": [
+            {
+                **task,
+                "completion_criteria": {
+                    "criteria_id": task["completion_criteria"]["criteria_id"],
+                    "required_proof": [],
+                },
+            }
+            if task["id"] == "docs-a"
+            else task
+            for task in valid_tasks
+        ],
+        "non-read-only action": [
+            _useful_task("docs-a", "documentation", "completed", action="download")
+        ]
+        + valid_tasks[1:],
+        "duplicate task id": [
+            valid_tasks[0],
+            {**valid_tasks[1], "id": valid_tasks[0]["id"]},
+        ]
+        + valid_tasks[2:],
+        "requested slot outside safe_slots": [
+            {
+                **valid_tasks[0],
+                "requested_slots": {
+                    **valid_tasks[0]["requested_slots"],
+                    "private_email": "user@example.com",
+                },
+            }
+        ]
+        + valid_tasks[1:],
+        "local/private attempt evidence": [
+            {
+                **valid_tasks[0],
+                "task_pack_attempt_evidence": {
+                    **valid_tasks[0]["task_pack_attempt_evidence"],
+                    "evidence_privacy_state": "public_safe",
+                    "sanitizer_status": "passed",
+                    "export_state": "public_safe",
+                },
+            }
+        ]
+        + valid_tasks[1:],
+        "page-open-only completion": [
+            {
+                **valid_tasks[0],
+                "completion_criteria": {
+                    "criteria_id": valid_tasks[0]["completion_criteria"]["criteria_id"],
+                    "required_proof": ["final_title"],
+                },
+                "task_pack_attempt_evidence": {
+                    **valid_tasks[0]["task_pack_attempt_evidence"],
+                    "observed_proof_summary": {"final_title": "Docs"},
+                },
+            }
+        ]
+        + valid_tasks[1:],
+    }
+
+    for reason, tasks in cases.items():
+        pack_path = tmp_path / f"{reason.replace(' ', '-').replace('/', '-')}.json"
+        pack_path.write_text(
+            json.dumps(
+                {
+                    "tasks": tasks,
+                    "required_categories": [
+                        "documentation",
+                        "reference",
+                        "package_metadata",
+                        "release_notes",
+                        "public_repository_search",
+                        "public_repository_read",
+                    ],
+                    "boundaries": boundaries,
+                }
+            ),
+            encoding="utf-8",
+        )
+        with pytest.raises(ReliabilityMatrixError, match=reason):
+            load_public_readonly_useful_task_pack(pack_path)
+
+
+def test_public_readonly_useful_task_pack_rejects_unsafe_public_targets(tmp_path):
+    base_tasks = [
+        _useful_task("docs-a", "documentation", "completed"),
+        _useful_task("docs-b", "documentation", "partial"),
+        _useful_task("ref-a", "reference", "stopped"),
+        _useful_task("package-a", "package_metadata", "failed"),
+        _useful_task("release-a", "release_notes", "blocked"),
+        _useful_task("repo-search-a", "public_repository_search", "completed"),
+        _useful_task("repo-read-a", "public_repository_read", "partial"),
+        _useful_task("ref-b", "reference", "stopped"),
+    ]
+    cases = {
+        "unsafe_protocol": {"target_url": "file:///Users/example/private.txt"},
+        "private_network_target": {"target_url": "http://127.0.0.1/admin"},
+        "credentialed_url": {"target_url": "https://user:secret@example.com/docs"},
+        "missing_public_host": {"target_url": "https:///docs"},
+        "unsafe_template_protocol": {
+            "target_url": "https://example.com/docs",
+            "url_template": "file:///Users/example/private-{search_query}.txt",
+        },
+    }
+
+    for expected_reason, target_patch in cases.items():
+        tasks = [dict(task) for task in base_tasks]
+        tasks[0] = {**tasks[0], **target_patch}
+        pack_path = tmp_path / f"{expected_reason}.json"
+        pack_path.write_text(
+            json.dumps(
+                {
+                    "tasks": tasks,
+                    "required_categories": [
+                        "documentation",
+                        "reference",
+                        "package_metadata",
+                        "release_notes",
+                        "public_repository_search",
+                        "public_repository_read",
+                    ],
+                    "boundaries": ["read-only public pages", "No login"],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(ReliabilityMatrixError, match=expected_reason.replace("_template", "")):
+            load_public_readonly_useful_task_pack(pack_path)
+
+
+def test_public_readonly_useful_task_pack_summary_preserves_outcomes_and_rejects_page_open_success():
+    pack_path = PROJECT_ROOT / "fixtures/public-readonly-useful-task-pack.json"
+
+    summary = build_public_readonly_useful_task_pack_summary(pack_path)
+
+    assert summary["task_count"] >= 8
+    assert summary["is_complete"] is True
+    assert summary["public_ready"] is False
+    assert set(summary["category_counts"]) >= {
+        "documentation",
+        "reference",
+        "package_metadata",
+        "release_notes",
+        "public_repository_search",
+        "public_repository_read",
+    }
+    assert summary["outcome_counts"]["completed"] >= 1
+    assert summary["outcome_counts"]["partial"] >= 1
+    assert summary["outcome_counts"]["stopped"] >= 1
+    assert summary["outcome_counts"]["failed"] >= 1
+    assert summary["outcome_counts"]["blocked"] >= 1
+    assert all(row["task_category"] for row in summary["rows"])
+    assert all(row["export_state"] == "local_private" for row in summary["rows"])
+
+    completed_rows = [row for row in summary["rows"] if row["outcome"] == "completed"]
+    assert completed_rows
+    assert all(row["observed_proof_summary"] for row in completed_rows)
+    assert all(not row["unmet_criteria"] for row in completed_rows)
 
 
 def test_public_readonly_smoke_set_rejects_missing_task_specific_criteria(tmp_path):

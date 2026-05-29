@@ -138,6 +138,7 @@ function renderSummary(trace) {
   if (route.route_type === "public_readonly") {
     lines.push(`Public-readonly target: ${route.public_target_label || "unknown"}`);
     lines.push(`Public task: ${route.public_task_id || "unknown"} (${route.public_task_kind || "unknown"})`);
+    lines.push(`Task category: ${route.public_task_category || matrix.task_category || "unknown"}`);
     lines.push(`Target class: ${route.public_target_class || matrix.target_class || "unknown"}`);
     lines.push(`Completion criteria: ${route.public_completion_criteria_id || "unknown"}`);
     lines.push(
@@ -178,6 +179,7 @@ function renderRoute(trace) {
     ["Route", route.route_type || "unknown", tone],
     ["Target", route.public_target_label || route.controlled_fixture_id || "none"],
     ["Target class", route.public_target_class || matrix.target_class || "n/a"],
+    ["Task category", route.public_task_category || matrix.task_category || "n/a"],
     ["Task", route.public_task_id || "n/a"],
     ["Task kind", route.public_task_kind || "n/a"],
     ["Mode", route.execution_mode || trace.execution_mode || "unknown"],
@@ -309,6 +311,51 @@ function renderError(error) {
   $("uploadStatus").textContent = error.message || String(error);
 }
 
+function compactField(value) {
+  if (Array.isArray(value)) return value.length ? value.join(", ") : "none";
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value).map(([key, item]) => `${key}: ${item}`);
+    return entries.length ? entries.join(", ") : "none";
+  }
+  return value || "none";
+}
+
+function renderUsefulTaskPack(usefulTaskPack) {
+  const usefulTaskPackRows = usefulTaskPack.rows || [];
+  if (!usefulTaskPackRows.length) {
+    return '<p class="hint">No useful task-pack rows are available.</p>';
+  }
+  return `
+    <div class="task-pack-grid" aria-label="Useful task pack rows">
+      ${usefulTaskPackRows
+        .map(
+          (row) => `
+            <article class="task-pack-row ${matrixOutcomeClass(row.outcome)}">
+              <header>
+                <strong>${escapeHtml(row.target_label || row.task_id || "public task")}</strong>
+                <span>${escapeHtml(row.task_category || "unknown")} · ${escapeHtml(row.outcome || "unknown")}</span>
+              </header>
+              <dl>
+                <div><dt>Task</dt><dd>${escapeHtml(row.task_id || "unknown")}</dd></div>
+                <div><dt>Kind</dt><dd>${escapeHtml(row.task_kind || "unknown")}</dd></div>
+                <div><dt>Class</dt><dd>${escapeHtml(row.target_class || "unknown")}</dd></div>
+                <div><dt>Criteria</dt><dd>${escapeHtml(compactField(row.completion_criteria_summary))}</dd></div>
+                <div><dt>Proof</dt><dd>${escapeHtml(compactField(row.observed_proof_summary))}</dd></div>
+                <div><dt>Unmet</dt><dd>${escapeHtml(compactField(row.unmet_criteria))}</dd></div>
+                <div><dt>Reason</dt><dd>${escapeHtml(row.stop_or_failure_reason || "none")}</dd></div>
+                <div><dt>Visible</dt><dd>${escapeHtml(row.visible_result_state || "unknown")}</dd></div>
+                <div><dt>Privacy</dt><dd>${escapeHtml(row.evidence_privacy_state || "unknown")}</dd></div>
+                <div><dt>Sanitizer</dt><dd>${escapeHtml(row.sanitizer_status || "unknown")}</dd></div>
+                <div><dt>Export</dt><dd>${escapeHtml(row.export_state || "unknown")}</dd></div>
+              </dl>
+            </article>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
 function renderReadiness(report) {
   const checks = report.checks || {};
   const primary_asr = checks.primary_asr || {};
@@ -322,6 +369,11 @@ function renderReadiness(report) {
     ["public_readonly", checks.public_readonly || {}],
   ];
   const actions = report.recommended_actions || [];
+  const usefulTaskPack = checks.public_readonly?.useful_task_pack || {};
+  const categoryCounts = usefulTaskPack.category_counts || {};
+  const categorySummary = Object.entries(categoryCounts)
+    .map(([name, count]) => `${name}: ${count}`)
+    .join(", ");
   const unavailable =
     primary_asr.status !== "configured" && fallback_asr.status !== "ready"
       ? '<p class="hint">ASR unavailable: configure a primary ASR endpoint or install the local fallback.</p>'
@@ -339,6 +391,10 @@ function renderReadiness(report) {
     <p class="hint">Public-readonly: ${
       checks.public_readonly?.enabled ? "enabled for allowlisted read-only targets" : "disabled by default"
     }.</p>
+    <p class="hint">Useful task pack: ${usefulTaskPack.status || "unknown"}; ${
+      usefulTaskPack.task_count || 0
+    } contracts; ${categorySummary || "no category_counts"}.</p>
+    ${renderUsefulTaskPack(usefulTaskPack)}
     ${unavailable}
     <p class="hint">${actions.join(" ")}</p>
   `;

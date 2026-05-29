@@ -12,6 +12,7 @@ from voice_browser_agent.demo_tasks import selected_live_fixture_ids
 from voice_browser_agent.public_readonly import (
     ReliabilityMatrixError,
     build_public_readonly_reliability_row,
+    build_public_readonly_useful_task_pack_summary,
     load_public_readonly_smoke_set,
     summarize_reliability_matrix,
 )
@@ -76,6 +77,10 @@ def build_release_pack(
     local_private_exclusions = collect_local_private_exclusions(trace_root=trace_root)
     check_completeness(project_root=project_root, artifacts=artifacts)
     reliability_matrix = build_public_readonly_reliability_matrix(project_root)
+    useful_task_pack = build_public_readonly_useful_task_pack_summary(
+        project_root / "fixtures/public-readonly-useful-task-pack.json"
+    )
+    scan_payload_for_private_markers(useful_task_pack, path=project_root / "fixtures/public-readonly-useful-task-pack.json")
 
     if output_dir.exists():
         shutil.rmtree(output_dir)
@@ -95,6 +100,7 @@ def build_release_pack(
         "artifacts": artifacts,
         "local_private_exclusions": local_private_exclusions,
         "public_readonly_reliability_matrix": reliability_matrix,
+        "public_readonly_useful_task_pack": useful_task_pack,
     }
     manifest_path = output_dir / "manifest.json"
     manifest_path.write_text(
@@ -390,6 +396,10 @@ def render_html(manifest: dict[str, Any]) -> str:
         render_matrix_row(item)
         for item in manifest.get("public_readonly_reliability_matrix", {}).get("rows", [])
     )
+    useful_rows = "\n".join(
+        render_useful_task_pack_row(item)
+        for item in manifest.get("public_readonly_useful_task_pack", {}).get("rows", [])
+    )
     generated_at = html.escape(manifest["generated_at"])
     return f"""<!doctype html>
 <html lang="en">
@@ -426,6 +436,25 @@ def render_html(manifest: dict[str, Any]) -> str:
       </thead>
       <tbody>
 {matrix_rows}
+      </tbody>
+    </table>
+    <h2>Public-readonly useful task pack</h2>
+    <p>Reviewer-readable task-pack summary for stable documentation, reference, package metadata, release notes, and public repository read/search tasks. Raw public runtime artifacts remain local/private unless sanitizer-approved.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Task</th>
+          <th>Category</th>
+          <th>Target</th>
+          <th>Outcome</th>
+          <th>Proof</th>
+          <th>Unmet</th>
+          <th>Reason</th>
+          <th>Export</th>
+        </tr>
+      </thead>
+      <tbody>
+{useful_rows}
       </tbody>
     </table>
     <h2>Packaged evidence</h2>
@@ -488,6 +517,31 @@ def render_matrix_row(item: dict[str, Any]) -> str:
         f"<td>{html.escape(reason)}</td>"
         f"<td>{html.escape(item.get('export_state') or '')}</td>"
         "</tr>"
+    )
+
+
+def render_useful_task_pack_row(item: dict[str, Any]) -> str:
+    reason = item.get("stop_or_failure_reason") or ""
+    proof = format_observed_proof(item.get("observed_proof_summary") or {})
+    unmet = ", ".join(item.get("unmet_criteria") or [])
+    return (
+        "        <tr>"
+        f"<td>{html.escape(item.get('task_id') or '')}</td>"
+        f"<td>{html.escape(item.get('task_category') or '')}</td>"
+        f"<td>{html.escape(item.get('target_label') or '')}</td>"
+        f"<td>{html.escape(item.get('outcome') or '')}</td>"
+        f"<td>{html.escape(proof)}</td>"
+        f"<td>{html.escape(unmet)}</td>"
+        f"<td>{html.escape(reason)}</td>"
+        f"<td>{html.escape(item.get('export_state') or '')}</td>"
+        "</tr>"
+    )
+
+
+def format_observed_proof(observed_proof: dict[str, Any]) -> str:
+    return ", ".join(
+        f"{key}: {value}"
+        for key, value in observed_proof.items()
     )
 
 

@@ -199,7 +199,7 @@
           <li><code>real_vision_controlled</code>: controlled <code>icon-search</code> evidence that calls <code>browser_use_vision.som.annotate_screenshot</code>.</li>
           <li><code>real_voice_controlled</code>: reviewed audio command evidence with ASR provenance, controlled execution, and sanitized grounding references.</li>
           <li><code>real_use_failure</code>: ASR unavailable, clarification, confirmation, cancellation, and ambiguous-target traces as reliability evidence.</li>
-          <li><code>live_public_readonly</code>: optional local public docs, reference, and real GitHub public repository search/read tasks that require an allowlist, task-contract match, completion verifier proof, No login/read-only boundaries, visible local/private artifacts, and private-by-default sanitizer state.</li>
+          <li><code>live_public_readonly</code>: optional local public docs, reference, package metadata, release notes, and real GitHub public repository search/read tasks that require an allowlist, task-contract match, completion verifier proof, No login/read-only boundaries, visible local/private artifacts, and private-by-default sanitizer state.</li>
         </ul>
         <p>
           Committed trace sources live in <code>fixtures/traces/sanitized/</code>,
@@ -215,6 +215,10 @@
           The public-readonly reliability matrix is the compact reviewer view for the bounded
           public lane: target class, task kind, completion criteria, outcome, proof summary,
           unmet criteria, stop/failure reason, privacy state, sanitizer status, and export state.
+          The public-readonly useful task pack extends that view to documentation, reference,
+          package metadata, release notes, and public repository search/read tasks without claiming
+          deployed web operation, broad public-web autonomy, leaderboard-style ranking, captcha bypass,
+          account automation, or model score evidence.
         </p>
       </section>
 
