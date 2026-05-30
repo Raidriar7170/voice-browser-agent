@@ -134,14 +134,15 @@ uv run python scripts/build_speech_to_task_eval.py \
   --candidate-output-jsonl adapted_model=runtime/local-adapter-candidates.jsonl
 ```
 
-Include the sanitized evaluation summary in the reviewer release pack only when the local manifest exists:
+Include the sanitized comparison and evaluation summaries in the reviewer release pack only when the local manifests exist:
 
 ```bash
 uv run python scripts/build_demo_evidence_pack.py \
+  --normalizer-comparison-path runtime/normalizer-comparison/manifest.json \
   --adaptation-eval-path runtime/speech-to-task-adaptation-eval/manifest.json
 ```
 
-This is local adaptation-readiness evidence for structured Speech-to-Task behavior. It is not fine-tuning, checkpoint publication, ASR/TTS evaluation, public leaderboard ranking, state-of-the-art evidence, production readiness, or broad public-web autonomy.
+This is local adaptation-readiness evidence for structured Speech-to-Task behavior. It is not fine-tuning, not checkpoint publication, not ASR/TTS evaluation, not public leaderboard ranking, not state-of-the-art evidence, not production readiness, and not broad public-web autonomy.
 
 ## Operator Console Demo Flow
 

@@ -260,10 +260,11 @@
         <h2>Adaptation Dataset Output</h2>
         <p>
           The local dataset workflow turns sanitized execution traces and reviewed variants into a
-          20-50 example adaptation seed set while preserving source provenance.
+          20-50 example adaptation seed set while preserving source provenance and deterministic
+          train/dev/test split metadata.
         </p>
         <ul>
-          <li><code>scripts/build_speech_to_task_dataset.py --seed-set</code></li>
+          <li><code>scripts/build_speech_to_task_dataset.py --seed-set --evaluation-splits</code></li>
           <li><code>fixtures/seed-set/reviewed-variants.json</code></li>
           <li><code>runtime/speech-to-task-adaptation-dataset/manifest.json</code></li>
           <li><code>runtime/speech-to-task-adaptation-dataset/examples.jsonl</code></li>
@@ -271,14 +272,40 @@
       </section>
 
       <section>
+        <h2>Adaptation Evaluation Output</h2>
+        <p>
+          The local evaluation harness runs held-out Speech-to-Task checks over the generated
+          split manifest and writes a local/private report for structured readiness inspection.
+        </p>
+        <ul>
+          <li><code>scripts/build_speech_to_task_eval.py</code></li>
+          <li><code>runtime/speech-to-task-adaptation-eval/manifest.json</code></li>
+          <li><code>runtime/speech-to-task-adaptation-eval/summary.json</code></li>
+          <li><code>--adaptation-eval-path runtime/speech-to-task-adaptation-eval/manifest.json</code></li>
+        </ul>
+        <p>
+          The metrics include schema-valid rate, output-kind accuracy, intent-type accuracy,
+          required-slot match rate, safety or clarification decision accuracy, route-ready rate,
+          fallback rate, row counts, and failure slices. This is local adaptation-readiness
+          evidence, not fine-tuning, not checkpoint publication, not ASR/TTS evaluation,
+          not public leaderboard ranking, not production readiness, and not broad public-web autonomy.
+        </p>
+      </section>
+
+      <section>
         <h2>Validation Surface</h2>
         <div class="callout">
           <p><code>uv run python scripts/preflight_real_use.py</code></p>
           <p><code>uv run python scripts/generate_real_voice_trace.py</code></p>
+          <p><code>uv run python scripts/run_public_readonly_task_pack.py --all --mode deterministic</code></p>
+          <p><code>uv run python scripts/build_normalizer_comparison.py --seed-set</code></p>
+          <p><code>uv run python scripts/build_speech_to_task_dataset.py --seed-set --evaluation-splits</code></p>
+          <p><code>uv run python scripts/build_speech_to_task_eval.py</code></p>
+          <p><code>uv run python scripts/build_demo_evidence_pack.py --normalizer-comparison-path runtime/normalizer-comparison/manifest.json --adaptation-eval-path runtime/speech-to-task-adaptation-eval/manifest.json</code></p>
           <p><code>uv run pytest</code></p>
-          <p><code>openspec validate real-voice-e2e-useful-agent-readiness --strict</code></p>
-          <p><code>openspec validate --all --strict</code></p>
+          <p><code>OPENSPEC_TELEMETRY=0 openspec validate --all --strict</code></p>
           <p><code>git diff --check</code></p>
+          <p><code>git status --short --ignored</code></p>
         </div>
         <p>
           The reviewer release path also includes <code>scripts/build_demo_evidence_pack.py</code>,
@@ -302,6 +329,8 @@
           <li><code>scripts/generate_real_voice_trace.py</code></li>
           <li><code>scripts/build_demo_evidence_pack.py</code></li>
           <li><code>scripts/build_speech_to_task_dataset.py</code></li>
+          <li><code>scripts/build_speech_to_task_eval.py</code></li>
+          <li><code>runtime/speech-to-task-adaptation-eval/manifest.json</code></li>
         </ul>
       </section>
 
@@ -311,6 +340,8 @@
           <p>
             Model fine-tuning, expanded dataset collection, public hosting, broad public-web automation,
             and model checkpoint release are outside this closeout MVP.
+            Fine-tuning belongs in a separate future project that can consume the exported
+            seed/evaluation data.
           </p>
           <p>
             The contribution is the bounded, evidence-backed voice-to-browser execution stack and its
@@ -325,7 +356,7 @@
           <li>Start with the bounded problem: one spoken command becomes one auditable browser task.</li>
           <li>Show the architecture: ASR adapter, transcript review, normalizer, validator, local execution, visual grounding.</li>
           <li>Walk through evidence modes and sanitized trace sources.</li>
-          <li>Run or inspect the release pack and adaptation seed-set manifests.</li>
+          <li>Run or inspect the release pack, adaptation seed-set manifests, and adaptation evaluation report.</li>
           <li>Close with safety boundaries, limitations, and why evidence completeness matters.</li>
         </ol>
       </section>

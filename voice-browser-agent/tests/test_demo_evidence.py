@@ -5,6 +5,10 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
+def _normalized_command_text(text: str) -> str:
+    return " ".join(line.strip().removesuffix("\\").strip() for line in text.splitlines())
+
+
 def test_demo_task_suite_has_eight_tasks_and_half_visual_grounding_heavy():
     doc = (PROJECT_ROOT / "docs/demo/demo-task-suite.md").read_text(encoding="utf-8")
     task_rows = [line for line in doc.splitlines() if line.startswith("| ") and ".fixture.json" in line]
@@ -188,12 +192,16 @@ def test_release_pack_docs_avoid_overclaiming():
 
 def test_closeout_checklist_defines_final_commands_and_artifact_boundaries():
     checklist = (PROJECT_ROOT / "docs/demo/closeout-checklist.md").read_text(encoding="utf-8")
+    normalized = _normalized_command_text(checklist)
 
     required_commands = (
+        "uv run python scripts/run_public_readonly_task_pack.py --all --mode deterministic",
+        "uv run python scripts/build_normalizer_comparison.py --seed-set",
         "uv run python scripts/build_demo_evidence_pack.py",
-        "uv run python scripts/build_speech_to_task_dataset.py",
-        "openspec validate project-closeout-interview-pack --strict",
-        "openspec validate --all --strict",
+        "uv run python scripts/build_speech_to_task_dataset.py --seed-set --evaluation-splits",
+        "uv run python scripts/build_speech_to_task_eval.py",
+        "--adaptation-eval-path runtime/speech-to-task-adaptation-eval/manifest.json",
+        "OPENSPEC_TELEMETRY=0 openspec validate --all --strict",
         "uv run pytest",
         "git diff --check",
         "git status --short --ignored",
@@ -201,13 +209,34 @@ def test_closeout_checklist_defines_final_commands_and_artifact_boundaries():
     for command in required_commands:
         assert command in checklist
 
+    combined_release_pack_command = (
+        "uv run python scripts/build_demo_evidence_pack.py "
+        "--normalizer-comparison-path runtime/normalizer-comparison/manifest.json "
+        "--adaptation-eval-path runtime/speech-to-task-adaptation-eval/manifest.json"
+    )
+    assert combined_release_pack_command in normalized
+
+    stale_commands = (
+        "openspec validate project-closeout-interview-pack --strict",
+        "openspec validate public-evidence-and-real-vision-integration --strict",
+        "openspec validate real-voice-e2e-useful-agent-readiness --strict",
+        "openspec validate real-public-task-completion-evidence --strict",
+        "/opsx:archive project-closeout-interview-pack",
+    )
+    for command in stale_commands:
+        assert command not in checklist
+
     assert "runtime/demo-evidence-release-pack/manifest.json" in checklist
+    assert "runtime/normalizer-comparison/manifest.json" in checklist
+    assert "runtime/public-readonly-task-pack/runs/<run_id>/manifest.json" in checklist
     assert "runtime/speech-to-task-adaptation-dataset/manifest.json" in checklist
+    assert "runtime/speech-to-task-adaptation-eval/manifest.json" in checklist
     assert "generated runtime artifacts stay local" in checklist.lower()
     assert "fixtures/traces/sanitized/" in checklist
     assert "fixtures/traces/live-sanitized/" in checklist
     assert "fixtures/traces/agentic-sanitized/" in checklist
-    assert "speech-to-task-adaptation-dataset" in checklist
+    assert "active OpenSpec change" not in checklist
+    assert "final-project-completion-audit" not in checklist
 
 
 def test_interview_project_overview_covers_required_story_and_evidence_sources():
@@ -222,6 +251,7 @@ def test_interview_project_overview_covers_required_story_and_evidence_sources()
         "evidence modes",
         "safety and privacy gates",
         "adaptation dataset output",
+        "adaptation evaluation output",
         "validation surface",
         "limitations",
         "interview talk track",
@@ -236,6 +266,7 @@ def test_interview_project_overview_covers_required_story_and_evidence_sources()
         "docs/demo/video-plan.md",
         "scripts/build_demo_evidence_pack.py",
         "scripts/build_speech_to_task_dataset.py",
+        "scripts/build_speech_to_task_eval.py",
         "fixtures/traces/sanitized/",
         "fixtures/traces/live-sanitized/",
         "fixtures/traces/agentic-sanitized/",
@@ -243,8 +274,10 @@ def test_interview_project_overview_covers_required_story_and_evidence_sources()
         "fixtures/traces/real-use-sanitized/",
         "runtime/demo-evidence-release-pack/manifest.json",
         "runtime/speech-to-task-adaptation-dataset/manifest.json",
-        "openspec validate --all --strict",
+        "runtime/speech-to-task-adaptation-eval/manifest.json",
+        "OPENSPEC_TELEMETRY=0 openspec validate --all --strict",
         "uv run pytest",
+        "git status --short --ignored",
     )
     for reference in required_references:
         assert reference in html
@@ -254,6 +287,7 @@ def test_interview_project_overview_covers_required_story_and_evidence_sources()
         "expanded dataset collection",
         "public hosting",
         "broad public-web automation",
+        "separate future project",
     )
     for limitation in limitations:
         assert limitation in lower
@@ -264,6 +298,7 @@ def test_final_handoff_docs_avoid_private_markers_and_unsupported_claims():
         PROJECT_ROOT / "README.md",
         PROJECT_ROOT / "docs/demo/closeout-checklist.md",
         PROJECT_ROOT / "docs/demo/video-plan.md",
+        PROJECT_ROOT / "docs/public-evidence/index.html",
         PROJECT_ROOT / "docs/interview-project-overview.html",
     ]
     forbidden = (
@@ -280,6 +315,7 @@ def test_final_handoff_docs_avoid_private_markers_and_unsupported_claims():
         "unrestricted public-web autonomy",
         "asr/tts quality claim",
         "ships a model checkpoint",
+        "fine-tuned model is complete",
         "public raw dataset",
     )
 
@@ -312,6 +348,74 @@ def test_speech_to_task_dataset_docs_define_build_command_and_boundaries():
     assert "not an ASR/TTS corpus" in dataset_doc
     assert "not a model checkpoint" in dataset_doc
     assert "not broad web-autonomy evidence" in dataset_doc
+
+
+def test_final_handoff_docs_surface_adaptation_evaluation_without_training_claims():
+    docs = [
+        PROJECT_ROOT / "README.md",
+        PROJECT_ROOT / "docs/demo/speech-to-task-dataset.md",
+        PROJECT_ROOT / "docs/demo/closeout-checklist.md",
+        PROJECT_ROOT / "docs/public-evidence/index.html",
+        PROJECT_ROOT / "docs/interview-project-overview.html",
+    ]
+    doc_texts = {path: path.read_text(encoding="utf-8") for path in docs}
+    combined = "\n".join(doc_texts.values())
+    lower = combined.lower()
+
+    required = (
+        "uv run python scripts/build_speech_to_task_dataset.py --seed-set --evaluation-splits",
+        "uv run python scripts/build_speech_to_task_eval.py",
+        "runtime/speech-to-task-adaptation-eval/manifest.json",
+        "--adaptation-eval-path runtime/speech-to-task-adaptation-eval/manifest.json",
+        "schema-valid rate",
+        "output-kind accuracy",
+        "intent-type accuracy",
+        "required-slot match rate",
+        "safety or clarification decision accuracy",
+        "route-ready rate",
+        "fallback rate",
+        "failure slices",
+    )
+    for term in required:
+        assert term in combined
+
+    assert "does not train" in lower or "not fine-tuning" in lower
+    assert "separate future project" in lower
+    assert "not public leaderboard ranking" in lower
+    surface_required_guards = (
+        "not fine-tuning",
+        "not checkpoint publication",
+        "not ASR/TTS evaluation",
+        "not public leaderboard ranking",
+        "not production readiness",
+        "not broad public-web autonomy",
+    )
+    for path, text in doc_texts.items():
+        surface = text.lower()
+        assert "runtime/speech-to-task-adaptation-eval/manifest.json" in surface, path
+        for guard in surface_required_guards:
+            assert guard.lower() in surface, f"{path} missing {guard}"
+
+    combined_release_pack_command = (
+        "uv run python scripts/build_demo_evidence_pack.py "
+        "--normalizer-comparison-path runtime/normalizer-comparison/manifest.json "
+        "--adaptation-eval-path runtime/speech-to-task-adaptation-eval/manifest.json"
+    )
+    for path, text in doc_texts.items():
+        normalized = _normalized_command_text(text)
+        assert combined_release_pack_command in normalized, path
+        assert (
+            "uv run python scripts/build_demo_evidence_pack.py "
+            "--adaptation-eval-path runtime/speech-to-task-adaptation-eval/manifest.json"
+        ) not in normalized, path
+
+    forbidden_claims = (
+        "fine-tuned model is complete",
+        "trained checkpoint is included",
+        "production-ready model",
+        "asr/tts quality evaluation result",
+    )
+    assert not any(claim in lower for claim in forbidden_claims)
 
 
 def test_normalizer_comparison_docs_define_local_private_boundaries():
@@ -426,6 +530,10 @@ def test_context_coverage_matrix_covers_domain_terms_and_dialogue_commitments():
     assert "| L205-L207 | Voice layer is outside `browser-use-vision`" in context
     assert "| L309-L311 | Execution Traces can become Trace-Derived Training Examples" in context
     assert "Covered for later-data support; training deferred" in context
+    assert "| 2026-05-30 | Speech-to-Task Adaptation Evaluation |" in context
+    assert "build_speech_to_task_eval.py" in context
+    assert "final-project-completion-audit" in context
+    assert "separate future project" in context
 
 
 def test_openspec_main_specs_have_purpose_text():

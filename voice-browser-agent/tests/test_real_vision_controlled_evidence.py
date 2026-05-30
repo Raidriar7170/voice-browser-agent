@@ -126,7 +126,9 @@ def test_public_evidence_page_covers_real_vision_and_seed_set_contract():
         "fixtures/traces/real-vision-sanitized/",
         "uv run python scripts/build_demo_evidence_pack.py",
         "uv run python scripts/build_speech_to_task_dataset.py --seed-set",
-        "openspec validate public-evidence-and-real-vision-integration --strict",
+        "uv run python scripts/build_speech_to_task_eval.py",
+        "runtime/speech-to-task-adaptation-eval/manifest.json",
+        "OPENSPEC_TELEMETRY=0 openspec validate --all --strict",
         "60-90 second",
         "docs/demo/video-plan.md",
         "limitations",
@@ -140,6 +142,6 @@ def test_public_evidence_page_covers_real_vision_and_seed_set_contract():
         "production automation",
         "unrestricted public-web autonomy",
         "model-quality",
-        "checkpoint publication",
+        "checkpoint publication claim",
     )
     assert not any(term in lower for term in forbidden)

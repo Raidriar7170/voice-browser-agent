@@ -73,10 +73,11 @@ The evaluation manifest is written under `runtime/speech-to-task-adaptation-eval
 
 Failure slices are grouped by candidate mode, split, evidence mode, target output kind, intent type, schema status, and safety or clarification category. These slices are meant for debugging adaptation readiness, not leaderboard comparison.
 
-To add the sanitized high-level summary to the reviewer release pack:
+To add the sanitized high-level comparison and evaluation summaries to the reviewer release pack:
 
 ```bash
 uv run python scripts/build_demo_evidence_pack.py \
+  --normalizer-comparison-path runtime/normalizer-comparison/manifest.json \
   --adaptation-eval-path runtime/speech-to-task-adaptation-eval/manifest.json
 ```
 
@@ -110,4 +111,4 @@ The generated files stay local. The committed sources remain `fixtures/traces/sa
 
 Privacy gates reject raw audio paths, raw screenshots, browser profile data, cookies, credentials, private URLs, local file URIs, raw prompts, raw provider responses, request headers, API keys, remote host details, checkpoint paths, and unsanitized runtime fields. The harness does not train, fine-tune, load, publish, or score checkpoints.
 
-This is local adaptation-readiness evidence for structured Speech-to-Task behavior. It is not an ASR/TTS corpus, not a fine-tuning run, not a model checkpoint, not checkpoint publication, not public leaderboard ranking, not state-of-the-art evidence, not production readiness, and not broad web-autonomy evidence.
+This is local adaptation-readiness evidence for structured Speech-to-Task behavior. It is not an ASR/TTS corpus, not fine-tuning, not a model checkpoint, not checkpoint publication, not ASR/TTS evaluation, not public leaderboard ranking, not state-of-the-art evidence, not production readiness, not broad public-web autonomy, and not broad web-autonomy evidence.

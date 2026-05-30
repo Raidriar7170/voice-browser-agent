@@ -183,12 +183,12 @@
         <p><code>uv run python scripts/preflight_real_use.py</code></p>
         <p><code>uv run python scripts/generate_real_vision_trace.py</code></p>
         <p><code>uv run python scripts/generate_real_voice_trace.py</code></p>
+        <p><code>uv run python scripts/run_public_readonly_task_pack.py --all --mode deterministic</code></p>
         <p><code>uv run python scripts/build_normalizer_comparison.py --seed-set</code></p>
-        <p><code>uv run python scripts/build_demo_evidence_pack.py</code></p>
-        <p><code>uv run python scripts/build_demo_evidence_pack.py --normalizer-comparison-path runtime/normalizer-comparison/manifest.json</code></p>
-        <p><code>uv run python scripts/build_speech_to_task_dataset.py --seed-set</code></p>
-        <p><code>openspec validate real-voice-e2e-useful-agent-readiness --strict</code></p>
-        <p><code>openspec validate public-evidence-and-real-vision-integration --strict</code></p>
+        <p><code>uv run python scripts/build_speech_to_task_dataset.py --seed-set --evaluation-splits</code></p>
+        <p><code>uv run python scripts/build_speech_to_task_eval.py --dataset-manifest runtime/speech-to-task-adaptation-dataset/manifest.json</code></p>
+        <p><code>uv run python scripts/build_demo_evidence_pack.py --normalizer-comparison-path runtime/normalizer-comparison/manifest.json --adaptation-eval-path runtime/speech-to-task-adaptation-eval/manifest.json</code></p>
+        <p><code>OPENSPEC_TELEMETRY=0 openspec validate --all --strict</code></p>
         <p><code>uv run pytest</code></p>
       </section>
 
@@ -207,7 +207,27 @@
         <p>
           The seed-set workflow combines trace-derived examples with reviewed variants from
           <code>fixtures/seed-set/reviewed-variants.json</code>. The generated manifest records
-          source trace id, evidence mode, variant status, and privacy-scan status for each example.
+          source trace id, evidence mode, variant status, split assignment, and privacy-scan status
+          for each example.
+        </p>
+      </section>
+
+      <section>
+        <h2>Adaptation Evaluation Output</h2>
+        <p>
+          <code>runtime/speech-to-task-adaptation-eval/manifest.json</code> is a local/private
+          held-out evaluation report over the small Speech-to-Task seed set. It compares structured
+          candidate outputs such as rule, deterministic mock LLM, or future candidate JSONL rows
+          against active targets without training or publishing a model.
+        </p>
+        <p>
+          The report includes split counts, candidate modes, schema-valid rate, output-kind
+          accuracy, intent-type accuracy, required-slot match rate, safety or clarification
+          decision accuracy, route-ready rate, fallback rate, row counts, failure slices,
+          source manifest path, and privacy-scan status. It is adaptation-readiness evidence,
+          not fine-tuning, not checkpoint publication, not ASR/TTS evaluation,
+          not public leaderboard ranking, not production readiness, and not broad public-web autonomy
+          evidence.
         </p>
       </section>
 

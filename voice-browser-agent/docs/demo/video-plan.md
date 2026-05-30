@@ -23,10 +23,12 @@ credentials, private URLs, remote host details, or unsanitized runtime folders.
 17. Cancel the confirmation and show the final sanitized trace export.
 18. Point to `fixtures/traces/live-sanitized/live-github-showcase.json` and `fixtures/traces/real-use-sanitized/` as controlled-showcase, failure, and operator-decision evidence.
 19. Note that real GitHub public search/read now exists only behind explicit public-readonly configuration; controlled showcase evidence remains the stable default, while raw GitHub runtime screenshots remain local/private unless sanitizer-approved.
-20. State non-goals plainly: no production-use claim, broad public-web autonomy, verification-barrier bypassing, account automation, ranking claim, model score claim, or raw public evidence release.
-21. Run `uv run python scripts/build_demo_evidence_pack.py --normalizer-comparison-path runtime/normalizer-comparison/manifest.json`.
-22. Open `runtime/demo-evidence-release-pack/index.html` and show the generated evidence index.
-23. Inspect `runtime/demo-evidence-release-pack/manifest.json` and point back to the committed sanitized trace folders.
-24. Run `uv run python scripts/build_speech_to_task_dataset.py --seed-set`.
-25. Inspect `runtime/speech-to-task-adaptation-dataset/manifest.json` and `runtime/speech-to-task-adaptation-dataset/examples.jsonl` as local Speech-to-Task adaptation preparation evidence.
-26. Close with the sanitized trace artifact and quick reminder that raw recordings and private traces stay local.
+20. State non-goals plainly: no fine-tuning, checkpoint publication, ASR/TTS evaluation, production-use claim, broad public-web autonomy, verification-barrier bypassing, account automation, ranking claim, model score claim, or raw public evidence release.
+21. Run `uv run python scripts/build_speech_to_task_dataset.py --seed-set --evaluation-splits`.
+22. Inspect `runtime/speech-to-task-adaptation-dataset/manifest.json` and `runtime/speech-to-task-adaptation-dataset/examples.jsonl` as local Speech-to-Task adaptation preparation evidence.
+23. Run `uv run python scripts/build_speech_to_task_eval.py --dataset-manifest runtime/speech-to-task-adaptation-dataset/manifest.json`.
+24. Inspect `runtime/speech-to-task-adaptation-eval/manifest.json` and `runtime/speech-to-task-adaptation-eval/summary.json` as local adaptation-readiness evidence.
+25. Run `uv run python scripts/build_demo_evidence_pack.py --normalizer-comparison-path runtime/normalizer-comparison/manifest.json --adaptation-eval-path runtime/speech-to-task-adaptation-eval/manifest.json`.
+26. Open `runtime/demo-evidence-release-pack/index.html` and show the generated evidence index.
+27. Inspect `runtime/demo-evidence-release-pack/manifest.json` and point back to the committed sanitized trace folders.
+28. Close with the sanitized trace artifact and quick reminder that raw recordings and private traces stay local.

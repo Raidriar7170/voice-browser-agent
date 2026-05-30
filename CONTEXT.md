@@ -222,6 +222,7 @@ This matrix is the current line-by-line coverage audit for the domain language a
 | L123-L125 | Execution Trace | Pydantic trace plus writer/export sanitizer | `test_core_schemas_trace.py`, API tests | sanitized preview/live/agentic trace fixtures | Covered |
 | L127-L129 | Trace-Derived Training Example | `training_example_from_trace` with optional human correction and reviewed variants | `test_trace_derived_training_examples.py`, `test_speech_to_task_dataset_builder.py` | `trace-derived-training-examples`, README Runtime, seed-set docs | Covered; no public raw dataset/checkpoints |
 | 2026-05-29 | Normalizer Comparison Evidence | `scripts/build_normalizer_comparison.py` creates local/private manifest from fixtures and seed examples | `test_normalizer_comparison.py`, `test_demo_evidence_release_pack.py` | `demo-evidence-set`, `trace-derived-training-examples`, release-pack index | Covered as local structured-output evidence; model training deferred |
+| 2026-05-30 | Speech-to-Task Adaptation Evaluation | `scripts/build_speech_to_task_eval.py` evaluates rule, deterministic mock LLM, or future candidate JSONL outputs over held-out split rows | `test_speech_to_task_eval.py`, `test_demo_evidence_release_pack.py`, `test_demo_evidence.py` | `speech-to-task-adaptation-evaluation`, `demo-evidence-set`, `docs/demo/speech-to-task-dataset.md`, `final-project-completion-audit` | Covered as local adaptation-readiness evidence; fine-tuning remains a separate future project |
 
 ### Example-Dialogue Commitments
 
