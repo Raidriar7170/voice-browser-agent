@@ -1,0 +1,87 @@
+name: Front Door
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  front-door:
+    name: README, license, fixtures
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check public front door
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import sys
+
+          readme = Path("README.md")
+          license_file = Path("LICENSE")
+          if not readme.exists():
+              sys.exit("README.md is missing")
+          if "MIT License" not in license_file.read_text(encoding="utf-8"):
+              sys.exit("LICENSE must contain the MIT License text")
+
+          text = readme.read_text(encoding="utf-8")
+          required_markers = [
+              "# Voice-to-Browser Agent",
+              "Project Positioning / 项目定位",
+              "Evidence Boundary / 证据边界",
+              "Quick Start / 快速开始",
+              "Validation / 验证",
+          ]
+          missing_markers = [marker for marker in required_markers if marker not in text]
+          if missing_markers:
+              sys.exit(f"README is missing required markers: {missing_markers}")
+
+          for target in re.findall(r"\]\(([^)#]+)(?:#[^)]+)?\)", text):
+              if target.startswith(("http://", "https://", "mailto:")):
+                  continue
+              path = Path(target)
+              if not path.exists():
+                  sys.exit(f"README link target does not exist: {target}")
+          PY
+
+      - name: Check committed JSON artifacts
+        run: |
+          python - <<'PY'
+          import json
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          tracked = subprocess.check_output(
+              ["git", "ls-files", "*.json", "*.fixture.json"],
+              text=True,
+          ).splitlines()
+          failures = []
+          for filename in tracked:
+              path = Path(filename)
+              try:
+                  json.loads(path.read_text(encoding="utf-8"))
+              except Exception as exc:
+                  failures.append(f"{filename}: {exc}")
+          if failures:
+              sys.exit("\n".join(failures))
+          print(f"Checked {len(tracked)} JSON files")
+          PY
+
+      - name: Compile Python sources
+        run: python -m compileall -q voice-browser-agent/src voice-browser-agent/scripts

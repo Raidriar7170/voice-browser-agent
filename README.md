@@ -1,5 +1,8 @@
 # Voice-to-Browser Agent
 
+[![Front Door](https://github.com/Raidriar7170/voice-browser-agent/actions/workflows/front-door.yml/badge.svg)](https://github.com/Raidriar7170/voice-browser-agent/actions/workflows/front-door.yml)
+[![Release](https://img.shields.io/github/v/release/Raidriar7170/voice-browser-agent?label=release)](https://github.com/Raidriar7170/voice-browser-agent/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![Status](https://img.shields.io/badge/status-final%20local%20MVP-green.svg)
 ![Scope](https://img.shields.io/badge/scope-bounded%20browser%20execution-orange.svg)
