@@ -40,8 +40,8 @@ FORBIDDEN_MARKERS = (
     "storage_state_path",
     "cookie",
     "cookies",
-    "credential",
     "credentials",
+    "credential",
     "password",
     "token",
     "private_url",
@@ -70,6 +70,7 @@ FORBIDDEN_MARKERS = (
     "remote_host",
     "remote_vision_backend_url",
     "controlled_target_url",
+    "checkpoint_path",
     "file:///Users/",
     "file:///users/",
     "/Users/",
@@ -101,6 +102,7 @@ def build_release_pack(
     output_dir: Path = DEFAULT_OUTPUT_DIR,
     task_pack_run_root: Path | None = None,
     normalizer_comparison_path: Path | None = None,
+    adaptation_eval_path: Path | None = None,
 ) -> dict[str, Any]:
     project_root = Path(project_root)
     trace_root = Path(trace_root)
@@ -119,6 +121,7 @@ def build_release_pack(
         or project_root / "runtime/public-readonly-task-pack/runs"
     )
     normalizer_comparison = build_normalizer_comparison_summary(normalizer_comparison_path)
+    adaptation_eval = build_adaptation_eval_summary(adaptation_eval_path)
 
     if output_dir.exists():
         shutil.rmtree(output_dir)
@@ -142,6 +145,7 @@ def build_release_pack(
         "public_readonly_useful_task_pack": useful_task_pack,
         "public_readonly_live_task_pack_runner": live_task_pack_runner,
         "normalizer_comparison": normalizer_comparison,
+        "speech_to_task_adaptation_eval": adaptation_eval,
     }
     manifest_path = output_dir / "manifest.json"
     manifest_path.write_text(
@@ -242,6 +246,72 @@ def build_normalizer_comparison_summary(path: Path | None) -> dict[str, Any]:
         "safety_outcome_counts": payload.get("safety_outcome_counts") or {},
         "privacy_scan": payload["privacy_scan"],
     }
+
+
+def build_adaptation_eval_summary(path: Path | None) -> dict[str, Any]:
+    if path is None:
+        return {"status": "not_provided"}
+    path = Path(path)
+    if not path.exists():
+        return {"status": "missing", "manifest_path": safe_display_path(path)}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise EvidencePackError(f"malformed adaptation eval manifest: {path}") from exc
+    if not isinstance(payload, dict):
+        raise EvidencePackError(f"malformed adaptation eval manifest: {path}")
+    scan_payload_for_private_markers(payload, path=path)
+    if payload.get("manifest_version") != "speech_to_task_adaptation_eval.v1":
+        raise EvidencePackError(f"adaptation eval manifest missing version: {path}")
+    if payload.get("status") != "available":
+        raise EvidencePackError(f"adaptation eval manifest unavailable: {path}")
+    if payload.get("privacy_state") != "local_private" or payload.get("export_state") != "local_private":
+        raise EvidencePackError(f"adaptation eval manifest must remain local/private: {path}")
+    if not isinstance(payload.get("split_counts"), dict):
+        raise EvidencePackError(f"adaptation eval manifest missing split counts: {path}")
+    if not isinstance(payload.get("candidate_modes"), list):
+        raise EvidencePackError(f"adaptation eval manifest missing candidate modes: {path}")
+    if not isinstance(payload.get("metrics_by_mode"), dict):
+        raise EvidencePackError(f"adaptation eval manifest missing metrics: {path}")
+    if not isinstance(payload.get("failure_slices"), dict):
+        raise EvidencePackError(f"adaptation eval manifest missing failure slices: {path}")
+    if (payload.get("privacy_scan") or {}).get("status") != "passed":
+        raise EvidencePackError(f"adaptation eval privacy scan did not pass: {path}")
+    summary = {
+        "status": "available",
+        "manifest_version": payload["manifest_version"],
+        "privacy_state": payload["privacy_state"],
+        "export_state": payload["export_state"],
+        "positioning": payload.get("positioning"),
+        "source_manifest_path": safe_display_path(path),
+        "source_dataset_manifest_path": safe_display_path(
+            payload.get("source_dataset_manifest_path")
+        ),
+        "split": payload.get("split"),
+        "split_counts": payload["split_counts"],
+        "candidate_modes": payload["candidate_modes"],
+        "row_count": payload.get("row_count"),
+        "metrics_by_mode": payload["metrics_by_mode"],
+        "failure_slices": payload["failure_slices"],
+        "privacy_scan": payload["privacy_scan"],
+    }
+    scan_payload_for_private_markers(summary, path=path)
+    return summary
+
+
+def safe_display_path(value: Path | str | None) -> str | None:
+    if value is None:
+        return None
+    raw = str(value)
+    if not raw:
+        return raw
+    path = Path(raw)
+    if not path.is_absolute():
+        return path.as_posix()
+    try:
+        return path.relative_to(PROJECT_ROOT).as_posix()
+    except ValueError:
+        return path.name
 
 
 def collect_local_private_exclusions(trace_root: Path) -> list[dict[str, Any]]:
@@ -686,6 +756,9 @@ def render_html(manifest: dict[str, Any]) -> str:
     runner_rows = "\n".join(render_task_pack_runner_row(item) for item in runner.get("rows", []))
     normalizer = manifest.get("normalizer_comparison", {})
     normalizer_rows = render_normalizer_comparison_rows(normalizer)
+    adaptation = manifest.get("speech_to_task_adaptation_eval", {})
+    adaptation_rows = render_adaptation_eval_rows(adaptation)
+    adaptation_positioning = adaptation_eval_positioning(adaptation)
     visual = manifest.get("visual_verification", {})
     visual_rows = "\n".join(render_visual_verification_row(item) for item in visual.get("rows", []))
     visual_counts = format_observed_proof(visual.get("outcome_counts") or {})
@@ -800,6 +873,24 @@ def render_html(manifest: dict[str, Any]) -> str:
       </thead>
       <tbody>
 {normalizer_rows}
+      </tbody>
+    </table>
+    <h2>Speech-to-Task adaptation evaluation</h2>
+    <p>Status <code>{html.escape(adaptation.get("status") or "not_provided")}</code>. {html.escape(adaptation_positioning)}</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Split Counts</th>
+          <th>Modes</th>
+          <th>Rows</th>
+          <th>Metrics</th>
+          <th>Failure Slices</th>
+          <th>Source</th>
+          <th>Privacy</th>
+        </tr>
+      </thead>
+      <tbody>
+{adaptation_rows}
       </tbody>
     </table>
     <h2>Packaged evidence</h2>
@@ -940,6 +1031,72 @@ def render_normalizer_comparison_rows(item: dict[str, Any]) -> str:
     )
 
 
+def render_adaptation_eval_rows(item: dict[str, Any]) -> str:
+    modes = ", ".join(item.get("candidate_modes") or [])
+    split_counts = format_observed_proof(item.get("split_counts") or {})
+    metrics = format_metric_summary(item.get("metrics_by_mode") or {})
+    failure_slices = format_failure_slice_summary(item.get("failure_slices") or {})
+    source = item.get("source_manifest_path") or item.get("manifest_path") or ""
+    privacy = (item.get("privacy_scan") or {}).get("status") or "n/a"
+    return (
+        "        <tr>"
+        f"<td>{html.escape(split_counts)}</td>"
+        f"<td>{html.escape(modes)}</td>"
+        f"<td>{html.escape(str(item.get('row_count') or ''))}</td>"
+        f"<td>{html.escape(metrics)}</td>"
+        f"<td>{html.escape(failure_slices)}</td>"
+        f"<td><code>{html.escape(source)}</code></td>"
+        f"<td>{html.escape(privacy)}</td>"
+        "</tr>"
+    )
+
+
+def adaptation_eval_positioning(item: dict[str, Any]) -> str:
+    if item.get("status") != "available":
+        return "not_provided; no local adaptation evaluation result is included in this pack."
+    return (
+        "This section is local adaptation-readiness evidence from a small sanitized seed set, "
+        "not fine-tuning, checkpoint, ASR/TTS, public benchmark, SOTA, production, "
+        "or broad autonomy evidence."
+    )
+
+
+def format_metric_summary(metrics_by_mode: dict[str, Any]) -> str:
+    chunks = []
+    for mode, metrics in metrics_by_mode.items():
+        if not isinstance(metrics, dict):
+            continue
+        parts = []
+        for key in (
+            "schema_valid_rate",
+            "output_kind_accuracy",
+            "intent_type_accuracy",
+            "required_slot_match_rate",
+            "safety_or_clarification_decision_accuracy",
+            "route_ready_rate",
+            "fallback_rate",
+        ):
+            if key in metrics:
+                parts.append(f"{key}: {metrics[key]}")
+        chunks.append(f"{mode} ({'; '.join(parts)})")
+    return " | ".join(chunks)
+
+
+def format_failure_slice_summary(failure_slices: dict[str, Any]) -> str:
+    chunks = []
+    for slice_name, buckets in failure_slices.items():
+        if not isinstance(buckets, dict):
+            continue
+        bucket_parts = []
+        for bucket_name, counts in buckets.items():
+            if isinstance(counts, dict):
+                bucket_parts.append(
+                    f"{bucket_name}: {counts.get('failure_count', 0)}/{counts.get('row_count', 0)}"
+                )
+        chunks.append(f"{slice_name} [{', '.join(bucket_parts)}]")
+    return " | ".join(chunks)
+
+
 def format_observed_proof(observed_proof: dict[str, Any]) -> str:
     return ", ".join(
         f"{key}: {value}"
@@ -954,6 +1111,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--task-pack-run-root", type=Path)
     parser.add_argument("--normalizer-comparison-path", type=Path, default=None)
+    parser.add_argument("--adaptation-eval-path", type=Path, default=None)
     return parser.parse_args()
 
 
@@ -966,6 +1124,7 @@ def main() -> int:
             output_dir=args.output_dir,
             task_pack_run_root=args.task_pack_run_root,
             normalizer_comparison_path=args.normalizer_comparison_path,
+            adaptation_eval_path=args.adaptation_eval_path,
         )
     except EvidencePackError as exc:
         print(f"error: {exc}")

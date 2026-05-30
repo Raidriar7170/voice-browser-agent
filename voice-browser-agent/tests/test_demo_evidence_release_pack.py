@@ -258,6 +258,177 @@ def test_release_pack_includes_normalizer_comparison_summary(tmp_path):
     assert "structured-output comparison, not model training" in index_html
 
 
+def test_release_pack_includes_adaptation_eval_summary_when_provided(tmp_path):
+    builder = load_builder()
+    trace_root = copy_trace_sources(tmp_path)
+    eval_manifest = tmp_path / "runtime/speech-to-task-adaptation-eval/manifest.json"
+    eval_manifest.parent.mkdir(parents=True)
+    eval_manifest.write_text(
+        json.dumps(
+            {
+                "manifest_version": "speech_to_task_adaptation_eval.v1",
+                "status": "available",
+                "privacy_state": "local_private",
+                "export_state": "local_private",
+                "positioning": "local adaptation-readiness evidence, not training or benchmark",
+                "source_dataset_manifest_path": "runtime/speech-to-task-adaptation-dataset/manifest.json",
+                "split": "test",
+                "split_counts": {"train": 13, "dev": 4, "test": 4},
+                "candidate_modes": ["rule", "mock_llm"],
+                "metrics_by_mode": {
+                    "rule": {
+                        "row_count": 4,
+                        "schema_valid_rate": 1.0,
+                        "output_kind_accuracy": 0.75,
+                        "intent_type_accuracy": 0.5,
+                        "required_slot_match_rate": 0.75,
+                        "safety_or_clarification_decision_accuracy": 1.0,
+                        "route_ready_rate": 0.5,
+                        "fallback_rate": 0.0,
+                    }
+                },
+                "failure_slices": {
+                    "candidate_mode": {"rule": {"row_count": 4, "failure_count": 1}},
+                    "split": {"test": {"row_count": 4, "failure_count": 1}},
+                },
+                "privacy_scan": {"status": "passed"},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    manifest = builder.build_release_pack(
+        project_root=PROJECT_ROOT,
+        trace_root=trace_root,
+        output_dir=tmp_path / "release-pack",
+        adaptation_eval_path=eval_manifest,
+    )
+
+    summary = manifest["speech_to_task_adaptation_eval"]
+    assert summary["status"] == "available"
+    assert summary["source_manifest_path"] == "manifest.json"
+    assert summary["source_dataset_manifest_path"] == "runtime/speech-to-task-adaptation-dataset/manifest.json"
+    assert summary["split_counts"] == {"train": 13, "dev": 4, "test": 4}
+    assert summary["candidate_modes"] == ["rule", "mock_llm"]
+    assert summary["metrics_by_mode"]["rule"]["schema_valid_rate"] == 1.0
+    assert summary["failure_slices"]["split"]["test"]["failure_count"] == 1
+    assert summary["privacy_scan"]["status"] == "passed"
+    assert "rows" not in summary
+    index_html = (tmp_path / "release-pack/index.html").read_text(encoding="utf-8")
+    assert "Speech-to-Task adaptation evaluation" in index_html
+    assert "local adaptation-readiness evidence" in index_html
+    assert "not fine-tuning, checkpoint, ASR/TTS, public benchmark, SOTA, production, or broad autonomy evidence" in index_html
+    manifest_text = (tmp_path / "release-pack/manifest.json").read_text(encoding="utf-8")
+    assert str(tmp_path) not in manifest_text
+    assert str(tmp_path) not in index_html
+
+
+def test_release_pack_marks_adaptation_eval_not_provided_without_claiming_run(tmp_path):
+    builder = load_builder()
+    trace_root = copy_trace_sources(tmp_path)
+
+    manifest = builder.build_release_pack(
+        project_root=PROJECT_ROOT,
+        trace_root=trace_root,
+        output_dir=tmp_path / "release-pack",
+    )
+
+    assert manifest["speech_to_task_adaptation_eval"] == {"status": "not_provided"}
+    index_html = (tmp_path / "release-pack/index.html").read_text(encoding="utf-8")
+    assert "Speech-to-Task adaptation evaluation" in index_html
+    assert "not_provided" in index_html
+    assert "schema_valid_rate" not in index_html
+
+
+@pytest.mark.parametrize(
+    ("field_name", "field_value"),
+    [
+        ("raw_provider_response", "private provider data"),
+        ("credentials", "secret"),
+        ("local_file_uri", "file:///Users/private/eval.json"),
+        ("remote_host", "10.0.0.2"),
+        ("checkpoint_path", "/models/checkpoint.bin"),
+    ],
+)
+def test_release_pack_rejects_private_adaptation_eval_manifest(
+    tmp_path,
+    field_name,
+    field_value,
+):
+    builder = load_builder()
+    trace_root = copy_trace_sources(tmp_path)
+    eval_manifest = tmp_path / "runtime/speech-to-task-adaptation-eval/manifest.json"
+    eval_manifest.parent.mkdir(parents=True)
+    eval_manifest.write_text(
+        json.dumps(
+            {
+                "manifest_version": "speech_to_task_adaptation_eval.v1",
+                "status": "available",
+                "privacy_state": "local_private",
+                "export_state": "local_private",
+                "split_counts": {"train": 1, "dev": 1, "test": 1},
+                "candidate_modes": ["rule"],
+                "metrics_by_mode": {},
+                "failure_slices": {},
+                "privacy_scan": {"status": "passed"},
+                field_name: field_value,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(builder.EvidencePackError, match=field_name):
+        builder.build_release_pack(
+            project_root=PROJECT_ROOT,
+            trace_root=trace_root,
+            output_dir=tmp_path / "release-pack",
+            adaptation_eval_path=eval_manifest,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field_name", "field_value", "message"),
+    [
+        ("privacy_state", "public_safe", "local/private"),
+        ("export_state", "public_safe", "local/private"),
+        ("privacy_scan", {"status": "failed"}, "privacy scan"),
+    ],
+)
+def test_release_pack_rejects_unsafe_adaptation_eval_manifest_state(
+    tmp_path,
+    field_name,
+    field_value,
+    message,
+):
+    builder = load_builder()
+    trace_root = copy_trace_sources(tmp_path)
+    eval_manifest = tmp_path / "runtime/speech-to-task-adaptation-eval/manifest.json"
+    eval_manifest.parent.mkdir(parents=True)
+    payload = {
+        "manifest_version": "speech_to_task_adaptation_eval.v1",
+        "status": "available",
+        "privacy_state": "local_private",
+        "export_state": "local_private",
+        "split_counts": {"train": 1, "dev": 1, "test": 1},
+        "candidate_modes": ["rule"],
+        "metrics_by_mode": {},
+        "failure_slices": {},
+        "privacy_scan": {"status": "passed"},
+    }
+    payload[field_name] = field_value
+    eval_manifest.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    with pytest.raises(builder.EvidencePackError, match=message):
+        builder.build_release_pack(
+            project_root=PROJECT_ROOT,
+            trace_root=trace_root,
+            output_dir=tmp_path / "release-pack",
+            adaptation_eval_path=eval_manifest,
+        )
+
+
 def test_release_pack_rejects_private_normalizer_comparison_manifest(tmp_path):
     builder = load_builder()
     trace_root = copy_trace_sources(tmp_path)

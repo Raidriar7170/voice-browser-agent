@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import shutil
 from datetime import datetime, timezone
@@ -24,15 +25,23 @@ FORBIDDEN_MARKERS = (
     "browser_profile_path",
     "cookie",
     "cookies",
-    "credential",
     "credentials",
+    "credential",
     "password",
     "token",
     "secret",
     "private_url",
+    "raw_prompt",
+    "raw_provider_response",
+    "provider_response",
+    "request_header",
+    "request_headers",
+    "api_key",
+    "authorization",
     "remote_host",
     "remote_vision_backend_url",
     "controlled_target_url",
+    "checkpoint_path",
     "file:///Users/",
 )
 TRACE_GROUPS = (
@@ -54,6 +63,7 @@ def build_dataset(
     release_pack_manifest: Path | None = None,
     correction_overlay: Path | None = None,
     seed_set: bool = False,
+    evaluation_splits: bool = False,
 ) -> dict[str, Any]:
     project_root = Path(project_root)
     trace_root = Path(trace_root)
@@ -126,6 +136,21 @@ def build_dataset(
                 f"seed set example count must be between 20 and 50, got {len(examples)}"
             )
 
+    evaluation_split_rows: list[dict[str, Any]] = []
+    if evaluation_splits:
+        evaluation_split_rows = build_evaluation_split_rows(examples)
+        split_by_example_id = {
+            row["example_id"]: row for row in evaluation_split_rows
+        }
+        for row in examples:
+            split_row = split_by_example_id[row["example_id"]]
+            row["split"] = split_row["split"]
+            row["split_provenance"] = split_row["split_provenance"]
+        for row in manifest_rows:
+            split_row = split_by_example_id[row["example_id"]]
+            row["split"] = split_row["split"]
+            row["split_provenance"] = split_row["split_provenance"]
+
     if output_dir.exists():
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -147,6 +172,28 @@ def build_dataset(
         "files": {"examples_jsonl": DEFAULT_EXAMPLES_FILE},
         "examples": manifest_rows,
     }
+    if evaluation_splits:
+        split_counts = count_by_key(evaluation_split_rows, "split")
+        manifest["evaluation_splits"] = {
+            "status": "available",
+            "enabled": True,
+            "strategy": "stable_sha256_example_id_train_dev_test",
+            "split_counts": split_counts,
+            "target_kind_counts": count_by_nested_key(
+                evaluation_split_rows,
+                ("split_provenance", "target_output_kind"),
+            ),
+            "evidence_mode_counts": count_by_nested_key(
+                evaluation_split_rows,
+                ("split_provenance", "evidence_mode"),
+            ),
+            "positioning": (
+                "small local Speech-to-Task adaptation evaluation input; "
+                "not a public benchmark dataset, model checkpoint, ASR/TTS corpus, "
+                "or broad public-web autonomy claim"
+            ),
+            "rows": evaluation_split_rows,
+        }
     if seed_set:
         manifest["seed_set"] = {
             "status": "adaptation_preparation",
@@ -447,6 +494,129 @@ def build_variant_example(variant: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def build_evaluation_split_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if len(rows) < 3:
+        raise DatasetBuildError("evaluation splits require at least 3 included examples")
+    ordered = sorted(
+        rows,
+        key=lambda row: (
+            hashlib.sha256(str(row["example_id"]).encode("utf-8")).hexdigest(),
+            str(row["example_id"]),
+        ),
+    )
+    total = len(ordered)
+    test_count = max(1, round(total * 0.2))
+    dev_count = max(1, round(total * 0.2))
+    if test_count + dev_count >= total:
+        dev_count = 1
+        test_count = 1
+    train_count = total - dev_count - test_count
+    if train_count < 1:
+        raise DatasetBuildError("evaluation splits require a non-empty train split")
+
+    split_names = (
+        ["test"] * test_count
+        + ["dev"] * dev_count
+        + ["train"] * train_count
+    )
+    split_rows: list[dict[str, Any]] = []
+    for row, split in zip(ordered, split_names, strict=True):
+        provenance = {
+            "example_id": row["example_id"],
+            "source_trace_id": row.get("source_execution_id")
+            or (row.get("provenance") or {}).get("source_trace_id"),
+            "source_trace_path": row.get("source_trace_path")
+            or (row.get("provenance") or {}).get("source_trace_path"),
+            "provenance_kind": (row.get("provenance") or {}).get("kind"),
+            "evidence_mode": row.get("evidence_mode"),
+            "target_output_kind": (row.get("active_target_output") or {}).get("kind"),
+            "correction_or_variant_status": (row.get("correction") or {}).get("status", "absent"),
+            "privacy_scan": row.get("privacy_scan"),
+        }
+        scan_payload_for_private_markers(provenance, path=Path("evaluation_splits"))
+        split_rows.append(
+            {
+                "example_id": row["example_id"],
+                "split": split,
+                "split_provenance": provenance,
+            }
+        )
+    validate_evaluation_split_rows(rows, split_rows)
+    return split_rows
+
+
+def validate_evaluation_split_rows(
+    examples: list[dict[str, Any]],
+    split_rows: list[dict[str, Any]],
+) -> None:
+    expected_ids = {str(row["example_id"]) for row in examples}
+    assigned_ids: set[str] = set()
+    duplicate_ids: set[str] = set()
+    split_counts = {"train": 0, "dev": 0, "test": 0}
+    for row in split_rows:
+        example_id = str(row.get("example_id"))
+        if example_id in assigned_ids:
+            duplicate_ids.add(example_id)
+        assigned_ids.add(example_id)
+        split = row.get("split")
+        if split not in split_counts:
+            raise DatasetBuildError(f"unknown evaluation split {split!r} for {example_id}")
+        split_counts[split] += 1
+        split_provenance = row.get("split_provenance")
+        if not isinstance(split_provenance, dict):
+            raise DatasetBuildError(f"split provenance missing for {example_id}")
+        if split_provenance.get("privacy_scan") != "passed":
+            raise DatasetBuildError(
+                f"split provenance privacy scan did not pass for {example_id}"
+            )
+        scan_payload_for_private_markers(row, path=Path("evaluation_splits"))
+    if duplicate_ids:
+        raise DatasetBuildError(
+            "duplicate split assignment for: " + ", ".join(sorted(duplicate_ids))
+        )
+    omitted = sorted(expected_ids - assigned_ids)
+    if omitted:
+        raise DatasetBuildError("omitted examples from evaluation splits: " + ", ".join(omitted))
+    extra = sorted(assigned_ids - expected_ids)
+    if extra:
+        raise DatasetBuildError("unknown examples in evaluation splits: " + ", ".join(extra))
+    empty_held_out = [
+        split for split in ("dev", "test") if split_counts[split] == 0
+    ]
+    if empty_held_out:
+        raise DatasetBuildError(
+            "empty held-out split: " + ", ".join(empty_held_out)
+        )
+    if split_counts["train"] == 0:
+        raise DatasetBuildError("empty train split")
+
+
+def count_by_key(rows: list[dict[str, Any]], key: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        value = str(row.get(key))
+        counts[value] = counts.get(value, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def count_by_nested_key(
+    rows: list[dict[str, Any]],
+    path: tuple[str, str],
+) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    outer_key, inner_key = path
+    for row in rows:
+        inner = row.get(outer_key)
+        if not isinstance(inner, dict):
+            continue
+        value = inner.get(inner_key)
+        if value is None:
+            continue
+        value_text = str(value)
+        counts[value_text] = counts.get(value_text, 0) + 1
+    return dict(sorted(counts.items()))
+
+
 def validator_outcome(training_example: Any) -> str:
     decision = training_example.validator_decision
     if not isinstance(decision, dict):
@@ -497,6 +667,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--release-pack-manifest", type=Path, default=None)
     parser.add_argument("--correction-overlay", type=Path, default=None)
     parser.add_argument("--seed-set", action="store_true")
+    parser.add_argument("--evaluation-splits", action="store_true")
     return parser.parse_args()
 
 
@@ -510,6 +681,7 @@ def main() -> int:
             release_pack_manifest=args.release_pack_manifest,
             correction_overlay=args.correction_overlay,
             seed_set=args.seed_set,
+            evaluation_splits=args.evaluation_splits,
         )
     except DatasetBuildError as exc:
         print(f"error: {exc}")

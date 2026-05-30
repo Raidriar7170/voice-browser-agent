@@ -198,6 +198,175 @@ def test_seed_set_outputs_20_to_50_examples_with_trace_and_variant_provenance(tm
     assert variant["correction"]["reason"]
 
 
+def test_seed_set_evaluation_splits_are_stable_and_record_provenance(tmp_path):
+    builder = load_builder()
+    trace_root = copy_trace_sources(tmp_path)
+    overlay = PROJECT_ROOT / "fixtures/seed-set/reviewed-variants.json"
+
+    first_manifest = builder.build_dataset(
+        project_root=PROJECT_ROOT,
+        trace_root=trace_root,
+        output_dir=tmp_path / "first",
+        correction_overlay=overlay,
+        seed_set=True,
+        evaluation_splits=True,
+    )
+    second_manifest = builder.build_dataset(
+        project_root=PROJECT_ROOT,
+        trace_root=trace_root,
+        output_dir=tmp_path / "second",
+        correction_overlay=overlay,
+        seed_set=True,
+        evaluation_splits=True,
+    )
+    rows = read_jsonl(tmp_path / "first/examples.jsonl")
+
+    first_assignments = {
+        item["example_id"]: item["split"] for item in first_manifest["examples"]
+    }
+    second_assignments = {
+        item["example_id"]: item["split"] for item in second_manifest["examples"]
+    }
+    assert first_assignments == second_assignments
+    assert set(first_manifest["evaluation_splits"]["split_counts"]) == {"train", "dev", "test"}
+    assert all(count > 0 for count in first_manifest["evaluation_splits"]["split_counts"].values())
+    assert first_manifest["evaluation_splits"]["target_kind_counts"] == {
+        row["active_target_output"]["kind"]: sum(
+            1 for item in rows if item["active_target_output"]["kind"] == row["active_target_output"]["kind"]
+        )
+        for row in rows
+    }
+    assert first_manifest["evaluation_splits"]["evidence_mode_counts"] == {
+        row["evidence_mode"]: sum(1 for item in rows if item["evidence_mode"] == row["evidence_mode"])
+        for row in rows
+    }
+    assert {row["split"] for row in rows} == {"train", "dev", "test"}
+    assert all(row["split"] == first_assignments[row["example_id"]] for row in rows)
+    for row in rows:
+        provenance = row["split_provenance"]
+        assert provenance["example_id"] == row["example_id"]
+        assert provenance["source_trace_id"] == row["source_execution_id"]
+        assert provenance["source_trace_path"].startswith("fixtures/traces/")
+        assert provenance["provenance_kind"] in {"trace_derived", "reviewed_variant"}
+        assert provenance["evidence_mode"] == row["evidence_mode"]
+        assert provenance["target_output_kind"] == row["active_target_output"]["kind"]
+        assert provenance["correction_or_variant_status"] == row["correction"]["status"]
+        assert provenance["privacy_scan"] == "passed"
+
+
+def test_evaluation_split_validation_rejects_empty_duplicate_omitted_and_private_metadata():
+    builder = load_builder()
+    rows = [
+        {
+            "example_id": "a",
+            "source_execution_id": "trace-a",
+            "source_trace_path": "fixtures/traces/sanitized/a.json",
+            "evidence_mode": "demo_preview",
+            "provenance": {"kind": "trace_derived"},
+            "active_target_output": {"kind": "browser_task_request"},
+            "correction": {"status": "absent"},
+            "privacy_scan": "passed",
+        },
+        {
+            "example_id": "b",
+            "source_execution_id": "trace-b",
+            "source_trace_path": "fixtures/traces/sanitized/b.json",
+            "evidence_mode": "demo_preview",
+            "provenance": {"kind": "trace_derived"},
+            "active_target_output": {"kind": "clarification_request"},
+            "correction": {"status": "absent"},
+            "privacy_scan": "passed",
+        },
+        {
+            "example_id": "c",
+            "source_execution_id": "trace-c",
+            "source_trace_path": "fixtures/traces/sanitized/c.json",
+            "evidence_mode": "demo_preview",
+            "provenance": {"kind": "trace_derived"},
+            "active_target_output": {"kind": "browser_task_request"},
+            "correction": {"status": "absent"},
+            "privacy_scan": "passed",
+        },
+    ]
+
+    with pytest.raises(builder.DatasetBuildError, match="empty held-out split"):
+        builder.validate_evaluation_split_rows(
+            rows,
+            [
+                {"example_id": "a", "split": "train", "split_provenance": {"privacy_scan": "passed"}},
+                {"example_id": "b", "split": "train", "split_provenance": {"privacy_scan": "passed"}},
+                {"example_id": "c", "split": "test", "split_provenance": {"privacy_scan": "passed"}},
+            ],
+        )
+    with pytest.raises(builder.DatasetBuildError, match="duplicate split assignment"):
+        builder.validate_evaluation_split_rows(
+            rows,
+            [
+                {"example_id": "a", "split": "train", "split_provenance": {"privacy_scan": "passed"}},
+                {"example_id": "a", "split": "dev", "split_provenance": {"privacy_scan": "passed"}},
+                {"example_id": "b", "split": "test", "split_provenance": {"privacy_scan": "passed"}},
+                {"example_id": "c", "split": "train", "split_provenance": {"privacy_scan": "passed"}},
+            ],
+        )
+    with pytest.raises(builder.DatasetBuildError, match="omitted examples"):
+        builder.validate_evaluation_split_rows(
+            rows,
+            [
+                {"example_id": "a", "split": "train", "split_provenance": {"privacy_scan": "passed"}},
+                {"example_id": "b", "split": "dev", "split_provenance": {"privacy_scan": "passed"}},
+            ],
+        )
+    unsafe_rows = [dict(rows[0]), dict(rows[1]), dict(rows[2])]
+    unsafe_rows[0]["source_trace_path"] = "file:///Users/private/trace.json"
+    with pytest.raises(builder.DatasetBuildError, match="file:///Users/"):
+        builder.build_evaluation_split_rows(unsafe_rows)
+
+
+@pytest.mark.parametrize("privacy_status", ["failed", "pending", None])
+def test_evaluation_split_validation_rejects_non_passed_privacy_scan(privacy_status):
+    builder = load_builder()
+    rows = [
+        {
+            "example_id": "a",
+            "source_execution_id": "trace-a",
+            "source_trace_path": "fixtures/traces/sanitized/a.json",
+            "evidence_mode": "demo_preview",
+            "provenance": {"kind": "trace_derived"},
+            "active_target_output": {"kind": "browser_task_request"},
+            "correction": {"status": "absent"},
+            "privacy_scan": "passed",
+        },
+        {
+            "example_id": "b",
+            "source_execution_id": "trace-b",
+            "source_trace_path": "fixtures/traces/sanitized/b.json",
+            "evidence_mode": "demo_preview",
+            "provenance": {"kind": "trace_derived"},
+            "active_target_output": {"kind": "clarification_request"},
+            "correction": {"status": "absent"},
+            "privacy_scan": "passed",
+        },
+        {
+            "example_id": "c",
+            "source_execution_id": "trace-c",
+            "source_trace_path": "fixtures/traces/sanitized/c.json",
+            "evidence_mode": "demo_preview",
+            "provenance": {"kind": "trace_derived"},
+            "active_target_output": {"kind": "browser_task_request"},
+            "correction": {"status": "absent"},
+            "privacy_scan": "passed",
+        },
+    ]
+    split_rows = [
+        {"example_id": "a", "split": "train", "split_provenance": {"privacy_scan": "passed"}},
+        {"example_id": "b", "split": "dev", "split_provenance": {"privacy_scan": privacy_status}},
+        {"example_id": "c", "split": "test", "split_provenance": {"privacy_scan": "passed"}},
+    ]
+
+    with pytest.raises(builder.DatasetBuildError, match="split provenance privacy scan"):
+        builder.validate_evaluation_split_rows(rows, split_rows)
+
+
 def test_dataset_fails_when_trace_lacks_required_adaptation_inputs(tmp_path):
     builder = load_builder()
     trace_root = copy_trace_sources(tmp_path)

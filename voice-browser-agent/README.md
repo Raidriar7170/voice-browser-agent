@@ -115,9 +115,33 @@ Build the local Speech-to-Task adaptation preparation dataset from the same comm
 
 ```bash
 uv run python scripts/build_speech_to_task_dataset.py
+uv run python scripts/build_speech_to_task_dataset.py --seed-set --evaluation-splits
 ```
 
 The command writes `runtime/speech-to-task-adaptation-dataset/manifest.json` and `runtime/speech-to-task-adaptation-dataset/examples.jsonl`. Use `--correction-overlay path/to/corrections.json` for reviewed target corrections; the original trace-derived target stays in the generated example. Use `--seed-set` to produce the 20-50 example local seed set from trace-derived examples plus `fixtures/seed-set/reviewed-variants.json`. See `docs/demo/speech-to-task-dataset.md` for the overlay format and inspection path. This dataset is local Speech-to-Task adaptation preparation evidence, not a model result or broad autonomy claim.
+
+Run the local Speech-to-Task adaptation evaluation harness over the held-out split:
+
+```bash
+uv run python scripts/build_speech_to_task_eval.py \
+  --dataset-manifest runtime/speech-to-task-adaptation-dataset/manifest.json
+```
+
+By default the harness evaluates the `test` split with the built-in `rule` and deterministic `mock_llm` candidate modes. It writes `runtime/speech-to-task-adaptation-eval/manifest.json` and `summary.json` with schema-valid rate, output-kind accuracy, intent-type accuracy, required-slot match rate, safety or clarification decision accuracy, route-ready rate, fallback rate, row counts, and failure slices. Future local model or provider outputs can be compared without training by passing strict example-id-matched JSONL:
+
+```bash
+uv run python scripts/build_speech_to_task_eval.py \
+  --candidate-output-jsonl adapted_model=runtime/local-adapter-candidates.jsonl
+```
+
+Include the sanitized evaluation summary in the reviewer release pack only when the local manifest exists:
+
+```bash
+uv run python scripts/build_demo_evidence_pack.py \
+  --adaptation-eval-path runtime/speech-to-task-adaptation-eval/manifest.json
+```
+
+This is local adaptation-readiness evidence for structured Speech-to-Task behavior. It is not fine-tuning, checkpoint publication, ASR/TTS evaluation, public leaderboard ranking, state-of-the-art evidence, production readiness, or broad public-web autonomy.
 
 ## Operator Console Demo Flow
 
