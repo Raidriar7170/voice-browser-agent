@@ -4,6 +4,18 @@ Standalone bounded Chinese-first Voice-to-Browser Agent demo. It accepts one upl
 
 This is a scoped demo application project, not a `browser-use-vision` voice extension, public ranking claim, or broad autonomous assistant.
 
+## Project Status
+
+Status: final local MVP complete and archived as of 2026-05-30. All OpenSpec changes are archived, with the final closeout in `openspec/changes/archive/2026-05-30-final-project-completion-audit/`.
+
+Closeout validation:
+
+- `OPENSPEC_TELEMETRY=0 openspec validate --all --strict`: 10 passed
+- `uv run pytest`: 246 passed
+- `git diff --check`: clean
+
+The repository is intended as a bounded, reviewer-friendly local demo and evidence pack. It does not include fine-tuning, checkpoint publication, ASR/TTS quality evaluation, public leaderboard ranking, production readiness, or broad public-web autonomy.
+
 ## Quickstart
 
 ```bash
