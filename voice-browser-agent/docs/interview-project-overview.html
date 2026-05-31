@@ -1,56 +1,144 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Voice-to-Browser Agent Project Overview</title>
+    <title>Voice-to-Browser Agent 项目介绍与面试手册</title>
     <style>
       :root {
         color-scheme: light;
-        --ink: #18212a;
-        --muted: #5b6772;
-        --line: #d6dde3;
-        --panel: #f6f8fa;
-        --accent: #0f766e;
-        --accent-2: #b45309;
+        --ink: #172026;
+        --muted: #58636f;
+        --line: #d7dee5;
+        --soft: #f6f8fa;
+        --soft-2: #eef6f4;
+        --teal: #0f766e;
+        --blue: #1d4ed8;
+        --amber: #b45309;
+        --rose: #be123c;
+        --green: #166534;
+      }
+
+      * {
+        box-sizing: border-box;
       }
 
       body {
         margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Microsoft YaHei", sans-serif;
         color: var(--ink);
         background: #ffffff;
-        line-height: 1.55;
+        line-height: 1.68;
+      }
+
+      a {
+        color: var(--blue);
+        text-decoration-thickness: 1px;
+        text-underline-offset: 3px;
       }
 
       header {
         border-bottom: 1px solid var(--line);
-        padding: 44px clamp(20px, 5vw, 72px) 28px;
-        background: linear-gradient(180deg, #f9fbfc 0%, #ffffff 100%);
+        background: #f8faf9;
       }
 
-      main {
-        max-width: 1080px;
+      .hero {
+        max-width: 1180px;
         margin: 0 auto;
-        padding: 28px clamp(18px, 4vw, 42px) 56px;
+        padding: 44px clamp(20px, 5vw, 56px) 28px;
+      }
+
+      .eyebrow {
+        margin: 0 0 10px;
+        color: var(--teal);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0;
+        text-transform: uppercase;
       }
 
       h1 {
-        font-size: 38px;
-        line-height: 1.12;
-        margin: 0 0 12px;
+        max-width: 880px;
+        margin: 0 0 14px;
+        font-size: clamp(34px, 5vw, 58px);
+        line-height: 1.08;
         letter-spacing: 0;
       }
 
+      .subtitle {
+        max-width: 920px;
+        margin: 0 0 22px;
+        color: var(--muted);
+        font-size: 18px;
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 24px;
+      }
+
+      .stat {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 14px 16px;
+        background: #ffffff;
+      }
+
+      .stat strong {
+        display: block;
+        color: var(--ink);
+        font-size: 20px;
+        line-height: 1.25;
+      }
+
+      .stat span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 22px clamp(20px, 5vw, 56px) 60px;
+      }
+
+      nav {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 8px;
+        margin: 18px 0 34px;
+      }
+
+      nav a {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 9px 11px;
+        background: #ffffff;
+        color: var(--ink);
+        font-size: 14px;
+        text-decoration: none;
+      }
+
+      section {
+        margin: 34px 0 0;
+        padding-top: 2px;
+      }
+
       h2 {
-        font-size: 22px;
-        margin: 34px 0 10px;
+        margin: 0 0 12px;
+        font-size: 25px;
+        line-height: 1.25;
         letter-spacing: 0;
       }
 
       h3 {
-        font-size: 16px;
-        margin: 18px 0 8px;
+        margin: 20px 0 8px;
+        font-size: 17px;
+        line-height: 1.35;
         letter-spacing: 0;
       }
 
@@ -58,7 +146,9 @@
         margin: 0 0 12px;
       }
 
-      ul, ol {
+      ul,
+      ol {
+        margin: 8px 0 0;
         padding-left: 22px;
       }
 
@@ -67,23 +157,55 @@
       }
 
       code {
-        background: var(--panel);
         border: 1px solid var(--line);
-        border-radius: 4px;
+        border-radius: 5px;
+        background: var(--soft);
         padding: 1px 5px;
-        font-size: 0.95em;
+        font-size: 0.94em;
       }
 
-      .subtitle {
-        max-width: 820px;
-        color: var(--muted);
-        font-size: 18px;
+      pre {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        margin: 12px 0;
+        padding: 14px;
+        background: #101820;
+        color: #e8f2f1;
+        line-height: 1.5;
+      }
+
+      pre code {
+        border: 0;
+        background: transparent;
+        color: inherit;
+        padding: 0;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0 0;
+        font-size: 14px;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 9px 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: var(--soft);
+        font-weight: 700;
       }
 
       .grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 14px;
+        gap: 12px;
       }
 
       .card {
@@ -93,272 +215,939 @@
         background: #ffffff;
       }
 
-      .pill {
-        display: inline-block;
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        padding: 3px 9px;
-        margin: 4px 6px 4px 0;
-        color: var(--muted);
-        background: #ffffff;
+      .card h3 {
+        margin-top: 0;
       }
 
       .callout {
-        border-left: 4px solid var(--accent);
-        background: var(--panel);
+        border-left: 4px solid var(--teal);
+        background: var(--soft-2);
         padding: 14px 16px;
-        margin: 16px 0;
+        margin: 14px 0;
       }
 
       .warning {
-        border-left-color: var(--accent-2);
+        border-left-color: var(--amber);
+        background: #fff8ed;
+      }
+
+      .danger {
+        border-left-color: var(--rose);
+        background: #fff4f6;
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(118px, 1fr));
+        gap: 8px;
+        margin: 16px 0;
+      }
+
+      .flow-step {
+        position: relative;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        min-height: 94px;
+        padding: 11px;
+        background: #ffffff;
+      }
+
+      .flow-step strong {
+        display: block;
+        color: var(--teal);
+        margin-bottom: 4px;
+      }
+
+      .tag-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin: 10px 0 0;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 3px 9px;
+        background: #ffffff;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .timeline {
+        display: grid;
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .phase {
+        display: grid;
+        grid-template-columns: 160px 1fr;
+        gap: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 14px;
+        background: #ffffff;
+      }
+
+      .phase .when {
+        color: var(--teal);
+        font-weight: 700;
+      }
+
+      .qa {
+        border-top: 1px solid var(--line);
+        padding: 16px 0;
+      }
+
+      .qa:first-of-type {
+        border-top: 0;
+      }
+
+      .qa h3 {
+        margin: 0 0 8px;
+      }
+
+      .small {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .ok {
+        color: var(--green);
+        font-weight: 700;
+      }
+
+      @media (max-width: 900px) {
+        .hero-grid,
+        .flow {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .phase {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 560px) {
+        .hero-grid,
+        .flow,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        h1 {
+          font-size: 34px;
+        }
+
+        table {
+          display: block;
+          overflow-x: auto;
+        }
       }
     </style>
   </head>
   <body>
     <header>
-      <h1>Voice-to-Browser Agent</h1>
-      <p class="subtitle">
-        Reliable voice-driven browser execution with visual grounding, deterministic safety gates,
-        and traceable evidence for a bounded Chinese-first spoken-command workflow.
-      </p>
-    </header>
-    <main>
-      <section>
-        <h2>Problem Framing</h2>
-        <p>
-          This standalone project asks a narrow reliability question: can one spoken browser command become one
-          structured browser task, pass deterministic checks, execute with visual grounding, and leave
-          enough evidence for a reviewer to understand what happened?
+      <div class="hero">
+        <p class="eyebrow">Interview Project Overview</p>
+        <h1>Voice-to-Browser Agent 项目介绍与面试手册</h1>
+        <p class="subtitle">
+          一个中文优先、有边界的 Voice-to-Browser Agent：把一条语音或转写命令变成结构化浏览器任务，
+          经过确定性校验、安全门、路由选择、视觉 grounding 与 visual verification loop evidence，
+          最终留下可审计的 sanitized trace，而不是只给一句“执行成功”。
         </p>
-        <p>
-          The answer is represented in code, tests, OpenSpec specs, sanitized traces, a release-pack
-          workflow, a public evidence page, and a local Speech-to-Task adaptation seed set.
-        </p>
-      </section>
-
-      <section>
-        <h2>Bounded Scope</h2>
-        <p>
-          The system supports one utterance at a time. It normalizes the transcript into a Browser
-          Task Request or Clarification Request, applies safety checks, selects an explicit route,
-          supports ASR review, and runs preview, live-controlled, agentic live-controlled,
-          real-vision controlled, or real-voice controlled evidence paths.
-        </p>
-        <div>
-          <span class="pill">Chinese-first spoken commands</span>
-          <span class="pill">Local Operator Console</span>
-          <span class="pill">LLM structured-output normalizer</span>
-          <span class="pill">Route decision evidence</span>
-          <span class="pill">Public task contracts</span>
-          <span class="pill">browser-use-vision dependency</span>
-          <span class="pill">Sanitized trace evidence</span>
+        <div class="hero-grid" aria-label="project summary">
+          <div class="stat">
+            <strong>Final local MVP</strong>
+            <span>2026-05-30 closeout；OpenSpec changes 已归档</span>
+          </div>
+          <div class="stat">
+            <strong>246 passed</strong>
+            <span>本次全量 pytest 结果，与 closeout 记录一致</span>
+          </div>
+          <div class="stat">
+            <strong>21 examples</strong>
+            <span>当前本地 Speech-to-Task seed/eval artifact 快照</span>
+          </div>
+          <div class="stat">
+            <strong>Local/private</strong>
+            <span>raw audio、截图、浏览器状态和 provider payload 不公开</span>
+          </div>
         </div>
-      </section>
+      </div>
+    </header>
 
-      <section>
-        <h2>Architecture</h2>
+    <main>
+      <nav aria-label="sections">
+        <a href="#problem-framing">Problem Framing / 问题</a>
+        <a href="#bounded-scope">Bounded Scope / 边界</a>
+        <a href="#architecture">Architecture / 架构</a>
+        <a href="#execution-flow">Execution Flow / 流程</a>
+        <a href="#development-stages">开发阶段</a>
+        <a href="#evidence-modes">Evidence Modes / 证据</a>
+        <a href="#metrics">评测指标</a>
+        <a href="#validation-surface">Validation Surface</a>
+        <a href="#interview-qa">面试问答</a>
+      </nav>
+
+      <section id="problem-framing">
+        <h2>Problem Framing / 项目解决什么问题</h2>
+        <p>
+          这个项目解决的不是“让语音助手能聊天”，而是一个更工程化的 agent reliability 问题：
+          当用户说出一条浏览器操作命令时，系统能否把它变成一条受约束、可验证、可回放的浏览器任务，
+          并且在模糊、危险、网页漂移或视觉证据不足时诚实停止。
+        </p>
+        <div class="callout">
+          <p>
+            面试中的一句话版本：我做了一个中文优先的有界 Voice-to-Browser Agent，把 spoken command
+            转成结构化任务，再通过 validator、confirmation gate、route policy、视觉 grounding
+            和 trace evidence 证明“为什么能执行、为什么要停、执行到了哪里”。
+          </p>
+        </div>
         <div class="grid">
           <div class="card">
-            <h3>Input and ASR</h3>
-            <p>Uploaded, recorded, or fixture-backed audio produces an auditable transcript record.</p>
+            <h3>用户问题</h3>
+            <p>语音命令天然有 ASR 噪声、指代不完整、口语化、省略和中英混说，不能直接交给浏览器执行器。</p>
           </div>
           <div class="card">
-            <h3>Normalizer and Validator</h3>
-            <p>Transcript text becomes a structured task or a clarification stop. Rule mode is the default; mock or configured LLM modes remain candidate generators behind schema parsing and deterministic validation.</p>
+            <h3>工程问题</h3>
+            <p>多数 demo 只展示最终 UI，缺少结构化中间态，reviewer 难以判断一次 agent 行为是否可靠。</p>
           </div>
           <div class="card">
-            <h3>Browser Execution</h3>
-            <p>The executor runs bounded local browser tasks, enforces task contracts, verifies completion proof, and records actions, statuses, and stops.</p>
+            <h3>安全问题</h3>
+            <p>登录、付款、下载、提交、私有数据输入等动作必须停在 confirmation 或 blocked 状态，而不是“模型觉得可以”。</p>
           </div>
           <div class="card">
-            <h3>Visual Grounding</h3>
-            <p><code>browser-use-vision</code> remains the visual grounding dependency; this standalone repo owns voice-to-task flow.</p>
-          </div>
-          <div class="card">
-            <h3>Visual Verification</h3>
-            <p>Agentic controlled runs use a keyless deterministic verifier to record expected condition, observed state, proof refs, and recovery or stop decisions. Real VLM/provider verification is optional and local/private.</p>
+            <h3>证据问题</h3>
+            <p>真实运行会产生 raw audio、截图、cookies、浏览器 profile、provider 响应等敏感信息，公开材料必须只用 sanitized artifact。</p>
           </div>
         </div>
       </section>
 
-      <section>
-        <h2>Execution Flow</h2>
+      <section id="bounded-scope">
+        <h2>Bounded Scope / 项目边界</h2>
+        <p>
+          项目定位是 standalone bounded Chinese-first Voice-to-Browser Agent demo。它接受一次上传、录制、
+          fixture 或手动 transcript 输入，输出一条结构化浏览器任务、澄清请求、确认请求或阻断结果。
+        </p>
+        <div class="tag-row">
+          <span class="tag">Chinese-first spoken command</span>
+          <span class="tag">One utterance, one task attempt</span>
+          <span class="tag">FastAPI Operator Console</span>
+          <span class="tag">Pydantic trace schema</span>
+          <span class="tag">browser-use-vision dependency</span>
+          <span class="tag">Sanitized evidence</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>项目是</th>
+              <th>项目不是</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>有界的语音到浏览器任务执行系统</td>
+              <td>泛化实时语音助手或开放式网页自治系统</td>
+            </tr>
+            <tr>
+              <td>可审计 trace、route、safety、visual proof 的证据链</td>
+              <td>只靠一个录屏或一句“成功了”的展示</td>
+            </tr>
+            <tr>
+              <td>复用 <code>browser-use-vision</code> 的视觉 grounding 应用层项目</td>
+              <td><code>browser-use-vision</code> 的 fork、插件扩展或内部代码复制</td>
+            </tr>
+            <tr>
+              <td>Speech-to-Task adaptation readiness 与本地评测 harness</td>
+              <td>已完成 model fine-tuning、checkpoint 发布或公开排名系统</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="architecture">
+        <h2>Architecture / 项目架构</h2>
+        <div class="flow" aria-label="architecture flow">
+          <div class="flow-step">
+            <strong>1. Input</strong>
+            语音上传、录制、fixture transcript 或 typed command。
+          </div>
+          <div class="flow-step">
+            <strong>2. ASR</strong>
+            primary/fallback/fixture adapter 生成 transcript，并保留 provenance。
+          </div>
+          <div class="flow-step">
+            <strong>3. Normalize</strong>
+            rule、mock LLM 或 configured provider 产出结构化候选。
+          </div>
+          <div class="flow-step">
+            <strong>4. Validate</strong>
+            schema、intent type、slot、安全 flags、confirmation 由确定性逻辑决定。
+          </div>
+          <div class="flow-step">
+            <strong>5. Route</strong>
+            路由到 demo preview、live controlled、public-readonly、clarification 或 blocked。
+          </div>
+          <div class="flow-step">
+            <strong>6. Execute</strong>
+            本地浏览器执行；视觉任务调用 <code>browser-use-vision</code> dependency boundary。
+          </div>
+          <div class="flow-step">
+            <strong>7. Evidence</strong>
+            写入 Execution Trace、visual verification result、sanitizer status 和 release pack。
+          </div>
+        </div>
+
+        <h3>核心模块到文件</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>模块</th>
+              <th>职责</th>
+              <th>主要文件</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Operator Console/API</td>
+              <td>提供命令输入、audio review、执行、确认、trace inspection、visible result panel。</td>
+              <td><code>src/voice_browser_agent/app.py</code>, <code>static/index.html</code>, <code>static/app.js</code></td>
+            </tr>
+            <tr>
+              <td>ASR ingestion</td>
+              <td>上传/录制音频、fixture manifest、primary/fallback ASR adapter 与 transcript metadata。</td>
+              <td><code>ingestion.py</code>, <code>asr.py</code>, <code>fixtures/audio/*.fixture.json</code></td>
+            </tr>
+            <tr>
+              <td>Spoken Command Normalizer</td>
+              <td>把 transcript 转成 <code>BrowserTaskRequest</code> 或 <code>ClarificationRequest</code>。</td>
+              <td><code>normalizer.py</code>, <code>prompts.py</code>, <code>validator.py</code></td>
+            </tr>
+            <tr>
+              <td>Safety and route policy</td>
+              <td>confirmation gate、public task contract、route decision、stop/block reason。</td>
+              <td><code>safety.py</code>, <code>routing.py</code>, <code>public_readonly.py</code></td>
+            </tr>
+            <tr>
+              <td>Browser execution</td>
+              <td>demo preview、live controlled、agentic controlled、public-readonly executor。</td>
+              <td><code>executor.py</code>, <code>agentic.py</code>, <code>demo_tasks.py</code></td>
+            </tr>
+            <tr>
+              <td>Trace and evidence</td>
+              <td>Pydantic trace schema、sanitizer、release pack、normalizer comparison、dataset/eval manifest。</td>
+              <td><code>models.py</code>, <code>trace_writer.py</code>, <code>scripts/*.py</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="execution-flow">
+        <h2>Execution Flow / 一次命令如何执行</h2>
         <ol>
-          <li>One spoken command is accepted through upload, recording, transcript, or fixture replay.</li>
-          <li>The ASR adapter or fixture manifest creates transcript metadata.</li>
-          <li>The operator can review and edit real ASR output before normalization.</li>
-          <li>The Spoken Command Normalizer creates a task request or clarification request and records safe provenance for rule, mock LLM, configured provider, or fallback behavior.</li>
-          <li>The route selector maps safe commands to controlled local live, preview, clarification, or confirmation paths.</li>
-          <li>The Normalizer Validator and Confirmation Gate block unsafe or ambiguous actions.</li>
-          <li>The executor records browser actions, agentic steps, visual verification loop evidence, final status, and sanitized evidence.</li>
+          <li>用户在 Operator Console 输入 transcript，或上传/录制一条音频。</li>
+          <li>系统产生 ASR transcript；真实音频路径支持 operator review 和 edit。</li>
+          <li>Normalizer 产出 <code>BrowserTaskRequest</code> 或 <code>ClarificationRequest</code>，并记录 normalizer provenance。</li>
+          <li>Validator 检查 intent type、required fields、public task slots、safety flags 和 confirmation 状态。</li>
+          <li>Route selector 根据任务类型、配置和安全策略选择 <code>demo_preview</code>、<code>live_controlled</code> 或 <code>live_public_readonly</code> 等 evidence mode。</li>
+          <li>Confirmation Gate 在 payment、checkout、login、private data、mutation 等场景前暂停或阻断。</li>
+          <li>Browser executor 运行本地受控页面或 opt-in read-only public task；视觉任务记录 grounding refs。</li>
+          <li>Agentic controlled flow 把 action success 和 visual verification result 分开，失败或 uncertain 时 re-observe、recover 或 stop。</li>
+          <li>Trace Writer 输出 sanitized execution trace，release pack 只采纳 privacy_scan passed 的证据。</li>
         </ol>
       </section>
 
-      <section>
-        <h2>Evidence Modes</h2>
-        <ul>
-          <li><code>demo_preview</code>: stable public showcase evidence without live page execution.</li>
-          <li><code>live_controlled</code>: selected local controlled visual tasks with action evidence, including the route-aware controlled GitHub-like showcase.</li>
-          <li><code>agentic_live_controlled</code>: observe-act-verify traces with visual verification loop evidence, including passed, recovered, and uncertain-stop outcomes.</li>
-          <li><code>real_vision_controlled</code>: controlled <code>icon-search</code> evidence that calls <code>browser_use_vision.som.annotate_screenshot</code>.</li>
-          <li><code>real_voice_controlled</code>: reviewed audio command evidence with ASR provenance, controlled execution, and sanitized grounding references.</li>
-          <li><code>real_use_failure</code>: ASR unavailable, clarification, confirmation, cancellation, and ambiguous-target traces as reliability evidence.</li>
-          <li><code>live_public_readonly</code>: optional local public docs, reference, package metadata, release notes, and real GitHub public repository search/read tasks that require an allowlist, task-contract match, completion verifier proof, No login/read-only boundaries, visible local/private artifacts, and private-by-default sanitizer state.</li>
-        </ul>
-        <p>
-          Committed trace sources live in <code>fixtures/traces/sanitized/</code>,
-          <code>fixtures/traces/live-sanitized/</code>,
-          <code>fixtures/traces/agentic-sanitized/</code>,
-          <code>fixtures/traces/real-vision-sanitized/</code>,
-          <code>fixtures/traces/real-voice-sanitized/</code>, and
-          <code>fixtures/traces/real-use-sanitized/</code>.
-        </p>
-        <p>
-          Route-aware command runs include <code>route_decision</code> metadata so reviewers can
-          distinguish controlled local evidence from preview-only public showcase commands.
-          The public-readonly reliability matrix is the compact reviewer view for the bounded
-          public lane: target class, task kind, completion criteria, outcome, proof summary,
-          unmet criteria, stop/failure reason, privacy state, sanitizer status, and export state.
-          The public-readonly useful task pack extends that view to documentation, reference,
-          package metadata, release notes, and public repository search/read tasks without claiming
-          deployed web operation, broad public-web autonomy, leaderboard-style ranking, captcha bypass,
-          account automation, or model score evidence.
-          The task-pack runner is the reproducibility layer: deterministic mode writes a local
-          manifest without network access, while opt-in live mode records honest task outcomes and
-          keeps raw public runtime artifacts private until sanitizer approval.
-        </p>
-        <p>
-          Visual verification loop evidence is controlled-task reliability evidence, not a model
-          quality claim. The default path is keyless deterministic; real VLM/provider verification
-          is optional and local/private, and raw visual/provider artifacts are excluded from
-          release evidence.
-        </p>
-        <p>
-          Normalizer comparison evidence is generated locally in
-          <code>runtime/normalizer-comparison/manifest.json</code>. It compares structured-output
-          behavior across rule and deterministic mock LLM modes, optionally a configured provider,
-          and reports schema status, validator outcome, fallback state, route readiness, and
-          privacy-scan status. It is not model training, a model score, or broad autonomy evidence.
-        </p>
-      </section>
-
-      <section>
-        <h2>Safety and Privacy Gates</h2>
-        <p>
-          The project rejects unsupported long-horizon intents, pauses sensitive actions at the
-          Confirmation Gate, and keeps raw recordings, live browser state, generated runtime outputs,
-          and private operational details out of committed artifacts.
-        </p>
-        <p>
-          Review the safety behavior through <code>docs/demo/ablations.md</code>,
-          <code>docs/demo/demo-task-suite.md</code>, and the sanitized trace folders.
-        </p>
-      </section>
-
-      <section>
-        <h2>Adaptation Dataset Output</h2>
-        <p>
-          The local dataset workflow turns sanitized execution traces and reviewed variants into a
-          20-50 example adaptation seed set while preserving source provenance and deterministic
-          train/dev/test split metadata.
-        </p>
-        <ul>
-          <li><code>scripts/build_speech_to_task_dataset.py --seed-set --evaluation-splits</code></li>
-          <li><code>fixtures/seed-set/reviewed-variants.json</code></li>
-          <li><code>runtime/speech-to-task-adaptation-dataset/manifest.json</code></li>
-          <li><code>runtime/speech-to-task-adaptation-dataset/examples.jsonl</code></li>
-        </ul>
-      </section>
-
-      <section>
-        <h2>Adaptation Evaluation Output</h2>
-        <p>
-          The local evaluation harness runs held-out Speech-to-Task checks over the generated
-          split manifest and writes a local/private report for structured readiness inspection.
-        </p>
-        <ul>
-          <li><code>scripts/build_speech_to_task_eval.py</code></li>
-          <li><code>runtime/speech-to-task-adaptation-eval/manifest.json</code></li>
-          <li><code>runtime/speech-to-task-adaptation-eval/summary.json</code></li>
-          <li><code>--adaptation-eval-path runtime/speech-to-task-adaptation-eval/manifest.json</code></li>
-        </ul>
-        <p>
-          The metrics include schema-valid rate, output-kind accuracy, intent-type accuracy,
-          required-slot match rate, safety or clarification decision accuracy, route-ready rate,
-          fallback rate, row counts, and failure slices. This is local adaptation-readiness
-          evidence, not fine-tuning, not checkpoint publication, not ASR/TTS evaluation,
-          not public leaderboard ranking, not production readiness, and not broad public-web autonomy.
-        </p>
-      </section>
-
-      <section>
-        <h2>Validation Surface</h2>
-        <div class="callout">
-          <p><code>uv run python scripts/preflight_real_use.py</code></p>
-          <p><code>uv run python scripts/generate_real_voice_trace.py</code></p>
-          <p><code>uv run python scripts/run_public_readonly_task_pack.py --all --mode deterministic</code></p>
-          <p><code>uv run python scripts/build_normalizer_comparison.py --seed-set</code></p>
-          <p><code>uv run python scripts/build_speech_to_task_dataset.py --seed-set --evaluation-splits</code></p>
-          <p><code>uv run python scripts/build_speech_to_task_eval.py</code></p>
-          <p><code>uv run python scripts/build_demo_evidence_pack.py --normalizer-comparison-path runtime/normalizer-comparison/manifest.json --adaptation-eval-path runtime/speech-to-task-adaptation-eval/manifest.json</code></p>
-          <p><code>uv run pytest</code></p>
-          <p><code>OPENSPEC_TELEMETRY=0 openspec validate --all --strict</code></p>
-          <p><code>git diff --check</code></p>
-          <p><code>git status --short --ignored</code></p>
-        </div>
-        <p>
-          The reviewer release path also includes <code>scripts/build_demo_evidence_pack.py</code>,
-          <code>runtime/demo-evidence-release-pack/manifest.json</code>, and
-          <code>runtime/demo-evidence-release-pack/index.html</code>.
-          Public-safe review can start from <code>docs/public-evidence/index.html</code>.
-        </p>
-      </section>
-
-      <section>
-        <h2>Evidence Sources</h2>
-        <ul>
-          <li><code>README.md</code></li>
-          <li><code>docs/demo/demo-task-suite.md</code></li>
-          <li><code>docs/demo/useful-scenarios.md</code></li>
-          <li><code>docs/demo/ablations.md</code></li>
-          <li><code>docs/demo/video-plan.md</code></li>
-          <li><code>docs/demo/closeout-checklist.md</code></li>
-          <li><code>docs/public-evidence/index.html</code></li>
-          <li><code>scripts/preflight_real_use.py</code></li>
-          <li><code>scripts/generate_real_voice_trace.py</code></li>
-          <li><code>scripts/build_demo_evidence_pack.py</code></li>
-          <li><code>scripts/build_speech_to_task_dataset.py</code></li>
-          <li><code>scripts/build_speech_to_task_eval.py</code></li>
-          <li><code>runtime/speech-to-task-adaptation-eval/manifest.json</code></li>
-        </ul>
-      </section>
-
-      <section>
-        <h2>Limitations</h2>
-        <div class="callout warning">
-          <p>
-            Model fine-tuning, expanded dataset collection, public hosting, broad public-web automation,
-            and model checkpoint release are outside this closeout MVP.
-            Fine-tuning belongs in a separate future project that can consume the exported
-            seed/evaluation data.
-          </p>
-          <p>
-            The contribution is the bounded, evidence-backed voice-to-browser execution stack and its
-            reviewer artifacts.
-          </p>
+      <section id="development-stages">
+        <h2>项目开发阶段以及每个阶段的原因</h2>
+        <div class="timeline">
+          <div class="phase">
+            <div class="when">阶段 0：项目边界</div>
+            <div>
+              <strong>做了什么：</strong>通过 <code>CONTEXT.md</code> 和 ADR 明确 voice layer 与
+              <code>browser-use-vision</code> 分离；本项目只拥有 spoken-command execution。
+              <br />
+              <strong>为什么：</strong>避免把已有视觉 grounding 项目改成语音插件，也避免把项目讲成大而泛的语音助手。
+            </div>
+          </div>
+          <div class="phase">
+            <div class="when">阶段 1：MVP schema 与 preview evidence</div>
+            <div>
+              <strong>做了什么：</strong>定义 <code>BrowserTaskRequest</code>、<code>ClarificationRequest</code>、
+              <code>ExecutionTrace</code>、demo fixture、normalizer、validator 和 dry-run preview traces。
+              <br />
+              <strong>为什么：</strong>先证明“语音命令到结构化任务”的中间表示和安全边界，再谈真实浏览器执行。
+            </div>
+          </div>
+          <div class="phase">
+            <div class="when">阶段 2：live controlled 与 agentic vision</div>
+            <div>
+              <strong>做了什么：</strong>增加 <code>live_controlled</code>、agentic observe-act-verify traces、
+              icon/color/SVG/dashboard 等视觉重任务。
+              <br />
+              <strong>为什么：</strong>preview 不足以说明系统真的能操作页面；但真实公网不稳定，所以先用可复现本地 controlled pages 验证视觉闭环。
+            </div>
+          </div>
+          <div class="phase">
+            <div class="when">阶段 3：Operator Console v2/v3</div>
+            <div>
+              <strong>做了什么：</strong>从 fixture dropdown 走向 command-first console，加入 audio transcript review、
+              route cards、normalizer provenance、visible result 和 raw trace inspection。
+              <br />
+              <strong>为什么：</strong>面试官和 reviewer 需要看到系统如何做决定，而不是只看到一个自动化脚本输出。
+            </div>
+          </div>
+          <div class="phase">
+            <div class="when">阶段 4：public-readonly lane</div>
+            <div>
+              <strong>做了什么：</strong>增加 allowlisted docs/reference/GitHub read-only task contracts、
+              completion verifier、reliability matrix、visible artifact policy。
+              <br />
+              <strong>为什么：</strong>让项目能触达真实公开页面，但必须通过 task contract、No login、No mutation、private-by-default artifact 保持边界。
+            </div>
+          </div>
+          <div class="phase">
+            <div class="when">阶段 5：LLM structured normalizer</div>
+            <div>
+              <strong>做了什么：</strong>加入 rule、mock LLM、configured provider normalizer path 和 safe provenance；
+              LLM 输出只能作为候选，必须过 schema、validator、confirmation 和 route policy。
+              <br />
+              <strong>为什么：</strong>真实口语理解通常需要 LLM，但执行权不能交给 LLM；确定性 gate 才是安全边界。
+            </div>
+          </div>
+          <div class="phase">
+            <div class="when">阶段 6：dataset / eval / release pack</div>
+            <div>
+              <strong>做了什么：</strong>从 sanitized trace 生成 Speech-to-Task seed set、deterministic splits、
+              held-out adaptation evaluation、normalizer comparison 和 reviewer release pack。
+              <br />
+              <strong>为什么：</strong>把项目从“能跑”提升到“能复核、能比较、能作为 future adaptation input”，但不声称训练完成。
+            </div>
+          </div>
+          <div class="phase">
+            <div class="when">阶段 7：final completion audit</div>
+            <div>
+              <strong>做了什么：</strong>统一 README、public evidence page、closeout checklist、interview overview、
+              OpenSpec main specs 和 tests。
+              <br />
+              <strong>为什么：</strong>最终交付的风险不是缺功能，而是 claim drift；所有对外材料必须和证据边界一致。
+            </div>
+          </div>
         </div>
       </section>
 
-      <section>
-        <h2>Interview Talk Track</h2>
+      <section id="evidence-modes">
+        <h2>Evidence Modes / 证据模式</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>模式</th>
+              <th>含义</th>
+              <th>主要证据路径</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>demo_preview</code></td>
+              <td>fixture-backed dry-run；证明 normalization、validation、stop/clarification/confirmation 逻辑。</td>
+              <td><code>fixtures/traces/sanitized/</code></td>
+            </tr>
+            <tr>
+              <td><code>live_controlled</code></td>
+              <td>本地受控页面真实执行；用于 icon、color swatch、SVG、dashboard、controlled GitHub-like showcase。</td>
+              <td><code>fixtures/traces/live-sanitized/</code></td>
+            </tr>
+            <tr>
+              <td><code>agentic_live_controlled</code></td>
+              <td>observe-act-verify agentic flow，包含 step-level observation、action、verification 与 recovery/stop。</td>
+              <td><code>fixtures/traces/agentic-sanitized/</code></td>
+            </tr>
+            <tr>
+              <td><code>real_vision_controlled</code></td>
+              <td>通过 dependency boundary 调用真实 <code>browser-use-vision</code> controlled trace。</td>
+              <td><code>fixtures/traces/real-vision-sanitized/</code></td>
+            </tr>
+            <tr>
+              <td><code>real_voice_controlled</code></td>
+              <td>真实音频/ASR review 后跑 controlled visual task，保留 ASR provenance。</td>
+              <td><code>fixtures/traces/real-voice-sanitized/</code></td>
+            </tr>
+            <tr>
+              <td><code>real_use_failure</code></td>
+              <td>ASR unavailable、clarification、confirmation pending/cancelled、ambiguous target 等失败也是可靠性证据。</td>
+              <td><code>fixtures/traces/real-use-sanitized/</code></td>
+            </tr>
+            <tr>
+              <td><code>live_public_readonly</code></td>
+              <td>opt-in 的公网只读路径；必须 allowlist、task contract、completion verifier、local/private evidence。</td>
+              <td>本地 <code>runtime/</code>，通过 sanitizer 后才可能进入公开摘要</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="small">
+          相关文档：<code>docs/demo/demo-task-suite.md</code>, <code>docs/demo/useful-scenarios.md</code>,
+          <code>docs/demo/ablations.md</code>, <code>docs/demo/video-plan.md</code>,
+          <code>docs/public-evidence/index.html</code>。
+        </p>
+      </section>
+
+      <section id="safety-and-privacy-gates">
+        <h2>Safety and Privacy Gates / 安全与隐私门</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Normalizer Validator</h3>
+            <p>拒绝缺字段、unsupported intent、长链路目标、任意 URL、危险 public task slots。</p>
+          </div>
+          <div class="card">
+            <h3>Confirmation Gate</h3>
+            <p>checkout、payment、posting、login、private data、file transfer、irreversible submit 会 pause、cancel 或 block。</p>
+          </div>
+          <div class="card">
+            <h3>Public-Readonly Policy</h3>
+            <p>只允许 read-only navigation/search/extract；No login、No mutation、No account workflow、No arbitrary URL。</p>
+          </div>
+          <div class="card">
+            <h3>Sanitizer</h3>
+            <p>公开 artifact 排除 raw audio、raw screenshots、cookies、credentials、local paths、remote host details、raw provider data。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="metrics">
+        <h2>评测指标及含义</h2>
+        <p>
+          本项目的评测目标不是给模型做排名，而是衡量 Speech-to-Task 输出、执行证据、安全边界和 artifact
+          是否足够可靠。下面这些指标来自 <code>scripts/build_speech_to_task_eval.py</code>、
+          <code>scripts/build_demo_evidence_pack.py</code>、release pack manifest 和测试文档。
+        </p>
+
+        <h3>结构化 Speech-to-Task 指标</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>指标</th>
+              <th>含义</th>
+              <th>为什么重要</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>schema-valid rate</code></td>
+              <td>候选输出能否解析为 <code>BrowserTaskRequest</code> 或 <code>ClarificationRequest</code>。</td>
+              <td>Agent 执行前必须有强 schema；自然语言相似不等于可执行。</td>
+            </tr>
+            <tr>
+              <td><code>output-kind accuracy</code></td>
+              <td>候选输出是 browser task 还是 clarification，是否和 target kind 一致。</td>
+              <td>把应澄清的问题误执行，是比“文本不够像”更严重的错误。</td>
+            </tr>
+            <tr>
+              <td><code>intent-type accuracy</code></td>
+              <td>候选 <code>intent_type</code> 是否匹配目标任务类型。</td>
+              <td>search、click visual target、fill form、select filter、extract/compare 的执行策略完全不同。</td>
+            </tr>
+            <tr>
+              <td><code>required-slot match rate</code></td>
+              <td>public task 所需 slot，如 site hint、query、owner/repo、package name 是否保留。</td>
+              <td>只读公网任务依赖 task contract；slot 丢失会导致错误路由或误报完成。</td>
+            </tr>
+            <tr>
+              <td><code>safety or clarification decision accuracy</code></td>
+              <td>候选是否同样落入 route-ready、confirmation-required、blocked 或 clarification。</td>
+              <td>安全决策比 wording 更关键；该停的必须停。</td>
+            </tr>
+            <tr>
+              <td><code>route-ready rate</code></td>
+              <td>候选输出通过 deterministic validator 且不需要 confirmation 的比例。</td>
+              <td>它不是越高越好；安全敏感任务被 confirmation 拦住时，route-ready 会下降但行为正确。</td>
+            </tr>
+            <tr>
+              <td><code>fallback rate</code></td>
+              <td>LLM/provider 路径失败后走 rule fallback 或 clarification fallback 的比例。</td>
+              <td>体现 provider 不稳定时系统是否仍能安全降级。</td>
+            </tr>
+            <tr>
+              <td><code>failure slices</code></td>
+              <td>按 candidate mode、split、evidence mode、target kind、intent type、schema status、安全类别分组的失败切片。</td>
+              <td>帮助定位错在 schema、intent、slot、安全策略还是某类证据模式。</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>执行与证据指标</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>指标/字段</th>
+              <th>含义</th>
+              <th>如何解读</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>final_status</code></td>
+              <td><code>succeeded</code>, <code>stopped</code>, <code>blocked</code>, <code>failed</code>, <code>pending_confirmation</code>, <code>clarification_required</code> 等。</td>
+              <td>不是所有非 succeeded 都是坏结果；安全停止和澄清本身是设计目标。</td>
+            </tr>
+            <tr>
+              <td><code>execution_mode</code> / <code>evidence_mode</code></td>
+              <td>区分 preview、controlled live、agentic controlled、real voice、public-readonly。</td>
+              <td>避免把 controlled showcase 误说成真实公网执行。</td>
+            </tr>
+            <tr>
+              <td><code>visual verification result</code></td>
+              <td><code>passed</code>, <code>failed</code>, <code>uncertain</code>，附 expected condition、observed state、reason、proof refs。</td>
+              <td>action clicked 不等于视觉状态达成；视觉 verification 是第二层证据。</td>
+            </tr>
+            <tr>
+              <td><code>public_completion_state</code></td>
+              <td><code>completed</code>, <code>partial</code>, <code>stopped</code>, <code>failed</code>, <code>blocked</code>。</td>
+              <td>公网只读任务只有满足 task-specific proof 才能 complete；打开页面不等于成功。</td>
+            </tr>
+            <tr>
+              <td><code>privacy_scan</code> / <code>sanitizer_status</code></td>
+              <td>artifact 是否通过隐私扫描，以及是否 public-safe、pending 或 failed。</td>
+              <td>公开材料可信度取决于 artifact 边界，而不是 raw runtime 输出多少。</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>当前本地评测快照</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>来源</th>
+              <th>快照</th>
+              <th>解释</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>runtime/speech-to-task-adaptation-dataset/manifest.json</code></td>
+              <td>21 examples；train/dev/test = 13/4/4；privacy_scan <span class="ok">passed</span></td>
+              <td>小规模 local seed set，来自 sanitized traces 和 reviewed variants，用于 adaptation readiness。</td>
+            </tr>
+            <tr>
+              <td><code>runtime/speech-to-task-adaptation-eval/summary.json</code></td>
+              <td>test split 4 examples；rule 和 mock_llm 各 4 rows；schema/output/intent/slot/safety 指标为 1.0；route-ready rate 为 0.75。</td>
+              <td>route-ready 低于 1 是因为包含 confirmation-required 样本；这代表安全门工作，不代表失败。</td>
+            </tr>
+            <tr>
+              <td><code>runtime/normalizer-comparison/manifest.json</code></td>
+              <td>13 inputs；26 rows；rule/mock_llm；24 accepted；2 clarification；0 fallback。</td>
+              <td>比较结构化 normalizer 行为，不表示训练或模型排名。</td>
+            </tr>
+            <tr>
+              <td><code>runtime/demo-evidence-release-pack/manifest.json</code></td>
+              <td>privacy_scan <span class="ok">passed</span>；包含 preview/live/agentic/real voice/real vision 等 sanitized evidence。</td>
+              <td>release pack 是 reviewer handoff 入口，面试时可打开 HTML index 或 manifest 讲证据链。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="adaptation-dataset-output">
+        <h2>Adaptation Dataset Output / Speech-to-Task 数据输出</h2>
+        <p>
+          Dataset workflow 把 sanitized Execution Traces 转为本地 adaptation seed examples，并支持
+          <code>--evaluation-splits</code> 生成稳定 train/dev/test split。它的目标是 future Speech-to-Task
+          adaptation 输入，而不是 ASR/TTS 数据集或模型训练结果。
+        </p>
+        <pre><code>uv run python scripts/build_speech_to_task_dataset.py --seed-set --evaluation-splits
+uv run python scripts/build_speech_to_task_eval.py \
+  --dataset-manifest runtime/speech-to-task-adaptation-dataset/manifest.json</code></pre>
+        <p>
+          关键产物：<code>runtime/speech-to-task-adaptation-dataset/manifest.json</code>,
+          <code>runtime/speech-to-task-adaptation-dataset/examples.jsonl</code>,
+          <code>runtime/speech-to-task-adaptation-eval/manifest.json</code>,
+          <code>runtime/speech-to-task-adaptation-eval/summary.json</code>。
+        </p>
+      </section>
+
+      <section id="adaptation-evaluation-output">
+        <h2>Adaptation Evaluation Output / 评测输出</h2>
+        <p>
+          Evaluation harness 在 held-out split 上比较 rule、deterministic mock LLM 或未来 candidate JSONL 输出。
+          每条 candidate 都必须 example-id matched；缺失、重复、extra id 或 malformed output 会被显式记录为失败。
+        </p>
+        <p>
+          报告包含 split counts、candidate modes、schema-valid rate、output-kind accuracy、intent-type accuracy、
+          required-slot match rate、safety or clarification decision accuracy、route-ready rate、fallback rate、
+          row counts、failure slices、source manifest path 和 privacy-scan status。
+        </p>
+        <div class="warning callout">
+          <p>
+            这只是 local adaptation-readiness evidence。它不是 model fine-tuning，不发布 checkpoint，不评估 ASR/TTS 质量，
+            不证明 production readiness，也不证明 broad public-web automation。未来 fine-tuning 应作为 separate future project。
+          </p>
+          <p>
+            Guardrail wording: not fine-tuning, not checkpoint publication, not ASR/TTS evaluation,
+            not public leaderboard ranking, not production readiness, and not broad public-web autonomy.
+          </p>
+        </div>
+      </section>
+
+      <section id="validation-surface">
+        <h2>Validation Surface / 验证入口</h2>
+        <p>面试或 reviewer 复核可以从这些命令和 artifact 开始：</p>
+        <pre><code>uv run python scripts/preflight_real_use.py
+uv run python scripts/run_public_readonly_task_pack.py --all --mode deterministic
+uv run python scripts/build_normalizer_comparison.py --seed-set
+uv run python scripts/build_speech_to_task_dataset.py --seed-set --evaluation-splits
+uv run python scripts/build_speech_to_task_eval.py \
+  --dataset-manifest runtime/speech-to-task-adaptation-dataset/manifest.json
+uv run python scripts/build_demo_evidence_pack.py \
+  --normalizer-comparison-path runtime/normalizer-comparison/manifest.json \
+  --adaptation-eval-path runtime/speech-to-task-adaptation-eval/manifest.json
+OPENSPEC_TELEMETRY=0 openspec validate --all --strict
+uv run pytest
+git diff --check
+git status --short --ignored</code></pre>
+        <p>
+          主要 review artifact：<code>runtime/demo-evidence-release-pack/manifest.json</code>,
+          <code>runtime/demo-evidence-release-pack/index.html</code>,
+          <code>runtime/normalizer-comparison/manifest.json</code>,
+          <code>runtime/speech-to-task-adaptation-eval/manifest.json</code>。
+        </p>
+      </section>
+
+      <section id="evidence-sources">
+        <h2>Evidence Sources / 证据来源</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>来源</th>
+              <th>用途</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>README.md</code></td>
+              <td>项目定位、quickstart、runtime 边界、final closeout 状态。</td>
+            </tr>
+            <tr>
+              <td><code>docs/demo/demo-task-suite.md</code></td>
+              <td>8 个 demo tasks、视觉重任务比例、expected status、public-readonly boundaries。</td>
+            </tr>
+            <tr>
+              <td><code>docs/demo/useful-scenarios.md</code></td>
+              <td>CRM/settings/dashboard/GitHub/docs/package/release-notes 等实用任务形态。</td>
+            </tr>
+            <tr>
+              <td><code>docs/demo/ablations.md</code></td>
+              <td>解释 visual grounding、validator、confirmation、re-observation、visual verification 的模块价值。</td>
+            </tr>
+            <tr>
+              <td><code>docs/demo/video-plan.md</code></td>
+              <td>60-90 秒 demo walkthrough contract。</td>
+            </tr>
+            <tr>
+              <td><code>scripts/build_demo_evidence_pack.py</code></td>
+              <td>从 sanitized traces 构建 reviewer release pack。</td>
+            </tr>
+            <tr>
+              <td><code>scripts/build_speech_to_task_dataset.py</code></td>
+              <td>从 traces 生成 Speech-to-Task seed set。</td>
+            </tr>
+            <tr>
+              <td><code>scripts/build_speech_to_task_eval.py</code></td>
+              <td>生成 held-out structured readiness evaluation。</td>
+            </tr>
+            <tr>
+              <td><code>fixtures/traces/sanitized/</code>, <code>fixtures/traces/live-sanitized/</code>, <code>fixtures/traces/agentic-sanitized/</code></td>
+              <td>preview、live controlled、agentic controlled 的 committed sanitized traces。</td>
+            </tr>
+            <tr>
+              <td><code>fixtures/traces/real-voice-sanitized/</code>, <code>fixtures/traces/real-use-sanitized/</code></td>
+              <td>真实音频 controlled smoke 与真实使用失败/决策 trace。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="limitations">
+        <h2>Limitations / 诚实边界</h2>
+        <div class="danger callout">
+          <p>
+            这个 closeout MVP 不包含 model fine-tuning、expanded dataset collection、public hosting、
+            broad public-web automation、checkpoint 发布、ASR/TTS 质量评测、账号工作流、验证码绕过或写操作。
+            如果后续要做模型适配训练，应作为 separate future project，复用当前 seed/eval artifacts。
+          </p>
+        </div>
+        <p>
+          visual verification loop evidence 默认是 keyless deterministic verifier over controlled local pages。
+          real VLM/provider verification is optional and local/private；不会把 raw screenshots、raw annotated images、
+          provider-private payloads 或 remote host details 放进 release evidence。
+        </p>
+      </section>
+
+      <section id="interview-talk-track">
+        <h2>Interview Talk Track / 面试讲法</h2>
         <ol>
-          <li>Start with the bounded problem: one spoken command becomes one auditable browser task.</li>
-          <li>Show the architecture: ASR adapter, transcript review, normalizer, validator, local execution, visual grounding.</li>
-          <li>Walk through evidence modes and sanitized trace sources.</li>
-          <li>Run or inspect the release pack, adaptation seed-set manifests, and adaptation evaluation report.</li>
-          <li>Close with safety boundaries, limitations, and why evidence completeness matters.</li>
+          <li><strong>先讲问题：</strong>语音命令到浏览器执行不是 NLP rewrite，而是受约束 task construction。</li>
+          <li><strong>再讲架构：</strong>ASR adapter、reviewed transcript、structured normalizer、validator、route、executor、trace。</li>
+          <li><strong>强调边界：</strong>LLM 只生成候选；确定性 validator 和 confirmation gate 决定是否能执行。</li>
+          <li><strong>展示证据：</strong>打开 <code>docs/public-evidence/index.html</code> 或 release pack manifest，按 evidence mode 讲。</li>
+          <li><strong>讲评测：</strong>schema-valid、intent、slot、安全决策、route-ready、visual verification、privacy_scan。</li>
+          <li><strong>最后讲取舍：</strong>为什么 fine-tuning、公网写操作、账号自动化和 public hosting 都被放到 scope 外。</li>
         </ol>
+      </section>
+
+      <section id="interview-qa">
+        <h2>面试官可能问到的问题以及回答</h2>
+
+        <div class="qa">
+          <h3>Q1：这个项目最核心的贡献是什么？</h3>
+          <p>
+            核心贡献是把 spoken command 到 browser execution 做成一个有边界、可审计的系统。
+            不是只接 ASR 和浏览器自动化，而是定义了 Browser Task Request、Clarification Request、
+            validator、confirmation gate、route decision、visual verification result 和 sanitized trace。
+            面试时我会强调：项目的价值在“可靠执行和证据链”，不是泛化语音助手。
+          </p>
+        </div>
+
+        <div class="qa">
+          <h3>Q2：为什么不直接把 ASR 文本丢给 browser agent？</h3>
+          <p>
+            因为 ASR 文本可能不完整、含糊或危险，比如“打开那个页面”“帮我提交”“搜索 GitHub 好项目”。
+            直接执行会把歧义和风险转移给浏览器 agent。我的做法是先把文本转成强 schema，然后用 deterministic
+            validator 判断是否可执行；不明确就 clarification，敏感就 confirmation，越界就 blocked。
+          </p>
+        </div>
+
+        <div class="qa">
+          <h3>Q3：LLM 在系统里承担什么角色？会不会绕过安全逻辑？</h3>
+          <p>
+            LLM 只承担 structured-output normalizer 的候选生成角色。它可以输出 Browser Task Request
+            或 Clarification Request，但必须通过 schema parsing、Normalizer Validator、Confirmation Gate
+            和 route policy。即使 LLM 输出了看似合理的任务，只要 intent、slot、安全状态或 public contract
+            不满足，就不会进入执行。
+          </p>
+        </div>
+
+        <div class="qa">
+          <h3>Q4：为什么项目要复用 browser-use-vision，而不是自己写视觉模型？</h3>
+          <p>
+            项目目标是 Voice-to-Browser application reliability，不是重新做视觉 grounding 引擎。
+            <code>browser-use-vision</code> 已经负责 OCR、region、SoM/visual context 等视觉能力，本项目通过 dependency
+            boundary 调用它，自己负责 voice-to-task、safety、route、execution trace 和 reviewer evidence。
+            这样边界清晰，也避免复制已有项目代码。
+          </p>
+        </div>
+
+        <div class="qa">
+          <h3>Q5：如何证明这不是一个只会 dry-run 的 demo？</h3>
+          <p>
+            证据模式分层：<code>demo_preview</code> 证明 normalization 和 safety；
+            <code>live_controlled</code> 证明本地受控页面真实执行；
+            <code>agentic_live_controlled</code> 证明 observe-act-verify；
+            <code>real_vision_controlled</code> 调用真实 visual grounding dependency；
+            <code>real_voice_controlled</code> 覆盖真实音频 review 路径。
+            每层都有独立 trace 路径和 release-pack manifest。
+          </p>
+        </div>
+
+        <div class="qa">
+          <h3>Q6：为什么 public-readonly 做得这么保守？</h3>
+          <p>
+            因为真实网页有登录态、验证码、速率限制、UI 漂移、账号动作和隐私风险。
+            所以 public-readonly 被设计成 opt-in、allowlisted、task-contract based、No login、No mutation，
+            并且 completion verifier 必须看到 task-specific proof 才能 completed。否则就记录 partial、stopped、
+            failed 或 blocked，这比“硬说成功”更可靠。
+          </p>
+        </div>
+
+        <div class="qa">
+          <h3>Q7：visual verification loop evidence 解决什么问题？</h3>
+          <p>
+            浏览器 action 返回 succeeded 不代表目标视觉状态真的达成。比如 click 发生了，但按钮没变、目标 stale、
+            页面跳转到登录或目标模糊。visual verification result 记录 expected condition、observed state summary、
+            proof refs、reason 和 recovery/stop decision，把“动作成功”和“任务完成”拆开判断。
+          </p>
+        </div>
+
+        <div class="qa">
+          <h3>Q8：评测指标为什么不用文本相似度？</h3>
+          <p>
+            因为这个任务的输出是可执行结构，不是摘要文本。两个句子相似不代表 intent、slot、安全决策正确。
+            所以评测看 schema-valid rate、output-kind accuracy、intent-type accuracy、required-slot match rate、
+            safety or clarification decision accuracy、route-ready rate、fallback rate 和 failure slices。
+          </p>
+        </div>
+
+        <div class="qa">
+          <h3>Q9：route-ready rate 不是 1.0，是不是效果不好？</h3>
+          <p>
+            不一定。当前本地 eval 里 route-ready rate 为 0.75，是因为 held-out 样本中包含 confirmation-required
+            场景。安全敏感任务不应该 route-ready；它应该停在 confirmation gate。因此这个指标要结合 safety decision
+            accuracy 一起看。
+          </p>
+        </div>
+
+        <div class="qa">
+          <h3>Q10：项目如何防止隐私泄漏？</h3>
+          <p>
+            公开材料只使用 sanitized artifacts。Sanitizer 和 tests 会阻止 raw audio、raw screenshots、browser profile、
+            cookies、credentials、private URL、local file URI、raw provider prompt/response、remote host detail 等进入公开证据。
+            public-readonly 的截图和 raw trace 默认留在本地 <code>runtime/</code>，只有通过 sanitizer 才能作为摘要证据。
+          </p>
+        </div>
+
+        <div class="qa">
+          <h3>Q11：如果 ASR 识别错了怎么办？</h3>
+          <p>
+            Operator Console 支持 transcript review：真实音频先生成 ASR transcript，operator 可以查看 adapter metadata、
+            confidence/diagnostics 并编辑 reviewed transcript，再进入 normalizer。trace 会保留原始 ASR、reviewed text、
+            edit status 和 provenance，避免把 ASR 错误伪装成模型成功。
+          </p>
+        </div>
+
+        <div class="qa">
+          <h3>Q12：这个项目为什么没有训练模型？</h3>
+          <p>
+            当前目标是完成应用层可靠性闭环和 evidence pack。项目已经能导出 Speech-to-Task seed set、splits 和 held-out
+            evaluation harness，但 dataset 规模和任务定位还不适合在同一 closeout 中加入训练和 checkpoint 发布。
+            更合理的路线是把训练作为 separate future project，复用现有 examples 和 eval harness。
+          </p>
+        </div>
+
+        <div class="qa">
+          <h3>Q13：如果网页 UI 漂移或公网被限制，系统如何处理？</h3>
+          <p>
+            对 controlled pages，系统通过 deterministic visual verification 和 recovery/stop 决策处理 stale 或 uncertain。
+            对 public-readonly，GitHub captcha、verification、login boundary、rate limit、network error、selector drift
+            都会被映射为 blocked、stopped、failed 或 partial，而不是继续尝试绕过。
+          </p>
+        </div>
+
+        <div class="qa">
+          <h3>Q14：你会如何现场 demo？</h3>
+          <p>
+            我会先跑 command-first console：输入一个清晰 controlled visual command，再展示 route card、normalized request、
+            visual proof 和 trace JSON。然后演示一个 ambiguous command 产生 Clarification Request，一个 checkout command
+            进入 Confirmation Gate。最后打开 release pack 或 <code>docs/public-evidence/index.html</code>，说明证据模式和指标。
+          </p>
+        </div>
+
+        <div class="qa">
+          <h3>Q15：如果让你继续做下一阶段，你会做什么？</h3>
+          <p>
+            我会把下一阶段拆成两个方向：一是扩大 reviewed Speech-to-Task 数据并做真正的 adaptation/fine-tuning；
+            二是增加更多稳定 public-readonly contracts 和真实 VLM verification 的 local/private 对照。
+            但我仍会保持 task contract、安全门和 sanitizer 作为基础边界。
+          </p>
+        </div>
+
+        <div class="qa">
+          <h3>Q16：这个项目和你其它 agent reliability 项目如何呼应？</h3>
+          <p>
+            它补的是 application depth：从评测/证据系统走到一个可交互的 end-to-end agent 应用。
+            共同点是都强调 bounded scope、inspectable artifacts、failure taxonomy、fresh validation 和 reviewer-friendly handoff。
+          </p>
+        </div>
       </section>
     </main>
   </body>
