@@ -612,6 +612,15 @@ def test_operator_console_static_assets_render_public_readonly_readiness_and_rou
     assert 'id="readinessPanel"' in index_html
 
 
+def test_operator_console_task_pack_readiness_details_are_collapsed_by_default():
+    app_js = (PROJECT_ROOT / "src/voice_browser_agent/static/app.js").read_text(encoding="utf-8")
+
+    assert '<details class="task-pack-disclosure">' in app_js
+    assert "<summary>Latest task-pack run" in app_js
+    assert "<summary>Useful task pack rows" in app_js
+    assert '<details class="task-pack-disclosure" open>' not in app_js
+
+
 def test_readiness_reports_latest_task_pack_runner_manifest(tmp_path):
     import importlib.util
 

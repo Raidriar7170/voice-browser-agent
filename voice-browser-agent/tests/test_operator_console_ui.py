@@ -53,8 +53,8 @@ def test_operator_console_uses_versioned_static_assets_to_avoid_stale_js_cache(t
 
     html = client.get("/").text
 
-    assert 'href="/static/styles.css?v=console-v4-20260529"' in html
-    assert 'src="/static/app.js?v=console-v4-20260529"' in html
+    assert 'href="/static/styles.css?v=console-v5-20260601"' in html
+    assert 'src="/static/app.js?v=console-v5-20260601"' in html
 
 
 def test_operator_console_javascript_posts_fixture_replay_endpoint():

@@ -400,33 +400,36 @@ function renderUsefulTaskPack(usefulTaskPack) {
     return '<p class="hint">No useful task-pack rows are available.</p>';
   }
   return `
-    <div class="task-pack-grid" aria-label="Useful task pack rows">
-      ${usefulTaskPackRows
-        .map(
-          (row) => `
-            <article class="task-pack-row ${matrixOutcomeClass(row.outcome)}">
-              <header>
-                <strong>${escapeHtml(row.target_label || row.task_id || "public task")}</strong>
-                <span>${escapeHtml(row.task_category || "unknown")} · ${escapeHtml(row.outcome || "unknown")}</span>
-              </header>
-              <dl>
-                <div><dt>Task</dt><dd>${escapeHtml(row.task_id || "unknown")}</dd></div>
-                <div><dt>Kind</dt><dd>${escapeHtml(row.task_kind || "unknown")}</dd></div>
-                <div><dt>Class</dt><dd>${escapeHtml(row.target_class || "unknown")}</dd></div>
-                <div><dt>Criteria</dt><dd>${escapeHtml(compactField(row.completion_criteria_summary))}</dd></div>
-                <div><dt>Proof</dt><dd>${escapeHtml(compactField(row.observed_proof_summary))}</dd></div>
-                <div><dt>Unmet</dt><dd>${escapeHtml(compactField(row.unmet_criteria))}</dd></div>
-                <div><dt>Reason</dt><dd>${escapeHtml(row.stop_or_failure_reason || "none")}</dd></div>
-                <div><dt>Visible</dt><dd>${escapeHtml(row.visible_result_state || "unknown")}</dd></div>
-                <div><dt>Privacy</dt><dd>${escapeHtml(row.evidence_privacy_state || "unknown")}</dd></div>
-                <div><dt>Sanitizer</dt><dd>${escapeHtml(row.sanitizer_status || "unknown")}</dd></div>
-                <div><dt>Export</dt><dd>${escapeHtml(row.export_state || "unknown")}</dd></div>
-              </dl>
-            </article>
-          `,
-        )
-        .join("")}
-    </div>
+    <details class="task-pack-disclosure">
+      <summary>Useful task pack rows (${escapeHtml(usefulTaskPackRows.length)} contracts)</summary>
+      <div class="task-pack-grid" aria-label="Useful task pack rows">
+        ${usefulTaskPackRows
+          .map(
+            (row) => `
+              <article class="task-pack-row ${matrixOutcomeClass(row.outcome)}">
+                <header>
+                  <strong>${escapeHtml(row.target_label || row.task_id || "public task")}</strong>
+                  <span>${escapeHtml(row.task_category || "unknown")} · ${escapeHtml(row.outcome || "unknown")}</span>
+                </header>
+                <dl>
+                  <div><dt>Task</dt><dd>${escapeHtml(row.task_id || "unknown")}</dd></div>
+                  <div><dt>Kind</dt><dd>${escapeHtml(row.task_kind || "unknown")}</dd></div>
+                  <div><dt>Class</dt><dd>${escapeHtml(row.target_class || "unknown")}</dd></div>
+                  <div><dt>Criteria</dt><dd>${escapeHtml(compactField(row.completion_criteria_summary))}</dd></div>
+                  <div><dt>Proof</dt><dd>${escapeHtml(compactField(row.observed_proof_summary))}</dd></div>
+                  <div><dt>Unmet</dt><dd>${escapeHtml(compactField(row.unmet_criteria))}</dd></div>
+                  <div><dt>Reason</dt><dd>${escapeHtml(row.stop_or_failure_reason || "none")}</dd></div>
+                  <div><dt>Visible</dt><dd>${escapeHtml(row.visible_result_state || "unknown")}</dd></div>
+                  <div><dt>Privacy</dt><dd>${escapeHtml(row.evidence_privacy_state || "unknown")}</dd></div>
+                  <div><dt>Sanitizer</dt><dd>${escapeHtml(row.sanitizer_status || "unknown")}</dd></div>
+                  <div><dt>Export</dt><dd>${escapeHtml(row.export_state || "unknown")}</dd></div>
+                </dl>
+              </article>
+            `,
+          )
+          .join("")}
+      </div>
+    </details>
   `;
 }
 
@@ -448,37 +451,40 @@ function renderTaskPackRun(taskPackRun) {
       )} · ${escapeHtml(taskPackRun.privacy_state || "local_private")} · ${escapeHtml(
         taskPackRun.sanitizer_status || "unknown",
       )} · raw public runtime artifacts remain local/private.</p>
-      <div class="task-pack-grid" aria-label="Latest task-pack run rows">
-        ${rows
-          .map(
-            (row) => `
-              <article class="task-pack-row ${matrixOutcomeClass(row.outcome)}">
-                <header>
-                  <strong>${escapeHtml(row.target_label || row.task_id || "public task")}</strong>
-                  <span>${escapeHtml(row.runner_mode || taskPackRun.runner_mode || "runner")} · ${escapeHtml(
-                    row.outcome || "unknown",
-                  )}</span>
-                </header>
-                <dl>
-                  <div><dt>Task</dt><dd>${escapeHtml(row.task_id || "unknown")}</dd></div>
-                  <div><dt>Category</dt><dd>${escapeHtml(row.task_category || "unknown")}</dd></div>
-                  <div><dt>Kind</dt><dd>${escapeHtml(row.task_kind || "unknown")}</dd></div>
-                  <div><dt>Class</dt><dd>${escapeHtml(row.target_class || "unknown")}</dd></div>
-                  <div><dt>Origin</dt><dd>${escapeHtml(row.sanitized_origin || "unknown")}</dd></div>
-                  <div><dt>Criteria</dt><dd>${escapeHtml(compactField(row.completion_criteria_summary))}</dd></div>
-                  <div><dt>Proof</dt><dd>${escapeHtml(compactField(row.observed_proof_summary))}</dd></div>
-                  <div><dt>Unmet</dt><dd>${escapeHtml(compactField(row.unmet_criteria))}</dd></div>
-                  <div><dt>Reason</dt><dd>${escapeHtml(row.stop_or_failure_reason || row.route_or_execution_reason || "none")}</dd></div>
-                  <div><dt>Visible</dt><dd>${escapeHtml(row.visible_result_state || "unknown")}</dd></div>
-                  <div><dt>Privacy</dt><dd>${escapeHtml(row.evidence_privacy_state || "unknown")}</dd></div>
-                  <div><dt>Sanitizer</dt><dd>${escapeHtml(row.sanitizer_status || "unknown")}</dd></div>
-                  <div><dt>Export</dt><dd>${escapeHtml(row.export_state || "unknown")}</dd></div>
-                </dl>
-              </article>
-            `,
-          )
-          .join("")}
-      </div>
+      <details class="task-pack-disclosure">
+        <summary>Latest task-pack run rows (${escapeHtml(rows.length)} rows)</summary>
+        <div class="task-pack-grid" aria-label="Latest task-pack run rows">
+          ${rows
+            .map(
+              (row) => `
+                <article class="task-pack-row ${matrixOutcomeClass(row.outcome)}">
+                  <header>
+                    <strong>${escapeHtml(row.target_label || row.task_id || "public task")}</strong>
+                    <span>${escapeHtml(row.runner_mode || taskPackRun.runner_mode || "runner")} · ${escapeHtml(
+                      row.outcome || "unknown",
+                    )}</span>
+                  </header>
+                  <dl>
+                    <div><dt>Task</dt><dd>${escapeHtml(row.task_id || "unknown")}</dd></div>
+                    <div><dt>Category</dt><dd>${escapeHtml(row.task_category || "unknown")}</dd></div>
+                    <div><dt>Kind</dt><dd>${escapeHtml(row.task_kind || "unknown")}</dd></div>
+                    <div><dt>Class</dt><dd>${escapeHtml(row.target_class || "unknown")}</dd></div>
+                    <div><dt>Origin</dt><dd>${escapeHtml(row.sanitized_origin || "unknown")}</dd></div>
+                    <div><dt>Criteria</dt><dd>${escapeHtml(compactField(row.completion_criteria_summary))}</dd></div>
+                    <div><dt>Proof</dt><dd>${escapeHtml(compactField(row.observed_proof_summary))}</dd></div>
+                    <div><dt>Unmet</dt><dd>${escapeHtml(compactField(row.unmet_criteria))}</dd></div>
+                    <div><dt>Reason</dt><dd>${escapeHtml(row.stop_or_failure_reason || row.route_or_execution_reason || "none")}</dd></div>
+                    <div><dt>Visible</dt><dd>${escapeHtml(row.visible_result_state || "unknown")}</dd></div>
+                    <div><dt>Privacy</dt><dd>${escapeHtml(row.evidence_privacy_state || "unknown")}</dd></div>
+                    <div><dt>Sanitizer</dt><dd>${escapeHtml(row.sanitizer_status || "unknown")}</dd></div>
+                    <div><dt>Export</dt><dd>${escapeHtml(row.export_state || "unknown")}</dd></div>
+                  </dl>
+                </article>
+              `,
+            )
+            .join("")}
+        </div>
+      </details>
     </section>
   `;
 }

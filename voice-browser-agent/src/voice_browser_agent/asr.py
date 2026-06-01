@@ -120,9 +120,14 @@ class FallbackASRAdapter:
         except ImportError as exc:
             raise ASRUnavailable("faster-whisper is not installed") from exc
 
-        model = WhisperModel(self.model_size)
-        segments, info = model.transcribe(str(command_input.storage_path), language="zh")
-        text = "".join(segment.text for segment in segments).strip()
+        try:
+            model = WhisperModel(self.model_size)
+            segments, info = model.transcribe(str(command_input.storage_path), language="zh")
+            text = "".join(segment.text for segment in segments).strip()
+        except Exception as exc:
+            raise ASRAdapterError(
+                f"Fallback ASR failed to transcribe audio: {exc.__class__.__name__}"
+            ) from exc
         if not text:
             raise ASRAdapterError("Fallback ASR produced an empty transcript")
         return self.from_text(

@@ -154,6 +154,19 @@ label {
   margin-top: 10px;
 }
 
+.task-pack-disclosure {
+  border-top: 1px solid #e4eaee;
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+.task-pack-disclosure summary {
+  color: #26343d;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .task-pack-row {
   border: 1px solid #d6dde2;
   border-radius: 6px;
