@@ -1,8 +1,10 @@
 import json
+import re
 from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = PROJECT_ROOT.parent
 
 
 def _normalized_command_text(text: str) -> str:
@@ -329,6 +331,72 @@ def test_readme_points_to_closeout_and_interview_handoff():
 
     assert "docs/demo/closeout-checklist.md" in readme
     assert "docs/interview-project-overview.html" in readme
+
+
+def test_public_handoff_docs_separate_ci_from_local_private_runtime_evidence():
+    surfaces = [
+        REPO_ROOT / "README.md",
+        PROJECT_ROOT / "README.md",
+        PROJECT_ROOT / "docs/demo/closeout-checklist.md",
+        PROJECT_ROOT / "docs/public-evidence/index.html",
+        PROJECT_ROOT / "docs/interview-project-overview.html",
+    ]
+
+    for surface in surfaces:
+        text = surface.read_text(encoding="utf-8")
+        lower = text.lower()
+        assert "front-door.yml" in text, surface
+        assert "reliability.yml" in text, surface
+        assert "ci-safe pytest subset" in lower, surface
+        assert "runtime/reliability-snapshot/manifest.json" in text, surface
+        assert "scripts/build_reliability_snapshot.py" in text, surface
+        assert "local/private" in lower, surface
+        assert "not live public browsing" in lower, surface
+        assert "not recorded-audio" in lower, surface
+        assert "not real-provider inference" in lower, surface
+        assert "not model training" in lower, surface
+
+
+def test_public_handoff_docs_avoid_stale_hard_coded_pass_counts():
+    surfaces = [
+        REPO_ROOT / "README.md",
+        PROJECT_ROOT / "README.md",
+        PROJECT_ROOT / "docs/demo/closeout-checklist.md",
+        PROJECT_ROOT / "docs/public-evidence/index.html",
+        PROJECT_ROOT / "docs/interview-project-overview.html",
+    ]
+    stale_count = re.compile(r"\b\d+\s+passed\b", re.IGNORECASE)
+
+    for surface in surfaces:
+        text = surface.read_text(encoding="utf-8")
+        assert not stale_count.search(text), surface
+
+
+def test_public_readmes_do_not_claim_every_openspec_change_is_archived():
+    readmes = [
+        REPO_ROOT / "README.md",
+        PROJECT_ROOT / "README.md",
+    ]
+
+    for readme in readmes:
+        text = readme.read_text(encoding="utf-8")
+        assert "All changes archived" not in text
+        assert "All OpenSpec changes are archived" not in text
+
+
+def test_local_ci_safe_pytest_docs_define_targets_before_use():
+    surfaces = [
+        PROJECT_ROOT / "docs/demo/closeout-checklist.md",
+        PROJECT_ROOT / "docs/interview-project-overview.html",
+    ]
+
+    for surface in surfaces:
+        text = surface.read_text(encoding="utf-8")
+        definition = 'CI_SAFE_PYTEST_TARGETS="tests/test_reliability_ci_gate.py'
+        command = "python -m pytest $CI_SAFE_PYTEST_TARGETS"
+        assert definition in text, surface
+        assert command in text, surface
+        assert text.index(definition) < text.index(command), surface
 
 
 def test_speech_to_task_dataset_docs_define_build_command_and_boundaries():

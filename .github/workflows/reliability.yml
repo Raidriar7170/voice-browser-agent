@@ -1,0 +1,68 @@
+name: Reliability
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  OPENSPEC_TELEMETRY: "0"
+  CI_SAFE_PYTEST_TARGETS: >-
+    tests/test_reliability_ci_gate.py
+    tests/test_reliability_snapshot.py
+    tests/test_demo_evidence.py
+    tests/test_demo_evidence_release_pack.py
+    tests/test_normalizer_comparison.py
+    tests/test_public_readonly_task_pack_runner.py
+    tests/test_speech_to_task_dataset_builder.py
+    tests/test_speech_to_task_eval.py
+
+jobs:
+  reliability:
+    name: OpenSpec and deterministic evidence tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node for OpenSpec
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install OpenSpec CLI
+        run: npm install -g @fission-ai/openspec@1.3.1
+
+      - name: Run OpenSpec strict validation
+        run: OPENSPEC_TELEMETRY=0 openspec validate --all --strict
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install CI-safe Python test dependencies
+        run: |
+          # CI-safe pytest subset: browser-use-vision remains local-only for full
+          # runtime, Playwright, recorded-audio, real-provider, and live public checks.
+          python -m pip install --upgrade pip
+          python -m pip install -e "voice-browser-agent[dev]" --no-deps
+          python -m pip install \
+            pytest \
+            pytest-asyncio \
+            pydantic \
+            pydantic-settings \
+            fastapi \
+            httpx \
+            python-multipart
+
+      - name: Run deterministic reliability test subset
+        working-directory: voice-browser-agent
+        run: python -m pytest $CI_SAFE_PYTEST_TARGETS

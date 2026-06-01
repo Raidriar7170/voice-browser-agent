@@ -179,7 +179,32 @@
       </section>
 
       <section>
+        <h2>CI and Local Evidence Boundary</h2>
+        <p>
+          <code>.github/workflows/front-door.yml</code> and
+          <code>.github/workflows/reliability.yml</code> are separate checks. Front Door validates
+          the public entry surface. Reliability CI runs OpenSpec strict validation and a
+          CI-safe pytest subset for deterministic docs, schemas, evidence builders, privacy
+          guards, and release-pack contracts.
+        </p>
+        <p>
+          The CI-safe pytest subset is not live public browsing, not recorded-audio,
+          not real-provider inference, and not model training. Full local browser/runtime
+          checks, real audio review, optional provider runs, live public-readonly runs, and
+          full <code>uv run pytest</code> remain local/private unless a later scoped change makes
+          them deterministic and CI-safe.
+        </p>
+        <p>
+          <code>scripts/build_reliability_snapshot.py</code> generates
+          <code>runtime/reliability-snapshot/manifest.json</code> under ignored runtime output.
+          The snapshot summarizes committed sanitized evidence and optional local/private
+          manifests; it is not a committed raw evidence artifact.
+        </p>
+      </section>
+
+      <section>
         <h2>Local Review Commands</h2>
+        <p><code>uv run python scripts/build_reliability_snapshot.py</code></p>
         <p><code>uv run python scripts/preflight_real_use.py</code></p>
         <p><code>uv run python scripts/generate_real_vision_trace.py</code></p>
         <p><code>uv run python scripts/generate_real_voice_trace.py</code></p>

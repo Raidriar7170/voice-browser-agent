@@ -365,8 +365,8 @@
             <span>2026-05-30 closeout；OpenSpec changes 已归档</span>
           </div>
           <div class="stat">
-            <strong>246 passed</strong>
-            <span>本次全量 pytest 结果，与 closeout 记录一致</span>
+            <strong>Command-verified</strong>
+            <span>CI 与本地验证用命令复跑，不写死历史 pass 数</span>
           </div>
           <div class="stat">
             <strong>21 examples</strong>
@@ -894,6 +894,7 @@ uv run python scripts/build_speech_to_task_eval.py \
         <h2>Validation Surface / 验证入口</h2>
         <p>面试或 reviewer 复核可以从这些命令和 artifact 开始：</p>
         <pre><code>uv run python scripts/preflight_real_use.py
+uv run python scripts/build_reliability_snapshot.py
 uv run python scripts/run_public_readonly_task_pack.py --all --mode deterministic
 uv run python scripts/build_normalizer_comparison.py --seed-set
 uv run python scripts/build_speech_to_task_dataset.py --seed-set --evaluation-splits
@@ -903,14 +904,30 @@ uv run python scripts/build_demo_evidence_pack.py \
   --normalizer-comparison-path runtime/normalizer-comparison/manifest.json \
   --adaptation-eval-path runtime/speech-to-task-adaptation-eval/manifest.json
 OPENSPEC_TELEMETRY=0 openspec validate --all --strict
+CI_SAFE_PYTEST_TARGETS="tests/test_reliability_ci_gate.py tests/test_reliability_snapshot.py tests/test_demo_evidence.py tests/test_demo_evidence_release_pack.py tests/test_normalizer_comparison.py tests/test_public_readonly_task_pack_runner.py tests/test_speech_to_task_dataset_builder.py tests/test_speech_to_task_eval.py"
+python -m pytest $CI_SAFE_PYTEST_TARGETS
 uv run pytest
 git diff --check
 git status --short --ignored</code></pre>
         <p>
+          CI 入口分开：<code>.github/workflows/front-door.yml</code> 检查公开入口；
+          <code>.github/workflows/reliability.yml</code> 跑 OpenSpec strict validation
+          和 CI-safe pytest subset。
+        </p>
+        <p>
+          The CI-safe pytest subset is not live public browsing, not recorded-audio,
+          not real-provider inference, and not model training. Full browser/runtime、
+          real audio review、optional provider、live public-readonly 和完整
+          <code>uv run pytest</code> 仍然是 local/private validation path。
+        </p>
+        <p>
           主要 review artifact：<code>runtime/demo-evidence-release-pack/manifest.json</code>,
           <code>runtime/demo-evidence-release-pack/index.html</code>,
           <code>runtime/normalizer-comparison/manifest.json</code>,
+          <code>runtime/reliability-snapshot/manifest.json</code>,
           <code>runtime/speech-to-task-adaptation-eval/manifest.json</code>。
+          <code>scripts/build_reliability_snapshot.py</code> 会生成 reliability snapshot；
+          它汇总 committed sanitized evidence 和 optional local/private manifests，不是 raw evidence release。
         </p>
       </section>
 

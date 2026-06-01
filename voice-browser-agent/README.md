@@ -6,13 +6,14 @@ This is a scoped demo application project, not a `browser-use-vision` voice exte
 
 ## Project Status
 
-Status: final local MVP complete and archived as of 2026-05-30. All OpenSpec changes are archived, with the final closeout in `openspec/changes/archive/2026-05-30-final-project-completion-audit/`.
+Status: final local MVP complete, with the 2026-05-30 closeout archived in `openspec/changes/archive/2026-05-30-final-project-completion-audit/` and the 2026-06-01 reliability gate archived in `openspec/changes/archive/2026-06-01-ci-backed-reliability-evidence-gate/`.
 
 Closeout validation:
 
-- `OPENSPEC_TELEMETRY=0 openspec validate --all --strict`: 10 passed
-- `uv run pytest`: 246 passed
-- `git diff --check`: clean
+- `.github/workflows/front-door.yml`: public README/license/JSON/compile checks.
+- `.github/workflows/reliability.yml`: OpenSpec strict validation plus the CI-safe pytest subset.
+- Local full-suite command: re-run `uv run pytest` from this directory when local dependencies are available.
+- Repo hygiene command: re-run `git diff --check`.
 
 The repository is intended as a bounded, reviewer-friendly local demo and evidence pack. It does not include fine-tuning, checkpoint publication, ASR/TTS quality evaluation, public leaderboard ranking, production readiness, or broad public-web autonomy.
 
@@ -25,7 +26,7 @@ uv run uvicorn voice_browser_agent.app:app --reload
 
 Open `http://127.0.0.1:8000`, upload a supported audio file, or paste one of the fixture transcripts from `fixtures/audio/*.fixture.json`.
 
-The local visual grounding dependency is resolved by `uv` from `../../../browser-use-vision` through `[tool.uv.sources]`. If the repo lives elsewhere, edit that path or install `browser-use-vision` into the environment before running non-demo vision checks.
+The local visual grounding dependency is resolved by `uv` from `../../../browser-use-vision` through `[tool.uv.sources]`. If the repo lives elsewhere, edit that path or install `browser-use-vision` into the environment before running non-demo vision checks. Reliability CI does not rely on that sibling checkout; it installs this package without dependency resolution and runs a documented CI-safe pytest subset.
 
 Check real-use readiness before running uploaded or recorded audio:
 
@@ -34,6 +35,34 @@ uv run python scripts/preflight_real_use.py
 ```
 
 The preflight reports primary ASR, fallback ASR, Playwright browser automation, real `browser-use-vision` grounding, visual verifier readiness, and runtime privacy status without exposing local runtime paths.
+
+## CI and Local Evidence Boundary
+
+GitHub Actions has two separate gates:
+
+- `.github/workflows/front-door.yml` checks the public front door: README links,
+  license text, committed JSON parseability, and Python compilation.
+- `.github/workflows/reliability.yml` checks the reliability contract:
+  `OPENSPEC_TELEMETRY=0 openspec validate --all --strict`, an explicit
+  dependency install that avoids the missing local `browser-use-vision` sibling,
+  and a CI-safe pytest subset for docs, schemas, deterministic evidence
+  builders, privacy guards, and release-pack contracts.
+
+The CI-safe pytest subset is not live public browsing, not recorded-audio, not real-provider inference, and not model training. Browser/runtime-heavy checks,
+real audio review, optional provider trials, live public-readonly runs, and full
+`uv run pytest` remain local/private validation paths unless a later change makes
+them deterministic and CI-safe.
+
+Build the generated reliability snapshot locally:
+
+```bash
+uv run python scripts/build_reliability_snapshot.py
+```
+
+The command writes `runtime/reliability-snapshot/manifest.json`. That manifest
+summarizes committed sanitized traces plus optional local/private manifests; it
+records unavailable optional inputs as unavailable instead of fabricating
+metrics, and the generated `runtime/` output stays ignored.
 
 ## Runtime
 

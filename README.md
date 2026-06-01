@@ -1,6 +1,7 @@
 # Voice-to-Browser Agent
 
 [![Front Door](https://github.com/Raidriar7170/voice-browser-agent/actions/workflows/front-door.yml/badge.svg)](https://github.com/Raidriar7170/voice-browser-agent/actions/workflows/front-door.yml)
+[![Reliability](https://github.com/Raidriar7170/voice-browser-agent/actions/workflows/reliability.yml/badge.svg)](https://github.com/Raidriar7170/voice-browser-agent/actions/workflows/reliability.yml)
 [![Release](https://img.shields.io/github/v/release/Raidriar7170/voice-browser-agent?label=release)](https://github.com/Raidriar7170/voice-browser-agent/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)
@@ -32,9 +33,11 @@ Latest closeout state:
 
 | Item | Status |
 |---|---|
-| OpenSpec lifecycle | All changes archived |
-| Local tests | `uv run pytest` passes |
-| OpenSpec validation | `openspec validate --all --strict` passes |
+| OpenSpec lifecycle | Closeout archived; reliability gate archived on 2026-06-01 |
+| Front Door CI | `.github/workflows/front-door.yml` checks the public entry surface |
+| Reliability CI | `.github/workflows/reliability.yml` runs OpenSpec strict validation and a CI-safe pytest subset |
+| Local tests | Re-run `uv run pytest` for the full local project suite |
+| OpenSpec validation | Re-run `OPENSPEC_TELEMETRY=0 openspec validate --all --strict` |
 | Public scope | Local bounded MVP and reviewer evidence pack |
 | Explicitly not claimed | Fine-tuning, checkpoint release, ASR/TTS benchmark, public leaderboard, production autonomy |
 
@@ -45,6 +48,7 @@ Latest closeout state:
 - [What Is Implemented / 已实现内容](#what-is-implemented--已实现内容)
 - [Evidence Boundary / 证据边界](#evidence-boundary--证据边界)
 - [Quick Start / 快速开始](#quick-start--快速开始)
+- [CI And Local Evidence Boundary / CI 与本地证据边界](#ci-and-local-evidence-boundary--ci-与本地证据边界)
 - [Evidence Map / 证据地图](#evidence-map--证据地图)
 - [Validation / 验证](#validation--验证)
 
@@ -180,6 +184,32 @@ For the full runtime details, environment variables, public-readonly setup, and
 evidence-pack commands, see
 [`voice-browser-agent/README.md`](voice-browser-agent/README.md).
 
+## CI And Local Evidence Boundary / CI 与本地证据边界
+
+GitHub validation is intentionally split:
+
+- `.github/workflows/front-door.yml` keeps the public README, license, JSON, and
+  Python compile checks fast.
+- `.github/workflows/reliability.yml` runs OpenSpec strict validation plus a
+  CI-safe pytest subset for docs, schemas, deterministic evidence builders,
+  privacy guards, and release-pack contracts.
+
+The CI-safe pytest subset is not live public browsing, not recorded-audio, not real-provider inference, and not model training. Full local validation can still
+run `uv run pytest` from `voice-browser-agent/` when the editable
+`browser-use-vision` sibling, Playwright/browser runtime, and local/private
+artifacts are available.
+
+Generate the local reliability snapshot with:
+
+```bash
+cd voice-browser-agent
+uv run python scripts/build_reliability_snapshot.py
+```
+
+It writes `runtime/reliability-snapshot/manifest.json`, an ignored
+local/private summary of committed sanitized evidence and optional runtime
+manifests. It is not committed raw evidence.
+
 ## Evidence Map / 证据地图
 
 | Artifact | Purpose |
@@ -246,6 +276,7 @@ From the repository root:
 ```bash
 OPENSPEC_TELEMETRY=0 openspec validate --all --strict
 cd voice-browser-agent
+uv run python scripts/build_reliability_snapshot.py
 uv run pytest
 git diff --check
 ```

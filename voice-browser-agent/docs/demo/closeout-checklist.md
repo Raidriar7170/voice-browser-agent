@@ -2,9 +2,21 @@
 
 Use this checklist before archiving or committing the final Voice-to-Browser Agent handoff. Archived change names are historical context, not validation targets; final validation uses the current main-spec suite.
 
+## CI and Local Evidence Boundary
+
+Confirm `.github/workflows/front-door.yml` and `.github/workflows/reliability.yml`
+are described separately in handoff docs. The reliability workflow runs
+OpenSpec strict validation and a CI-safe pytest subset for deterministic docs,
+schemas, evidence builders, privacy guards, and release-pack contracts.
+
+The CI-safe pytest subset is not live public browsing, not recorded-audio, not real-provider inference, and not model training. Full browser, real audio,
+optional provider, live public-readonly, and full `uv run pytest` checks remain
+local/private unless a future change makes them deterministic and CI-safe.
+
 ## Generate Local Review Artifacts
 
 ```bash
+uv run python scripts/build_reliability_snapshot.py
 uv run python scripts/preflight_real_use.py
 uv run python scripts/generate_agentic_traces.py
 uv run python scripts/generate_real_voice_trace.py
@@ -21,6 +33,7 @@ uv run python scripts/build_demo_evidence_pack.py \
 
 Inspect:
 
+- `runtime/reliability-snapshot/manifest.json`
 - `runtime/demo-evidence-release-pack/manifest.json`
 - `runtime/demo-evidence-release-pack/index.html`
 - `runtime/normalizer-comparison/manifest.json`
@@ -48,6 +61,8 @@ Generated runtime artifacts stay local. The committed evidence sources are:
 
 ```bash
 OPENSPEC_TELEMETRY=0 openspec validate --all --strict
+CI_SAFE_PYTEST_TARGETS="tests/test_reliability_ci_gate.py tests/test_reliability_snapshot.py tests/test_demo_evidence.py tests/test_demo_evidence_release_pack.py tests/test_normalizer_comparison.py tests/test_public_readonly_task_pack_runner.py tests/test_speech_to_task_dataset_builder.py tests/test_speech_to_task_eval.py"
+python -m pytest $CI_SAFE_PYTEST_TARGETS
 uv run pytest
 git diff --check
 git status --short --ignored

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CI-backed Reliability Evidence Gate Human Brief</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #1d252c;
+        --muted: #586773;
+        --line: #d8e0e7;
+        --panel: #f6f8fa;
+        --accent: #0f766e;
+      }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--ink);
+        background: #ffffff;
+      }
+      main {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 32px 20px 48px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+        letter-spacing: 0;
+      }
+      h2 {
+        margin: 28px 0 10px;
+        font-size: 18px;
+      }
+      p {
+        line-height: 1.6;
+      }
+      .lead {
+        color: var(--muted);
+        font-size: 16px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 14px;
+        background: var(--panel);
+      }
+      .label {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .value {
+        margin-top: 6px;
+        font-size: 20px;
+        font-weight: 700;
+      }
+      code {
+        background: #edf2f6;
+        border-radius: 4px;
+        padding: 2px 5px;
+      }
+      ul {
+        padding-left: 20px;
+      }
+      li {
+        margin: 7px 0;
+      }
+      a {
+        color: var(--accent);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>CI-backed Reliability Evidence Gate</h1>
+      <p class="lead">
+        结论：本阶段把已有本地证据链补成了可在 GitHub Actions 复跑的 reliability gate，同时保留 live/browser/provider/audio 证据的 local/private 边界。
+      </p>
+
+      <section class="grid" aria-label="status summary">
+        <div class="card">
+          <div class="label">当前状态</div>
+          <div class="value">Archived，2026-06-01</div>
+        </div>
+        <div class="card">
+          <div class="label">CI-safe subset</div>
+          <div class="value">118 passed</div>
+        </div>
+        <div class="card">
+          <div class="label">Full local pytest</div>
+          <div class="value">274 passed</div>
+        </div>
+        <div class="card">
+          <div class="label">OpenSpec strict</div>
+          <div class="value">11 passed</div>
+        </div>
+      </section>
+
+      <h2>本阶段改了什么</h2>
+      <ul>
+        <li>新增 <code>.github/workflows/reliability.yml</code>，与 <code>front-door.yml</code> 分开，运行 OpenSpec strict validation 和 CI-safe pytest subset。</li>
+        <li>新增 <code>voice-browser-agent/scripts/build_reliability_snapshot.py</code>，生成 <code>runtime/reliability-snapshot/manifest.json</code>，只汇总 sanitized evidence 和 optional local manifests。</li>
+        <li>新增测试覆盖 workflow 形状、CI dependency strategy、snapshot 内容、privacy failure、handoff wording、stale pass count、stale OpenSpec lifecycle wording，以及 reviewer 发现的 private URL/local path 扫描缺口。</li>
+        <li>更新 README、public evidence、closeout checklist、interview overview，明确 CI 不能等同于 live public browsing、recorded audio、real-provider inference 或 model training。</li>
+      </ul>
+
+      <h2>关键文件</h2>
+      <ul>
+        <li><a href="../../.github/workflows/reliability.yml">.github/workflows/reliability.yml</a></li>
+        <li><a href="../../voice-browser-agent/scripts/build_reliability_snapshot.py">voice-browser-agent/scripts/build_reliability_snapshot.py</a></li>
+        <li><a href="../../voice-browser-agent/tests/test_reliability_ci_gate.py">voice-browser-agent/tests/test_reliability_ci_gate.py</a></li>
+        <li><a href="../../voice-browser-agent/tests/test_reliability_snapshot.py">voice-browser-agent/tests/test_reliability_snapshot.py</a></li>
+        <li><a href="../../openspec/changes/archive/2026-06-01-ci-backed-reliability-evidence-gate/tasks.md">openspec/changes/archive/2026-06-01-ci-backed-reliability-evidence-gate/tasks.md</a></li>
+        <li><a href="../../openspec/specs/ci-backed-reliability-evidence-gate/spec.md">openspec/specs/ci-backed-reliability-evidence-gate/spec.md</a></li>
+      </ul>
+
+      <h2>验证结果</h2>
+      <ul>
+        <li><code>uv run pytest tests/test_reliability_ci_gate.py tests/test_reliability_snapshot.py tests/test_demo_evidence.py</code> -> 50 passed。</li>
+        <li><code>uv run pytest ...CI_SAFE_PYTEST_TARGETS...</code> -> 118 passed。</li>
+        <li><code>uv run pytest</code> -> 274 passed。</li>
+        <li><code>OPENSPEC_TELEMETRY=0 openspec validate --all --strict</code> -> 11 passed, 0 failed。</li>
+        <li><code>uv run python scripts/build_reliability_snapshot.py</code> -> generated ignored runtime manifest, privacy status passed。</li>
+      </ul>
+
+      <h2>证据边界</h2>
+      <ul>
+        <li>Reliability CI 使用 <code>pip install -e "voice-browser-agent[dev]" --no-deps</code> 和手动依赖安装，避免依赖缺失的本地 <code>../../../browser-use-vision</code> sibling checkout。</li>
+        <li>Snapshot privacy scanner 会拦截敏感 key、raw marker、private/loopback URL、<code>172.16.0.0/12</code>、<code>10.0.0.0/8</code>、<code>192.168.0.0/16</code> 和本机 <code>/Users/</code> 路径。</li>
+        <li>Generated snapshot 不是 committed raw evidence；<code>runtime/</code> 仍由 <code>voice-browser-agent/.gitignore</code> 忽略。</li>
+        <li>Full browser、real audio、optional provider、live public-readonly 和完整本地 pytest 仍是 local/private validation path，除非后续 OpenSpec change 明确把它们做成 deterministic CI-safe。</li>
+      </ul>
+
+      <h2>剩余风险</h2>
+      <ul>
+        <li>CI workflow 还需要 push 后由 GitHub Actions 实际跑一次，当前本地已验证 workflow 形状和命令。</li>
+        <li><code>uv.lock</code> 同步了本地 editable <code>browser-use-vision</code> 的当前版本；这是本地 full-suite 验证产生的依赖状态变化，需要 reviewer 确认是否随本阶段保留。</li>
+      </ul>
+
+      <h2>推荐下一步</h2>
+      <p>下一步可以做 git review、stage/commit，并在 push 后观察 GitHub Actions。不要把 reliability badge 解读成公网 live browsing 或 real-provider evidence 已在 CI 中复现。</p>
+    </main>
+  </body>
+</html>
