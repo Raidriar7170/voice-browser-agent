@@ -48,6 +48,7 @@ Latest closeout state:
 - [Architecture / 系统架构](#architecture--系统架构)
 - [What Is Implemented / 已实现内容](#what-is-implemented--已实现内容)
 - [Operator Console / 操作台体验](#operator-console--操作台体验)
+- [Demo Preview / 演示预览](#demo-preview--演示预览)
 - [Evidence Boundary / 证据边界](#evidence-boundary--证据边界)
 - [Quick Start / 快速开始](#quick-start--快速开始)
 - [Minimal Reviewer Path / 最小复核路径](#minimal-reviewer-path--最小复核路径)
@@ -153,6 +154,18 @@ the execution policy: public-readonly traces, task-pack rows, visual artifacts,
 and exports remain local/private unless sanitizer approval is explicit. The
 archived change brief is
 [`docs/human-briefs/2026-06-01-polish-operator-console-ui.html`](docs/human-briefs/2026-06-01-polish-operator-console-ui.html).
+
+## Demo Preview / 演示预览
+
+This committed GIF is a sanitized preview of the reviewer-facing flow: command
+entry, readiness and route evidence, responsive inspection, and local/private
+release-pack evidence. It is not a raw runtime capture and does not expose
+recordings, browser profiles, private paths, credentials, or unsanitized traces.
+
+![Voice-to-Browser Agent safe demo preview](docs/human-briefs/assets/2026-06-01-voice-browser-agent-demo-preview.gif)
+
+For the full 60-90 second recording script, see
+[`voice-browser-agent/docs/demo/video-plan.md`](voice-browser-agent/docs/demo/video-plan.md).
 
 ## Evidence Boundary / 证据边界
 
@@ -266,6 +279,8 @@ manifests. It is not committed raw evidence.
 | [`voice-browser-agent/docs/demo/ablations.md`](voice-browser-agent/docs/demo/ablations.md) | Module-value ablation notes without leaderboard claims |
 | [`voice-browser-agent/docs/demo/video-plan.md`](voice-browser-agent/docs/demo/video-plan.md) | Demo recording plan and evidence checklist |
 | [`voice-browser-agent/docs/demo/speech-to-task-dataset.md`](voice-browser-agent/docs/demo/speech-to-task-dataset.md) | Speech-to-task dataset and correction overlay format |
+| [`docs/human-briefs/assets/2026-06-01-voice-browser-agent-demo-preview.gif`](docs/human-briefs/assets/2026-06-01-voice-browser-agent-demo-preview.gif) | Sanitized README demo preview GIF |
+| [`docs/human-briefs/2026-06-01-demo-preview-and-topics.html`](docs/human-briefs/2026-06-01-demo-preview-and-topics.html) | Human review brief for the demo preview and GitHub topics polish |
 | [`voice-browser-agent/fixtures/traces/sanitized/`](voice-browser-agent/fixtures/traces/sanitized/) | Demo-preview sanitized traces |
 | [`voice-browser-agent/fixtures/traces/live-sanitized/`](voice-browser-agent/fixtures/traces/live-sanitized/) | Live controlled sanitized traces |
 | [`voice-browser-agent/fixtures/traces/agentic-sanitized/`](voice-browser-agent/fixtures/traces/agentic-sanitized/) | Agentic controlled traces with visual verification |

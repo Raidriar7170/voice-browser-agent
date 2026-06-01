@@ -172,6 +172,21 @@ def test_release_pack_docs_define_build_command_and_artifact_boundaries():
     assert "committed evidence sources" in readme
 
 
+def test_root_readme_links_sanitized_demo_preview_asset():
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    preview = REPO_ROOT / "docs/human-briefs/assets/2026-06-01-voice-browser-agent-demo-preview.gif"
+    poster = REPO_ROOT / "docs/human-briefs/assets/2026-06-01-voice-browser-agent-demo-preview-poster.png"
+
+    assert "Demo Preview / 演示预览" in readme
+    assert str(preview.relative_to(REPO_ROOT)) in readme
+    assert preview.is_file()
+    assert poster.is_file()
+    assert 50_000 < preview.stat().st_size < 5_000_000
+    assert 50_000 < poster.stat().st_size < 1_000_000
+    assert "not a raw runtime capture" in readme
+    assert "voice-browser-agent/docs/demo/video-plan.md" in readme
+
+
 def test_release_pack_docs_avoid_overclaiming():
     docs = [
         PROJECT_ROOT / "README.md",
