@@ -1,8 +1,22 @@
 :root {
   color-scheme: light;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #eef3f5;
-  color: #172026;
+  --surface-page: #eef3f5;
+  --surface-panel: #ffffff;
+  --surface-muted: #f1f4f6;
+  --surface-raised: #f8fafb;
+  --border-default: #d1dbe1;
+  --border-strong: #9aa8b1;
+  --text-primary: #172026;
+  --text-secondary: #53636d;
+  --focus-ring: #1f6feb;
+  --status-success: #4f9462;
+  --status-warning: #b9993d;
+  --status-danger: #b65b5b;
+  --status-private: #5b6e9c;
+  --status-blocked: #6f7c86;
+  background: var(--surface-page);
+  color: var(--text-primary);
 }
 
 * {
@@ -23,11 +37,15 @@ textarea {
 button {
   border: 1px solid #26343d;
   border-radius: 6px;
-  background: #172026;
+  background: var(--text-primary);
   color: white;
   cursor: pointer;
   min-height: 38px;
   padding: 0 14px;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
 }
 
 button:disabled {
@@ -46,6 +64,11 @@ button:disabled {
   max-width: 1240px;
   margin: 0 auto;
   padding: 24px;
+}
+
+.operations-dashboard {
+  display: grid;
+  gap: 14px;
 }
 
 .toolbar {
@@ -81,7 +104,7 @@ label {
 
 .subtle,
 .hint {
-  color: #53636d;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.4;
 }
@@ -109,10 +132,11 @@ label {
 }
 
 .panel {
-  background: #ffffff;
-  border: 1px solid #d1dbe1;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   min-height: 170px;
+  min-width: 0;
   padding: 16px;
 }
 
@@ -120,6 +144,20 @@ label {
   display: grid;
   gap: 12px;
   grid-row: span 2;
+}
+
+.primary-workflow {
+  border-color: #b8c7ce;
+  box-shadow: 0 10px 30px rgb(20 38 49 / 8%);
+}
+
+.secondary-panel {
+  background: var(--surface-raised);
+}
+
+.evidence-summary-panel {
+  display: grid;
+  gap: 10px;
 }
 
 .readiness {
@@ -144,6 +182,7 @@ label {
   border: 1px solid #d6dde2;
   border-radius: 6px;
   min-height: 58px;
+  min-width: 0;
   padding: 8px;
 }
 
@@ -173,6 +212,26 @@ label {
   display: grid;
   gap: 8px;
   padding: 10px;
+}
+
+.status-chip,
+.evidence-badge {
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  max-width: 100%;
+  min-height: 24px;
+  overflow-wrap: anywhere;
+  padding: 4px 9px;
+}
+
+.evidence-badge {
+  border-radius: 6px;
+  display: block;
+  margin-top: 5px;
 }
 
 .task-pack-row header {
@@ -207,18 +266,19 @@ label {
   overflow-wrap: anywhere;
 }
 
-.metric-card.good {
-  border-color: #6aa879;
+.metric-card.good,
+.state-success {
+  border-color: var(--status-success);
   background: #f1f8f3;
 }
 
 .metric-card.visual-verification-passed {
-  border-color: #4f9462;
+  border-color: var(--status-success);
   background: #edf8f0;
 }
 
 .metric-card.visual-verification-failed {
-  border-color: #b65b5b;
+  border-color: var(--status-danger);
   background: #fff0f0;
 }
 
@@ -227,44 +287,59 @@ label {
   background: #fff2e7;
 }
 
-.metric-card.warn {
+.metric-card.warn,
+.state-warning {
   border-color: #d8aa54;
   background: #fff8ec;
 }
 
 .metric-card.matrix-outcome-completed,
 .visual-preview.matrix-outcome-completed,
-.task-pack-row.matrix-outcome-completed {
-  border-color: #4f9462;
+.task-pack-row.matrix-outcome-completed,
+.state-completed {
+  border-color: var(--status-success);
   background: #edf8f0;
 }
 
 .metric-card.matrix-outcome-partial,
 .visual-preview.matrix-outcome-partial,
-.task-pack-row.matrix-outcome-partial {
-  border-color: #b9993d;
+.task-pack-row.matrix-outcome-partial,
+.state-partial {
+  border-color: var(--status-warning);
   background: #fff8df;
 }
 
 .metric-card.matrix-outcome-stopped,
 .visual-preview.matrix-outcome-stopped,
-.task-pack-row.matrix-outcome-stopped {
+.task-pack-row.matrix-outcome-stopped,
+.state-stopped,
+.state-preview {
   border-color: #c77c3a;
   background: #fff2e7;
 }
 
 .metric-card.matrix-outcome-failed,
 .visual-preview.matrix-outcome-failed,
-.task-pack-row.matrix-outcome-failed {
-  border-color: #b65b5b;
+.task-pack-row.matrix-outcome-failed,
+.state-failed,
+.state-danger {
+  border-color: var(--status-danger);
   background: #fff0f0;
 }
 
 .metric-card.matrix-outcome-blocked,
 .visual-preview.matrix-outcome-blocked,
-.task-pack-row.matrix-outcome-blocked {
-  border-color: #6f7c86;
+.task-pack-row.matrix-outcome-blocked,
+.state-blocked,
+.state-confirmation-required,
+.state-clarification-required {
+  border-color: var(--status-blocked);
   background: #f0f3f5;
+}
+
+.state-private {
+  border-color: var(--status-private);
+  background: #f0f4ff;
 }
 
 .visual-result-panel {
@@ -415,7 +490,7 @@ label {
 }
 
 textarea {
-  border: 1px solid #9aa8b1;
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
   display: block;
   min-height: 104px;
@@ -430,7 +505,7 @@ input[type="file"] {
 }
 
 select {
-  border: 1px solid #9aa8b1;
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
   min-height: 38px;
   padding: 0 10px;
@@ -438,7 +513,7 @@ select {
 }
 
 pre {
-  background: #f1f4f6;
+  background: var(--surface-muted);
   border-radius: 6px;
   margin: 0;
   min-height: 128px;
@@ -446,6 +521,25 @@ pre {
   padding: 12px;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
 }
 
 ol {
@@ -470,29 +564,34 @@ ol {
     padding: 16px;
   }
 
-	  .toolbar,
-	  .console-grid,
-	  .advanced-grid,
-	  .readiness-grid,
-	  .metric-grid,
-	  .visual-meta,
-	  .visual-steps,
-	  .task-pack-grid,
-	  .task-pack-row dl {
-	    display: block;
-	  }
+  .readiness {
+    max-height: min(400px, calc(100vh - 350px));
+    overflow: auto;
+  }
+
+  .toolbar,
+  .console-grid,
+  .advanced-grid,
+  .readiness-grid,
+  .metric-grid,
+  .visual-meta,
+  .visual-steps,
+  .task-pack-grid,
+  .task-pack-row dl {
+    display: block;
+  }
 
   .actions,
   .primary-actions,
   .run-actions,
   .upload-strip,
-	  .panel,
-	  .metric-card,
-	  .readiness-item,
-	  .visual-meta span,
-	  .visual-step {
-	    margin-top: 10px;
-	  }
+  .panel,
+  .metric-card,
+  .readiness-item,
+  .visual-meta span,
+  .visual-step {
+    margin-top: 10px;
+  }
 
   .primary-actions,
   .run-actions,

@@ -53,8 +53,62 @@ def test_operator_console_uses_versioned_static_assets_to_avoid_stale_js_cache(t
 
     html = client.get("/").text
 
-    assert 'href="/static/styles.css?v=console-v5-20260601"' in html
-    assert 'src="/static/app.js?v=console-v5-20260601"' in html
+    assert 'href="/static/styles.css?v=console-v6-20260601"' in html
+    assert 'src="/static/app.js?v=console-v6-20260601"' in html
+
+
+def test_operator_console_uses_operations_dashboard_hierarchy(tmp_path):
+    client = TestClient(create_app(runtime_dir=tmp_path))
+
+    html = client.get("/").text
+
+    command_index = html.index('class="panel command-panel')
+    advanced_index = html.index('id="advancedControls"')
+    raw_trace_index = html.index("Raw trace JSON")
+
+    assert '<main class="shell operations-dashboard">' in html
+    assert 'class="panel command-panel primary-workflow"' in html
+    assert 'class="panel route-panel evidence-summary-panel"' in html
+    assert 'class="panel evidence-panel evidence-summary-panel"' in html
+    assert 'class="panel secondary-panel transcript-panel"' in html
+    assert 'class="panel secondary-panel normalized-panel"' in html
+    assert 'class="panel secondary-panel timeline-panel"' in html
+    assert 'class="panel advanced-panel secondary-panel"' in html
+    assert 'class="panel wide raw-trace-panel secondary-panel"' in html
+    assert command_index < advanced_index < raw_trace_index
+
+
+def test_operator_console_css_defines_operations_tokens_and_accessible_states():
+    styles = (
+        __import__("pathlib")
+        .Path(__file__)
+        .resolve()
+        .parents[1]
+        / "src/voice_browser_agent/static/styles.css"
+    ).read_text(encoding="utf-8")
+
+    assert "--surface-panel" in styles
+    assert "--status-success" in styles
+    assert "--status-warning" in styles
+    assert "--status-danger" in styles
+    assert "--status-private" in styles
+    assert ".operations-dashboard" in styles
+    assert ".primary-workflow" in styles
+    assert ".secondary-panel" in styles
+    assert ".status-chip" in styles
+    assert ".evidence-badge" in styles
+    assert ".state-success" in styles
+    assert ".state-private" in styles
+    assert ".state-blocked" in styles
+    assert ".state-preview" in styles
+    assert ":focus-visible" in styles
+    assert "@media (prefers-reduced-motion: reduce)" in styles
+    assert "overflow-wrap: anywhere" in styles
+    assert "minmax(0, 1fr)" in styles
+    assert "max-width: 100%" in styles
+    assert ".readiness {" in styles
+    assert "overflow: auto;" in styles
+    assert "max-height: min(400px, calc(100vh - 350px));" in styles
 
 
 def test_operator_console_javascript_posts_fixture_replay_endpoint():
@@ -240,6 +294,72 @@ def test_operator_console_javascript_renders_visual_verification_without_success
     assert ".visual-verification-passed" in styles
     assert ".visual-verification-failed" in styles
     assert ".visual-verification-uncertain" in styles
+
+
+def test_operator_console_javascript_renders_semantic_text_and_state_classes():
+    app_js = (
+        __import__("pathlib")
+        .Path(__file__)
+        .resolve()
+        .parents[1]
+        / "src/voice_browser_agent/static/app.js"
+    ).read_text(encoding="utf-8")
+
+    assert "semanticStateClass" in app_js
+    assert "status-chip" in app_js
+    assert "evidence-badge" in app_js
+    assert "state-success" in app_js
+    assert "state-partial" in app_js
+    assert "state-stopped" in app_js
+    assert "state-failed" in app_js
+    assert "state-blocked" in app_js
+    assert "state-confirmation-required" in app_js
+    assert "state-clarification-required" in app_js
+    assert "state-preview" in app_js
+    assert "state-private" in app_js
+    assert "Local/private" in app_js
+    assert "Sanitizer pending" in app_js
+    assert "Public-safe export" in app_js
+    assert "Completed state" in app_js
+    assert "Preview-only or local/private evidence is not a completed live execution." in app_js
+
+
+def test_operator_console_javascript_reserves_live_execution_claim_for_trace_summary():
+    app_js = (
+        __import__("pathlib")
+        .Path(__file__)
+        .resolve()
+        .parents[1]
+        / "src/voice_browser_agent/static/app.js"
+    ).read_text(encoding="utf-8")
+    semantic_label_body = app_js.split("function semanticStateLabel", 1)[1].split(
+        "function liveExecutionSummary",
+        1,
+    )[0]
+    live_summary_body = app_js.split("function liveExecutionSummary", 1)[1].split(
+        "function visualVerificationSteps",
+        1,
+    )[0]
+
+    assert "Completed live execution" not in semantic_label_body
+    assert 'if (normalized === "completed") return "Completed state";' in semantic_label_body
+    assert "Completed live execution" in live_summary_body
+    assert 'outcome === "completed"' in live_summary_body
+    assert 'trace.final_status === "succeeded"' in live_summary_body
+
+
+def test_operator_console_javascript_keeps_public_safe_privacy_visually_successful():
+    app_js = (
+        __import__("pathlib")
+        .Path(__file__)
+        .resolve()
+        .parents[1]
+        / "src/voice_browser_agent/static/app.js"
+    ).read_text(encoding="utf-8")
+
+    assert 'if (state === "public_safe") return "state-success";' in app_js
+    assert 'field.includes("privacy")) return "state-private"' not in app_js
+    assert 'return "Public-safe evidence";' in app_js
 
 
 def test_operator_console_javascript_gates_status_voice_feedback():

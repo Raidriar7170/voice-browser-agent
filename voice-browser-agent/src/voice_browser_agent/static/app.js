@@ -28,7 +28,13 @@ function setCards(id, cards) {
     .map(
       ([label, value, tone = ""]) => {
         const safeTone = String(tone || "").replace(/[^a-z0-9_-]/gi, "");
-        return `<div class="metric-card ${safeTone}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || "n/a")}</strong></div>`;
+        const stateClass = semanticStateClass(value, label);
+        const stateLabel = semanticStateLabel(label, value);
+        return `<div class="metric-card ${safeTone} ${stateClass}"><span>${escapeHtml(
+          label,
+        )}</span><strong>${escapeHtml(value || "n/a")}</strong><em class="status-chip evidence-badge ${stateClass}">${escapeHtml(
+          stateLabel,
+        )}</em></div>`;
       },
     )
     .join("");
@@ -56,6 +62,51 @@ function visualVerificationOutcomeClass(outcome) {
     uncertain: "visual-verification-uncertain",
   };
   return classes[outcome] || "warn";
+}
+
+function semanticStateClass(value, label = "") {
+  const state = String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const field = String(label || "").toLowerCase();
+  if (!state || state === "n_a" || state === "none" || state === "unknown") return "";
+  if (state === "public_safe") return "state-success";
+  if (state.includes("local_private") || state.includes("private")) return "state-private";
+  if (field.includes("privacy") && (state.includes("pending") || state.includes("required"))) return "state-private";
+  if (state.includes("demo_preview") || state.includes("preview")) return "state-preview";
+  if (state.includes("confirmation")) return "state-confirmation-required";
+  if (state.includes("clarification")) return "state-clarification-required";
+  if (["completed", "succeeded", "success", "passed", "ready", "configured", "accepted"].includes(state)) {
+    return "state-success";
+  }
+  if (state.includes("partial")) return "state-partial";
+  if (state.includes("stopped")) return "state-stopped";
+  if (state.includes("failed") || state.includes("error") || state.includes("unavailable")) return "state-failed";
+  if (state.includes("blocked") || state.includes("missing")) return "state-blocked";
+  if (state.includes("pending") || state.includes("required")) return "state-private";
+  return "state-warning";
+}
+
+function semanticStateLabel(label, value) {
+  const field = String(label || "").toLowerCase();
+  const state = String(value || "n/a");
+  const normalized = state.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  if (field.includes("privacy") && normalized.includes("local_private")) return "Local/private";
+  if (field.includes("privacy") && normalized.includes("public_safe")) return "Public-safe evidence";
+  if (field.includes("sanitizer") && normalized.includes("pending")) return "Sanitizer pending";
+  if (field.includes("export") && normalized.includes("public_safe")) return "Public-safe export";
+  if (normalized === "completed") return "Completed state";
+  if (normalized.includes("demo_preview") || normalized.includes("preview")) return "Preview-only";
+  return state;
+}
+
+function liveExecutionSummary(trace) {
+  const route = trace.route_decision || trace.execution_runtime?.route_decision || {};
+  const matrix = matrixRowForTrace(trace);
+  const outcome = matrix.outcome || trace.execution_runtime?.public_completion_state || route.public_completion_state;
+  const isLive = route.route_type === "public_readonly" || trace.execution_mode === "live_public_readonly";
+  if (isLive && outcome === "completed" && trace.final_status === "succeeded") {
+    return "Completed live execution";
+  }
+  return "Preview-only or local/private evidence is not a completed live execution.";
 }
 
 function visualVerificationSteps(trace) {
@@ -204,6 +255,7 @@ function renderSummary(trace) {
     lines.push(`Confirmation state: ${trace.confirmation_decision.state}`);
     lines.push(`Confirmation reason: ${trace.confirmation_decision.reason}`);
   }
+  lines.push(`Execution proof: ${liveExecutionSummary(trace)}`);
   $("summaryPanel").textContent = `${lines.join("\n")}\n\nRaw trace JSON remains below for audit.`;
 }
 
@@ -237,9 +289,21 @@ function renderRoute(trace) {
     ["Criteria proof", criteriaSummary.length ? criteriaSummary.join(", ") : "n/a"],
     ["Outcome", outcome || "n/a", matrixOutcomeClass(outcome)],
     ["Completion", trace.execution_runtime?.public_completion_state || route.public_completion_state || "n/a", matrixOutcomeClass(outcome)],
-    ["Privacy", route.evidence_privacy_state || trace.evidence_privacy_state || "n/a"],
-    ["Sanitizer", route.sanitizer_status || trace.sanitizer_status || "n/a"],
-    ["Export", matrix.export_state || route.public_evidence_export_state || "n/a"],
+    [
+      "Privacy",
+      route.evidence_privacy_state || trace.evidence_privacy_state || "n/a",
+      semanticStateClass(route.evidence_privacy_state || trace.evidence_privacy_state, "privacy"),
+    ],
+    [
+      "Sanitizer",
+      route.sanitizer_status || trace.sanitizer_status || "n/a",
+      semanticStateClass(route.sanitizer_status || trace.sanitizer_status, "sanitizer"),
+    ],
+    [
+      "Export",
+      matrix.export_state || route.public_evidence_export_state || "n/a",
+      semanticStateClass(matrix.export_state || route.public_evidence_export_state, "export"),
+    ],
     ["Limits", limits.max_steps ? `${limits.max_steps} steps / ${limits.timeout_seconds}s` : "n/a"],
   ]);
   $("routeMessage").textContent = route.user_message || route.route_reason || "No route decision recorded.";
@@ -285,9 +349,21 @@ function renderEvidence(trace) {
     ["Observed proof", Object.keys(observedProof).length ? Object.keys(observedProof).join(", ") : "none"],
     ["Unmet criteria", unmetCriteria.length ? unmetCriteria.join(", ") : "none"],
     ["Visible result", matrix.visible_result_state || "n/a"],
-    ["Export state", matrix.export_state || route.public_evidence_export_state || "n/a"],
-    ["Trace privacy", trace.evidence_privacy_state || route.evidence_privacy_state || "n/a"],
-    ["Sanitizer", trace.sanitizer_status || route.sanitizer_status || "n/a"],
+    [
+      "Export state",
+      matrix.export_state || route.public_evidence_export_state || "n/a",
+      semanticStateClass(matrix.export_state || route.public_evidence_export_state, "export"),
+    ],
+    [
+      "Trace privacy",
+      trace.evidence_privacy_state || route.evidence_privacy_state || "n/a",
+      semanticStateClass(trace.evidence_privacy_state || route.evidence_privacy_state, "privacy"),
+    ],
+    [
+      "Sanitizer",
+      trace.sanitizer_status || route.sanitizer_status || "n/a",
+      semanticStateClass(trace.sanitizer_status || route.sanitizer_status, "sanitizer"),
+    ],
   ]);
 }
 

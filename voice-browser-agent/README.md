@@ -6,7 +6,7 @@ This is a scoped demo application project, not a `browser-use-vision` voice exte
 
 ## Project Status
 
-Status: final local MVP complete, with the 2026-05-30 closeout archived in `openspec/changes/archive/2026-05-30-final-project-completion-audit/` and the 2026-06-01 reliability gate archived in `openspec/changes/archive/2026-06-01-ci-backed-reliability-evidence-gate/`.
+Status: final local MVP complete, with the 2026-05-30 closeout archived in `openspec/changes/archive/2026-05-30-final-project-completion-audit/`, the 2026-06-01 reliability gate archived in `openspec/changes/archive/2026-06-01-ci-backed-reliability-evidence-gate/`, and the 2026-06-01 Operator Console UI polish archived in `openspec/changes/archive/2026-06-01-polish-operator-console-ui/`.
 
 Closeout validation:
 
@@ -187,7 +187,13 @@ This is local adaptation-readiness evidence for structured Speech-to-Task behavi
 
 ## Operator Console Demo Flow
 
-Use the console as a command-first operator workflow:
+Use the console as a command-first operator workflow. The current layout keeps
+real-use readiness, command input, audio transcript review, route decision,
+visible result, execution evidence, timeline, export/privacy state, and raw trace
+inspection in that order so reviewers can understand a run without opening JSON
+first.
+
+![Polished Operator Console](../docs/human-briefs/assets/2026-06-01-polish-operator-console-ui-after-desktop.png)
 
 - Primary command: type a short spoken-command transcript and run it. The backend selects a route, shows whether it is controlled live or preview-only, and records the route decision in the trace.
 - Reviewed audio: upload or record one command, review the ASR transcript, edit it if needed, then run the same route-aware execution path while preserving ASR provenance.
@@ -198,4 +204,4 @@ Use the console as a command-first operator workflow:
 - Latest task-pack run: readiness and the console can show the most recent local/private task-pack runner manifest, including runner mode, selected task count, outcome counts, sanitizer state, and row-level proof without exposing raw public runtime artifacts.
 - Advanced replay: fixture selection, execution-mode override, raw trace JSON, and sanitized export remain available for reproducibility and debugging.
 
-Use `demo_preview` for public showcase tasks unless they have an explicit controlled local route. Use `live_controlled` only for configured controlled pages, such as icon search, color swatch, SVG dashboard, and the controlled GitHub-like showcase. Use `live_public_readonly` only for allowlisted public documentation, reference, package metadata, release notes, or GitHub public repository search/read tasks where every action is read-only and local/private evidence remains private-by-default until sanitizer approval. This is a bounded public-readonly lane, not a broad public-web autonomy claim. Clarification examples should stop before browser execution, confirmation examples should show the operator prompt before continuing, and exported traces must remain sanitized.
+Use `demo_preview` for public showcase tasks unless they have an explicit controlled local route. Use `live_controlled` only for configured controlled pages, such as icon search, color swatch, SVG dashboard, and the controlled GitHub-like showcase. Use `live_public_readonly` only for allowlisted public documentation, reference, package metadata, release notes, or GitHub public repository search/read tasks where every action is read-only and local/private evidence remains private-by-default until sanitizer approval. This is a bounded public-readonly lane, not a broad public-web autonomy claim. Clarification examples should stop before browser execution, confirmation examples should show the operator prompt before continuing, and exported traces must remain sanitized. The UI polish is documented in `../docs/human-briefs/2026-06-01-polish-operator-console-ui.html`; it improves presentation and reviewability without changing ASR, normalizer, route selection, browser execution, trace schema, sanitizer, or public-readonly policy.

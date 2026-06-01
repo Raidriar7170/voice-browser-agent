@@ -4,10 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Voice-to-Browser Agent</title>
-    <link rel="stylesheet" href="/static/styles.css?v=console-v5-20260601" />
+    <link rel="stylesheet" href="/static/styles.css?v=console-v6-20260601" />
   </head>
   <body>
-    <main class="shell">
+    <main class="shell operations-dashboard">
       <section class="toolbar">
         <div>
           <h1>Voice-to-Browser Agent</h1>
@@ -25,7 +25,7 @@
       </section>
 
       <section class="console-grid">
-        <section class="panel command-panel">
+        <section class="panel command-panel primary-workflow">
           <div class="section-heading">
             <h2>Command</h2>
             <span id="uploadStatus" class="status">Idle</span>
@@ -62,7 +62,7 @@
           </div>
         </section>
 
-        <section id="routePanel" class="panel route-panel">
+        <section id="routePanel" class="panel route-panel evidence-summary-panel">
           <h2>Route Decision</h2>
           <div id="routeCards" class="metric-grid"></div>
           <p id="routeMessage" class="hint">No command has been routed yet.</p>
@@ -75,13 +75,13 @@
           <div id="visualStepTimeline" class="visual-steps"></div>
         </section>
 
-        <section id="evidencePanel" class="panel evidence-panel">
+        <section id="evidencePanel" class="panel evidence-panel evidence-summary-panel">
           <h2>Execution Evidence</h2>
           <div id="evidenceCards" class="metric-grid"></div>
           <pre id="summaryPanel"></pre>
         </section>
 
-        <details id="advancedControls" class="panel advanced-panel">
+        <details id="advancedControls" class="panel advanced-panel secondary-panel">
           <summary>Advanced Replay</summary>
           <div class="advanced-grid">
             <label>
@@ -109,17 +109,17 @@
           </div>
         </details>
 
-        <section class="panel">
+        <section class="panel secondary-panel transcript-panel">
           <h2>Transcript</h2>
           <pre id="transcriptPanel"></pre>
         </section>
 
-        <section class="panel">
+        <section class="panel secondary-panel normalized-panel">
           <h2>Normalized Request</h2>
           <pre id="normalizedPanel"></pre>
         </section>
 
-        <section class="panel">
+        <section class="panel secondary-panel timeline-panel">
           <h2>Timeline</h2>
           <ol id="timeline"></ol>
           <div id="confirmation" class="confirmation hidden">
@@ -129,12 +129,12 @@
           </div>
         </section>
 
-        <details class="panel wide">
+        <details class="panel wide raw-trace-panel secondary-panel">
           <summary>Raw trace JSON</summary>
           <pre id="tracePanel"></pre>
         </details>
       </section>
     </main>
-    <script src="/static/app.js?v=console-v5-20260601"></script>
+    <script src="/static/app.js?v=console-v6-20260601"></script>
   </body>
 </html>

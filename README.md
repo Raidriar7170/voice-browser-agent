@@ -34,6 +34,7 @@ Latest closeout state:
 | Item | Status |
 |---|---|
 | OpenSpec lifecycle | Closeout archived; reliability gate archived on 2026-06-01 |
+| Operator Console UI | Operations-dashboard polish archived on 2026-06-01 |
 | Front Door CI | `.github/workflows/front-door.yml` checks the public entry surface |
 | Reliability CI | `.github/workflows/reliability.yml` runs OpenSpec strict validation and a CI-safe pytest subset |
 | Local tests | Re-run `uv run pytest` for the full local project suite |
@@ -46,6 +47,7 @@ Latest closeout state:
 - [Project Positioning / 项目定位](#project-positioning--项目定位)
 - [Architecture / 系统架构](#architecture--系统架构)
 - [What Is Implemented / 已实现内容](#what-is-implemented--已实现内容)
+- [Operator Console / 操作台体验](#operator-console--操作台体验)
 - [Evidence Boundary / 证据边界](#evidence-boundary--证据边界)
 - [Quick Start / 快速开始](#quick-start--快速开始)
 - [CI And Local Evidence Boundary / CI 与本地证据边界](#ci-and-local-evidence-boundary--ci-与本地证据边界)
@@ -127,6 +129,29 @@ Key design choices:
 | Visual Verification | Deterministic controlled-task verification with pass/fail/uncertain outcomes and recovery/stop decisions |
 | Evidence Pack | Sanitized fixtures, public evidence HTML, release-pack builder, and machine-readable manifests |
 | Speech-to-Task Preparation | Trace-derived seed examples, evaluation splits, and candidate-output evaluation harness |
+
+## Operator Console / 操作台体验
+
+The current local Operator Console is organized as an operations dashboard rather
+than a raw debug page: command input and reviewed audio stay first, readiness and
+route decisions are visible near the action, evidence/result panels summarize the
+run before raw trace JSON, and advanced replay remains secondary.
+
+![Operator Console desktop screenshot](docs/human-briefs/assets/2026-06-01-polish-operator-console-ui-after-desktop.png)
+
+Use it from top to bottom:
+
+1. Start the local FastAPI app and open the console.
+2. Check real-use readiness before uploaded or recorded audio.
+3. Run a typed command, or upload/record audio and review the ASR transcript.
+4. Inspect route decision, visible result, execution evidence, timeline, and
+   export/privacy state before opening raw trace JSON.
+
+The UI polish is a presentation and reviewability improvement. It does not widen
+the execution policy: public-readonly traces, task-pack rows, visual artifacts,
+and exports remain local/private unless sanitizer approval is explicit. The
+archived change brief is
+[`docs/human-briefs/2026-06-01-polish-operator-console-ui.html`](docs/human-briefs/2026-06-01-polish-operator-console-ui.html).
 
 ## Evidence Boundary / 证据边界
 
@@ -227,7 +252,9 @@ manifests. It is not committed raw evidence.
 | [`voice-browser-agent/fixtures/traces/real-vision-sanitized/`](voice-browser-agent/fixtures/traces/real-vision-sanitized/) | Real `browser-use-vision` controlled trace metadata |
 | [`voice-browser-agent/fixtures/traces/real-voice-sanitized/`](voice-browser-agent/fixtures/traces/real-voice-sanitized/) | Real voice controlled smoke trace |
 | [`voice-browser-agent/fixtures/traces/real-use-sanitized/`](voice-browser-agent/fixtures/traces/real-use-sanitized/) | Failure and operator-decision traces |
+| [`docs/human-briefs/2026-06-01-polish-operator-console-ui.html`](docs/human-briefs/2026-06-01-polish-operator-console-ui.html) | Human review brief and screenshots for the polished Operator Console |
 | [`openspec/changes/archive/2026-05-30-final-project-completion-audit/`](openspec/changes/archive/2026-05-30-final-project-completion-audit/) | Final project completion audit archive |
+| [`openspec/changes/archive/2026-06-01-polish-operator-console-ui/`](openspec/changes/archive/2026-06-01-polish-operator-console-ui/) | Archived OpenSpec change for the Operator Console UI polish |
 
 Build a local reviewer release pack from committed evidence:
 

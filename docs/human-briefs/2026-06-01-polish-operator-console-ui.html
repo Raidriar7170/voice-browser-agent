@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Polish Operator Console UI Human Brief</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #172026;
+        --muted: #53636d;
+        --line: #d8e0e7;
+        --panel: #f6f8fa;
+        --accent: #0f766e;
+        --warn: #b7791f;
+      }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--ink);
+        background: #ffffff;
+      }
+      main {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 32px 20px 48px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+        letter-spacing: 0;
+      }
+      h2 {
+        margin: 28px 0 10px;
+        font-size: 18px;
+      }
+      p {
+        line-height: 1.6;
+      }
+      .lead {
+        color: var(--muted);
+        font-size: 16px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 14px;
+        background: var(--panel);
+      }
+      .label {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .value {
+        margin-top: 6px;
+        font-size: 20px;
+        font-weight: 700;
+      }
+      .warn {
+        color: var(--warn);
+      }
+      code {
+        background: #edf2f6;
+        border-radius: 4px;
+        padding: 2px 5px;
+      }
+      ul {
+        padding-left: 20px;
+      }
+      li {
+        margin: 7px 0;
+      }
+      a {
+        color: var(--accent);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Polish Operator Console UI</h1>
+      <p class="lead">
+        结论：本阶段已完成并归档 Operator Console UI polish，把原本偏调试页的本地控制台升级为更清晰、可审计、移动端可用的 operations dashboard，同时保留 local/private 和 sanitizer 边界。
+      </p>
+
+      <section class="grid" aria-label="status summary">
+        <div class="card">
+          <div class="label">当前状态</div>
+          <div class="value">Archived</div>
+        </div>
+        <div class="card">
+          <div class="label">OpenSpec tasks</div>
+          <div class="value">16/16 complete</div>
+        </div>
+        <div class="card">
+          <div class="label">Full pytest</div>
+          <div class="value">280 passed</div>
+        </div>
+        <div class="card">
+          <div class="label">Browser QA</div>
+          <div class="value">Desktop + Mobile</div>
+        </div>
+      </section>
+
+      <h2>本阶段改了什么</h2>
+      <ul>
+        <li>保留静态 HTML/CSS/JS 架构和现有 DOM ids，只更新本地控制台的层级、样式 token、状态 chip/badge、focus state 和响应式约束。</li>
+        <li>把 command/audio review 保持为主流程，Advanced Replay、task-pack rows、normalized JSON、raw trace JSON 继续作为次级可审计区域。</li>
+        <li>为 outcome、privacy、sanitizer、export、preview/local/private 等状态增加显式文字和语义 class，避免把 partial/stopped/failed/blocked/preview-only 画成成功 live execution。</li>
+        <li>移动端给 readiness evidence 增加受控滚动，避免 task-pack/readiness 动态内容把命令输入完全推到首屏之外。</li>
+        <li>更新静态资源 cache version 到 <code>console-v6-20260601</code>，防止旧 CSS/JS 缓存误导检查。</li>
+      </ul>
+
+      <h2>关键文件</h2>
+      <ul>
+        <li><a href="../../openspec/changes/archive/2026-06-01-polish-operator-console-ui/proposal.md">proposal.md</a></li>
+        <li><a href="../../openspec/changes/archive/2026-06-01-polish-operator-console-ui/design.md">design.md</a></li>
+        <li><a href="../../openspec/changes/archive/2026-06-01-polish-operator-console-ui/specs/operator-console/spec.md">operator-console spec delta</a></li>
+        <li><a href="../../openspec/changes/archive/2026-06-01-polish-operator-console-ui/tasks.md">tasks.md</a></li>
+        <li><a href="../../openspec/specs/operator-console/spec.md">synced operator-console spec</a></li>
+        <li><a href="../../voice-browser-agent/src/voice_browser_agent/static/index.html">static/index.html</a></li>
+        <li><a href="../../voice-browser-agent/src/voice_browser_agent/static/styles.css">static/styles.css</a></li>
+        <li><a href="../../voice-browser-agent/src/voice_browser_agent/static/app.js">static/app.js</a></li>
+        <li><a href="../../voice-browser-agent/tests/test_operator_console_ui.py">test_operator_console_ui.py</a></li>
+        <li><a href="../../voice-browser-agent/tests/test_public_readonly_api_ui_evidence.py">test_public_readonly_api_ui_evidence.py</a></li>
+      </ul>
+
+      <h2>验证结果</h2>
+      <ul>
+        <li><code>uv run pytest tests/test_operator_console_ui.py tests/test_public_readonly_api_ui_evidence.py -q</code> -> 30 passed。</li>
+        <li><code>uv run pytest</code> -> 280 passed。</li>
+        <li>Apply check: <code>OPENSPEC_TELEMETRY=0 openspec validate --all --strict</code> -> 12 passed, 0 failed。</li>
+        <li>Post-archive check: <code>OPENSPEC_TELEMETRY=0 openspec validate --all --strict</code> -> 11 passed, 0 failed。</li>
+        <li><code>git diff --check</code> -> clean。</li>
+        <li>Browser QA：1280x900 和 390x844 均无 horizontal overflow；mobile readiness 为 controlled overflow；raw trace 仍是 disclosure。</li>
+      </ul>
+
+      <h2>证据和边界</h2>
+      <ul>
+        <li><a href="assets/2026-06-01-polish-operator-console-ui-baseline-desktop.png">baseline desktop screenshot</a></li>
+        <li><a href="assets/2026-06-01-polish-operator-console-ui-baseline-mobile.png">baseline mobile screenshot</a></li>
+        <li><a href="assets/2026-06-01-polish-operator-console-ui-after-desktop.png">after desktop screenshot</a></li>
+        <li><a href="assets/2026-06-01-polish-operator-console-ui-after-mobile.png">after mobile screenshot</a></li>
+        <li>本阶段没有改变 ASR、normalizer、route selection、browser execution、trace schema、sanitizer 或 public-readonly policy。</li>
+        <li>public-readonly、task-pack、visual artifact 和 raw trace 仍必须默认 local/private，除非 sanitizer 明确通过。</li>
+        <li>per-card <code>completed</code> 只标为 completed state；只有 trace-level summary 在 live public-readonly + completed + succeeded 同时成立时才声称 completed live execution。</li>
+      </ul>
+
+      <h2>剩余风险</h2>
+      <ul>
+        <li>UI polish 仍是静态控制台层面的改进，不代表新增 browser execution 能力或公开发布证据。</li>
+        <li>移动端 readiness 现在使用受控滚动，便于首屏看到命令输入；审查时仍应确认 scroll 区域内的 task-pack/readiness 细节可读。</li>
+        <li>截图验证是本地视觉 QA 证据，权威验证仍以 tests、OpenSpec strict validation 和 local evidence artifacts 为准。</li>
+      </ul>
+
+      <h2>推荐下一步</h2>
+      <p>本 change 已归档；推荐下一步是按需补 GitHub README/docs 展示层，然后 commit/push 本阶段变更。</p>
+    </main>
+  </body>
+</html>
