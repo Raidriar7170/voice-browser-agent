@@ -36,6 +36,26 @@ uv run python scripts/preflight_real_use.py
 
 The preflight reports primary ASR, fallback ASR, Playwright browser automation, real `browser-use-vision` grounding, visual verifier readiness, and runtime privacy status without exposing local runtime paths.
 
+## Minimal Reviewer Path
+
+Use this path when an external reviewer wants to verify the evidence surface
+without real audio, provider credentials, live public browsing, model training,
+or a full `browser-use-vision` live runtime.
+
+```bash
+git clone https://github.com/Raidriar7170/voice-browser-agent.git
+cd voice-browser-agent/voice-browser-agent
+uv sync --extra dev
+uv run python scripts/run_public_readonly_task_pack.py --all --mode deterministic
+uv run python scripts/build_demo_evidence_pack.py
+```
+
+Review `runtime/demo-evidence-release-pack/index.html` for a browser-readable
+summary, or inspect `runtime/demo-evidence-release-pack/manifest.json` for the
+machine-readable manifest. The generated `runtime/` directory is local/private;
+public repo evidence stays limited to committed sanitized fixtures, docs,
+OpenSpec archives, and Human Brief screenshots.
+
 ## CI and Local Evidence Boundary
 
 GitHub Actions has two separate gates:

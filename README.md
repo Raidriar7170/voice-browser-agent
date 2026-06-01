@@ -50,6 +50,7 @@ Latest closeout state:
 - [Operator Console / 操作台体验](#operator-console--操作台体验)
 - [Evidence Boundary / 证据边界](#evidence-boundary--证据边界)
 - [Quick Start / 快速开始](#quick-start--快速开始)
+- [Minimal Reviewer Path / 最小复核路径](#minimal-reviewer-path--最小复核路径)
 - [CI And Local Evidence Boundary / CI 与本地证据边界](#ci-and-local-evidence-boundary--ci-与本地证据边界)
 - [Evidence Map / 证据地图](#evidence-map--证据地图)
 - [Validation / 验证](#validation--验证)
@@ -208,6 +209,25 @@ uv run python scripts/preflight_real_use.py
 For the full runtime details, environment variables, public-readonly setup, and
 evidence-pack commands, see
 [`voice-browser-agent/README.md`](voice-browser-agent/README.md).
+
+## Minimal Reviewer Path / 最小复核路径
+
+For a quick external review, use the deterministic evidence path first. It does
+not require real audio, provider credentials, live public browsing, model
+training, or a full `browser-use-vision` live runtime.
+
+```bash
+git clone https://github.com/Raidriar7170/voice-browser-agent.git
+cd voice-browser-agent/voice-browser-agent
+uv sync --extra dev
+uv run python scripts/run_public_readonly_task_pack.py --all --mode deterministic
+uv run python scripts/build_demo_evidence_pack.py
+```
+
+Then inspect `runtime/demo-evidence-release-pack/index.html` or
+`runtime/demo-evidence-release-pack/manifest.json`. These generated `runtime/`
+outputs stay local/private; committed public evidence remains the sanitized
+fixtures, docs, OpenSpec archives, and Human Brief links in this README.
 
 ## CI And Local Evidence Boundary / CI 与本地证据边界
 
